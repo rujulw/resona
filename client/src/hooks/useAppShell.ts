@@ -25,6 +25,8 @@ export function useAppShell() {
   const playbackRequestIdRef = useRef(0);
   const tracksRequestIdRef = useRef(0);
   const trackCatalogRef = useRef(new Map<string, TrackListItem>());
+  const playbackQueueTrackIdsRef = useRef<string[]>([]);
+  const activeTrackIdRef = useRef<string | null>(null);
   const [bootstrapState, setBootstrapState] = useState<BootstrapState>({
     status: "loading",
   });
@@ -48,6 +50,14 @@ export function useAppShell() {
     sortDirection: "asc",
   });
   const [playbackQueueTrackIds, setPlaybackQueueTrackIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    playbackQueueTrackIdsRef.current = playbackQueueTrackIds;
+  }, [playbackQueueTrackIds]);
+
+  useEffect(() => {
+    activeTrackIdRef.current = shellState?.playback.trackId ?? tracksState.selectedTrackId;
+  }, [shellState?.playback.trackId, tracksState.selectedTrackId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -154,6 +164,23 @@ export function useAppShell() {
     };
 
     const handleEnded = () => {
+      const activeTrackId = activeTrackIdRef.current;
+      const activeIndex = activeTrackId
+        ? playbackQueueTrackIdsRef.current.findIndex((trackId) => trackId === activeTrackId)
+        : -1;
+      const nextTrackId =
+        activeIndex >= 0
+          ? playbackQueueTrackIdsRef.current[activeIndex + 1]
+          : undefined;
+      const nextTrack = nextTrackId
+        ? trackCatalogRef.current.get(nextTrackId)
+        : undefined;
+
+      if (nextTrack) {
+        startTrackPlayback(nextTrack, true);
+        return;
+      }
+
       syncPlayback((existing) => ({
         ...existing,
         statusLabel: existing.trackTitle ? "Ended" : existing.statusLabel,

@@ -525,6 +525,32 @@ describe("app shell smoke checks", () => {
     });
   });
 
+  it("autoplays the next queued track when the active track finishes", async () => {
+    window.history.replaceState({}, "", "/tracks");
+
+    const { default: App } = await import("./App");
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Select Alpha" }));
+
+    await waitFor(() => {
+      expect(resolveTrackPlaybackSourceMock).toHaveBeenCalledWith("track-1");
+      expect(screen.getByRole("button", { name: "Pause playback" })).toBeTruthy();
+    });
+
+    const [firstAudio] = mockAudioInstances;
+    firstAudio.emitLoadedMetadata(182);
+    firstAudio.emitTimeUpdate(182, 182);
+    firstAudio.ended = true;
+    firstAudio.dispatchEvent(new Event("ended"));
+
+    await waitFor(() => {
+      expect(resolveTrackPlaybackSourceMock).toHaveBeenCalledWith("track-2");
+      expect(screen.getAllByText("Bravo").length).toBeGreaterThan(0);
+      expect(screen.getByRole("button", { name: "Pause playback" })).toBeTruthy();
+    });
+  });
+
   it("derives queue state from the current selection and next-up order", async () => {
     window.history.replaceState({}, "", "/tracks");
 
