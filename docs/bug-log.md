@@ -38,3 +38,19 @@
   - `client/tsconfig.node.json`
 - Linked commit/PR: pending
 - Notes: fixing the toolchain mismatch early kept later desktop-shell commits focused on app behavior instead of build-system churn.
+
+## 2026-03-30 - Avoided deep-page slowdown from offset-based library pagination
+- Status: fixed
+- Severity: medium
+- Symptom: large-library browsing risked getting slower on deeper pages if pagination was implemented with growing SQL offsets or by loading and sorting broad result sets in application memory.
+- Root cause: the straightforward implementation path for search and sort was to issue offset-based queries or to hydrate a large result set and paginate after sorting, both of which scale poorly as the library grows.
+- Fix: implemented indexed query paths with cursor pagination, stable sort tie-breaks, and a whitelisted sort-key contract so page navigation stays bounded and predictable.
+- Verification: Rust tests cover paginated query behavior, `cargo test` passed for the query command, and `cargo check` passed with the indexed query migration applied.
+- Files touched:
+  - `server/db/migrations/0002_library_query_indexes.sql`
+  - `server/src/database/mod.rs`
+  - `server/src/database/schema.rs`
+  - `server/src/library/mod.rs`
+  - `server/src/lib.rs`
+- Linked commit/PR: pending
+- Notes: this fix is more about long-term performance posture than visible correctness, but it prevents library browsing from regressing as collection size and page depth increase.

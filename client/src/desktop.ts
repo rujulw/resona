@@ -36,6 +36,16 @@ export type ShellStatePayload = {
   playback: PlaybackShellState;
 };
 
+export type ScanSummary = {
+  libraryRootId: string;
+  libraryRootName: string;
+  rootPath: string;
+  discoveredTracks: number;
+  insertedTracks: number;
+  updatedTracks: number;
+  removedTracks: number;
+};
+
 const browserBootstrapPayload: BootstrapPayload = {
   appName: "resona",
   appVersion: "0.1.0",
@@ -101,4 +111,14 @@ export async function playbackAction(
 
     return browserShellStatePayload.playback;
   }
+}
+
+export async function scanLocalLibrary(
+  rootPath: string,
+  displayName?: string,
+): Promise<ScanSummary> {
+  return invoke<ScanSummary>("scan_local_library", {
+    rootPath,
+    displayName: displayName?.trim() ? displayName : null,
+  });
 }

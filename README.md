@@ -97,6 +97,7 @@ The local-library scanner is one of the main systems-oriented pieces in the MVP.
 - Track reconciliation uses a hash map keyed by relative path, so rescan diffing runs in near-linear time instead of degenerating into repeated nested comparisons.
 - Scan results are sorted deterministically before normalization and persistence, which keeps output stable for testing and debugging.
 - SQLite writes run inside a transaction so insert, update, cache-state initialization, and analysis-state initialization happen as one consistent batch.
+- Library browsing uses indexed sort paths and cursor pagination, which scales better than hydrating the entire library or paginating with large SQL offsets.
 
 In portfolio terms, the flex is not just "it scans folders." The interesting part is the combination of traversal strategy, normalization, stable ID generation, diff-based persistence, and bounded growth characteristics when the library gets large.
 

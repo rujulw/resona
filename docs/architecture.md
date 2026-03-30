@@ -77,6 +77,8 @@ That shape matters for both performance and clarity. The traversal is effectivel
 - Directory traversal grows with the number of visited directories and files rather than with the square of the library size.
 - Reconciliation cost is bounded by one pass over discovered files plus one pass over persisted rows for the selected library root.
 - The chosen schema stores `relative_path` under a library root instead of using raw absolute paths as the primary identity, which keeps comparison keys compact and UI-safe.
+- Cursor pagination avoids the linear row-skip cost that deep offset pagination accumulates over time.
+- Indexed query paths let SQLite perform ordered reads close to the stored data instead of forcing the application to load and sort the full library in memory.
 
 ### Source Providers
 
@@ -109,6 +111,17 @@ That shape matters for both performance and clarity. The traversal is effectivel
 - Uses SQLite for metadata, cache state, source references, and analysis outputs
 - Avoids large in-memory application state by serving paginated queries
 - Stores operational state needed for deterministic recovery and indexing
+
+### Query Layer Design
+
+Library browsing is handled as a database query problem rather than as an in-memory sorting problem in the UI or Rust service layer.
+
+- Sort keys are validated against a fixed whitelist
+- Search runs against normalized title, artist, and album fields
+- Ordering uses stable secondary tie-breaks on `id`
+- Pagination uses cursors instead of raw offsets
+
+This is the right tradeoff for `resona` because SQLite already provides ordered access through indexes. The application gains more by shaping the query path well than by re-implementing its own tree-based sort layer on top of persisted rows.
 
 ## Data Model Direction
 
@@ -146,6 +159,14 @@ That shape matters for both performance and clarity. The traversal is effectivel
 4. Metadata is parsed and matching Atlas objects are linked or queued for sync refresh
 5. Normalized records are stored in SQLite
 6. UI refreshes paginated views through Tauri
+
+### Library Query Flow
+
+1. UI requests a page with search text, sort key, direction, and optional cursor
+2. Rust validates the sort path against a fixed whitelist
+3. SQLite executes the search and sort using the available indexes
+4. Results are returned with a stable next-cursor token for the following page
+5. The client renders only the requested page instead of hydrating the full library
 
 ### Playback Resolution
 
