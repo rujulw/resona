@@ -35,6 +35,70 @@ The desktop UI provides library navigation, search, queue control, playback cont
 
 The Rust side owns media orchestration, metadata ingestion, source resolution, cache policy, playback state, and background analysis scheduling. Tauri exposes narrow command and event boundaries to the UI.
 
+## Rust Module Boundaries
+
+The current Rust structure is organized around service ownership rather than around one large application module.
+
+### `commands`
+
+- Owns the Tauri command boundary and command payload shapes
+- Translates UI-facing inputs into calls on library and database-backed services
+- Keeps desktop-shell state shaping separate from persistence and indexing logic
+
+### `library`
+
+- Owns local filesystem scan orchestration and normalized track ingestion
+- Owns query shaping for pagination, search, sort validation, and cursor handling
+- Keeps metadata normalization and library-domain models close to the scan/query flows that use them
+
+Current submodules:
+
+- `scanner`: recursive traversal, reconciliation, and transactional persistence
+- `normalization`: file discovery, MP3 filtering, metadata normalization, and stable identifiers
+- `query`: SQL shape generation, cursor encoding, sort helpers, and library result mapping
+- `models`: library-domain payloads, query inputs, and scan errors
+
+### `database`
+
+- Owns SQLite runtime setup, connection policy, and migration application
+- Keeps schema constants and persisted-state enums separate from boot/runtime concerns
+- Serves as the infrastructure layer consumed by library services rather than by the UI directly
+
+Current submodules:
+
+- `runtime`: database initialization, connection creation, and migration status reporting
+- `migration`: ordered migration declaration and application logic
+- `schema`: migration SQL includes, table-name constants, and enum-to-SQL value mapping
+
+## Service Ownership
+
+The backend is intentionally split so each layer has a clear responsibility boundary.
+
+### Tauri Command Layer
+
+- Lives in `commands`
+- Responsible for command registration, shell payload shaping, and command argument parsing
+- Should not absorb indexing algorithms, SQL construction, or filesystem traversal details
+
+### Library Service Layer
+
+- Lives in `library`
+- Responsible for local import, metadata normalization, reconciliation, and read/query behavior
+- Owns domain decisions like relative-path identity, cursor semantics, and sort-key validation
+
+### Persistence Infrastructure Layer
+
+- Lives in `database`
+- Responsible for SQLite lifecycle, migrations, and schema-level contracts
+- Should not take on desktop-shell concerns or library-domain orchestration
+
+### Why This Split Matters
+
+- Tauri command code can change with UI needs without destabilizing the scanner and query pipeline
+- Library logic can be tested directly without routing every case through a desktop command wrapper
+- Database boot and migration logic can evolve independently from library features
+- The structure is closer to production service encapsulation and avoids the early-branch `mod.rs` pileup
+
 ### fused timbre engine
 
 The analysis subsystem is expected to be fused in from the local `~/dev/timbre` project rather than rebuilt from scratch. resona should wrap that code behind a dedicated internal service boundary so upgrades from the upstream timbre codebase stay manageable.
@@ -205,4 +269,10 @@ This is the right tradeoff for `resona` because SQLite already provides ordered 
 
 The initial implementation should scaffold clear interfaces between library, cache, playback, and analysis subsystems before feature depth is added. The first key integration decisions are Atlas object linkage and the boundary used to fuse in `timbre` while keeping resona open source and independently buildable.
 
-The current Rust implementation keeps some early branch work concentrated in `mod.rs` files to move quickly while the shape is still changing. That is acceptable for a short-lived scaffold phase, but it is not the intended long-term structure. As the library branch matures, the code should be split into focused modules such as scanning, normalization, repositories, models, and commands, which is closer to the same encapsulation goals often taught in Java package design.
+The current Rust backend now reflects that direction more closely:
+
+- `commands` owns the Tauri-facing application boundary
+- `library` owns scan, normalization, and query services
+- `database` owns runtime setup, migrations, and schema contracts
+
+That separation is still early and can deepen further with repositories, playback services, and analysis services, but the code is no longer relying on one catch-all module per subsystem.
