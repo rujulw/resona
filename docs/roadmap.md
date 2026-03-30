@@ -9,8 +9,7 @@ resona aims to become a high-performance music system for private libraries, bal
 - Local music libraries can be imported through a folder picker and indexed recursively
 - Track metadata is persisted and queryable through SQLite
 - Users can search, browse, queue, and play tracks reliably
-- Atlas acts as the primary remote storage layer for the indexed library
-- Background timbre analysis produces useful track-level insights
+- The first public release stays local-first and open source
 - The application remains open source while integrating private user-controlled storage
 
 ## Milestone 1: Foundation
@@ -34,7 +33,6 @@ resona aims to become a high-performance music system for private libraries, bal
 - Define SQLite schema for tracks, sources, cache, and analysis
 - Implement local folder picker flow through Tauri
 - Implement recursive MP3 discovery for selected folders and nested directories
-- Link imported files to Atlas-backed identities where available
 - Add metadata normalization and pagination queries
 - Add search and sort capabilities for the main library view with indexed query paths and cursor-backed browsing
 - Split early `mod.rs` implementations into focused Rust modules once the scan and persistence interfaces stabilize
@@ -42,6 +40,9 @@ resona aims to become a high-performance music system for private libraries, bal
 
 Current milestone progress:
 - The `tracks` route now exposes inline search, header-driven sort cycling, and a continuous scrollable library view backed by cursor-based query stitching
+- Local ingest now includes duration/artwork fallback improvements and cleaner sparse-tag row metadata
+- Public v1 now has a planned GitHub Actions gate for frontend smoke/build checks and backend Rust test/check coverage
+- Release polish now includes desktop packaging metadata and icon-aware shell controls
 
 ## Milestone 4: Playback and Queue
 
@@ -55,8 +56,9 @@ Current milestone progress:
 - Active local track selection now drives the persistent playback bar
 - Local indexed MP3 playback is now working in the desktop client
 - Previous, next, pause, restart, and progress sync now operate against the active track
-- The queue route now reflects a derived next-up flow from the current local selection
+- The queue route now reflects stable next-up behavior from playback order rather than from the filtered tracks table
 - Embedded artwork now renders in the tracks view, queue view, and playback bar
+- Release-hardening fixes now guard against stale playback-source and overlapping library-query races
 
 ## Milestone 5: Cache and Remote Media
 
@@ -90,3 +92,10 @@ Current milestone progress:
 - Audio output path needs validation for the Web Audio based V1 approach
 - Library import behavior for malformed tags, missing artwork, permission failures, and non-MP3 files should be documented during implementation
 - Atlas sync and timbre analysis should stay explicitly deferred until the public v1 local-first release is stable
+- Rust-owned playback should be scoped as the first post-v1 follow-up once the public local-first release is tagged
+
+## Release Gate
+
+- Frontend CI should run `npm test` and `npm run build` on every push and pull request
+- Backend CI should run `cargo test` and `cargo check` before the public v1 tag is cut
+- Release tagging should happen only after the local-first import, playback, queue, and shell flows are covered by passing automation

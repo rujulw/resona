@@ -2,15 +2,14 @@
 
 ## Overview
 
-resona is a local-first desktop music system with Atlas as the primary remote storage layer for the same user-owned library and asynchronous timbre analysis fused into the core stack. The architecture is optimized for predictable playback latency, low memory pressure, and clear separation between UI concerns and core media logic.
+resona is a local-first desktop music system optimized for predictable playback latency, low memory pressure, and clear separation between UI concerns and core media logic. The public v1 architecture is intentionally centered on local library import, local playback, and stable desktop shell behavior. Atlas and timbre are future extensions, not part of the current release-critical path.
 
 ## Goals
 
-- Keep playback responsive for local, cached, and remote tracks
+- Keep playback responsive for local tracks in the public v1 release
 - Support large libraries without storing the full catalog in the initial React boot payload
 - Persist operational state and metadata in SQLite
-- Isolate analysis work so it never blocks playback
-- Treat Atlas as the canonical remote store while preserving direct local playback
+- Leave clean extension points for future analysis and remote-source work
 - Keep the application architecture open source and portable
 
 ## System Context
@@ -19,10 +18,8 @@ resona is a local-first desktop music system with Atlas as the primary remote st
 React UI
   -> Tauri commands and events
   -> Rust core services
-  -> Embedded timbre analysis services
   -> SQLite metadata store
   -> Local filesystem
-  -> Atlas media endpoints
 ```
 
 ## Top-Level Components
@@ -116,9 +113,9 @@ The backend is intentionally split so each layer has a clear responsibility boun
 - The app-shell hook also owns active-track playback state, derived queue state, and audio progress synchronization
 - The tracks page owns a full-width search field and a scrollable table, while the hook stitches backend query pages into one continuous client view
 
-### fused timbre engine
+### future timbre engine
 
-The analysis subsystem is expected to be fused in from the local `~/dev/timbre` project rather than rebuilt from scratch. resona should wrap that code behind a dedicated internal service boundary so upgrades from the upstream timbre codebase stay manageable.
+The analysis subsystem is expected to be fused in from the local `~/dev/timbre` project rather than rebuilt from scratch, but that integration is intentionally deferred until after the public v1 release. resona should wrap that code behind a dedicated internal service boundary so upgrades from the upstream timbre codebase stay manageable.
 
 ## Core Services
 
@@ -126,9 +123,8 @@ The analysis subsystem is expected to be fused in from the local `~/dev/timbre` 
 
 - Open a directory picker through Tauri so users never type raw local paths into the app
 - Index selected local folders recursively for MP3 files
-- Reconcile local tracks with future Atlas-backed library records
 - Expose searchable and sortable library queries
-- Track version, availability, and analysis readiness
+- Track local library state cleanly enough that future remote and analysis layers can attach without breaking the v1 surface
 
 Current ingest baseline:
 - The scanner reads title, artist, album, and other tag metadata from ID3 when present
@@ -166,13 +162,13 @@ That shape matters for both performance and clarity. The traversal is effectivel
 - Directory traversal grows with the number of visited directories and files rather than with the square of the library size.
 - Reconciliation cost is bounded by one pass over discovered files plus one pass over persisted rows for the selected library root.
 - The chosen schema stores `relative_path` under a library root instead of using raw absolute paths as the primary identity, which keeps comparison keys compact and UI-safe.
-- Cursor pagination remains the backend query primitive, which avoids the linear row-skip cost that deep offset pagination accumulates over time.
+- Cursor pagination remains the backend query primitive, which avoids the linear row-skip cost that deep offset pagination accumulates over time, even though the public v1 UI presents the result as one continuous library surface.
 - Indexed query paths let SQLite perform ordered reads close to the stored data instead of forcing the application to load and sort the full library in memory.
 
 ### Source Providers
 
 - `LocalSource` resolves filesystem-backed tracks
-- `AtlasSource` is reserved for future remote track metadata and streaming access from the primary remote library store
+- `AtlasSource` is reserved for future remote track metadata and streaming access after the local-first v1 release
 - Shared interface supports metadata lookup, version validation, and fetch operations
 
 ### Cache Manager
@@ -186,7 +182,7 @@ That shape matters for both performance and clarity. The traversal is effectivel
 
 - Today resolves the local indexed playback path, with room to expand to cached and remote sources later
 - Owns queue state, transport controls, buffering state, and transitions
-- Starts with a Web Audio-based path in V1 and leaves room for a native Rust path in V2
+- Starts with a Web Audio-based path in public `v1.0.0` and leaves room for a native Rust-owned path in `v1.1.0`
 
 Current frontend playback baseline:
 
@@ -194,18 +190,16 @@ Current frontend playback baseline:
 - The client resolves the selected local file into a Tauri asset-backed playback source
 - The client resolves persisted local artwork assets through the Tauri bridge for track-list and queue rendering
 - Transport controls in the bottom bar drive the same active track state used by the queue route
+- Queue order is now held separately from the filtered tracks table so search does not redefine what `next` means
 - Progress and duration are synchronized from the active audio element back into shell state
 
 ### Analysis Engine
 
-- Runs timbre extraction jobs asynchronously through the fused local `timbre` engine
-- Stores analysis outputs in SQLite
-- Uses throttled scheduling to avoid CPU spikes
-- Produces track-level insight fields for UI display and later intelligent playback features
+- Deferred until `v2.0.0`: timbre extraction jobs, persisted analysis outputs, and insight surfaces
 
 ### Database Layer
 
-- Uses SQLite for metadata, cache state, source references, and later analysis outputs
+- Uses SQLite for metadata, source references, and later analysis outputs
 - Avoids large in-memory boot payloads by serving paginated queries that the client can stitch into a continuous browsing view
 - Stores operational state needed for deterministic recovery and indexing
 
@@ -253,7 +247,7 @@ This is the right tradeoff for `resona` because SQLite already provides ordered 
 1. User selects a library folder through a desktop directory picker
 2. Rust indexing service walks the selected directory recursively
 3. MP3 files are discovered in the root and nested subfolders
-4. Metadata is parsed and matching Atlas objects are linked or queued for sync refresh
+4. Metadata is parsed and normalized for the local-first library
 5. Normalized records are stored in SQLite
 6. UI refreshes the scrollable tracks view through Tauri-backed queries
 
@@ -284,19 +278,17 @@ The current `tracks` route now exposes that contract directly through client-sid
 
 ### Playback Resolution
 
-1. Playback request enters the Rust engine
-2. Engine checks local availability for the requested library item
-3. If not local, it checks ready cache
-4. If needed, Atlas fetch begins into a temporary buffer from the linked remote object
-5. Playback starts when the minimum safe buffer is available
-6. Background write continues and may promote the asset into warm cache
+1. The user selects a track in the library table
+2. The client resolves the indexed local file path through the Tauri bridge
+3. The active audio element loads the local source and starts playback
+4. Queue state and transport controls continue from the playback-order snapshot rather than from the current filtered table
 
-### Analysis
+### Future Analysis
 
-1. Newly indexed or newly fetched tracks are queued for analysis
-2. The fused `timbre` service processes tracks opportunistically
-3. Results are persisted without mutating playback-critical state
-4. UI surfaces insights when available
+1. Newly indexed or newly fetched tracks can be queued for analysis
+2. The fused `timbre` service can process tracks opportunistically
+3. Results should be persisted without mutating playback-critical state
+4. UI surfaces can opt into insights when available
 
 ## Performance Constraints
 
@@ -309,7 +301,7 @@ The current `tracks` route now exposes that contract directly through client-sid
 
 ## Risks
 
-- Web Audio may not satisfy all long-term latency and transition goals
+- Web Audio may not satisfy all long-term latency and transition goals, which is why Rust-owned playback is planned as a near-term follow-up
 - Atlas integration details still need concrete endpoint contracts for object identity, streaming, and version sync
 - The integration surface with `~/dev/timbre` needs a clear boundary to avoid code drift
 - Recursive directory scanning needs careful filtering so non-audio files and permission failures do not degrade import reliability
@@ -317,7 +309,7 @@ The current `tracks` route now exposes that contract directly through client-sid
 
 ## Implementation Notes
 
-The initial implementation should scaffold clear interfaces between library, cache, playback, and analysis subsystems before feature depth is added. The first key integration decisions are Atlas object linkage and the boundary used to fuse in `timbre` while keeping resona open source and independently buildable.
+The public v1 implementation should prioritize a dependable local-first player before layering on remote storage, cache policy, and analysis depth. The next key architectural decision after `v1.0.0` is the move from frontend-owned playback into a Rust-owned playback service, followed by the later Atlas and `timbre` integration boundaries.
 
 The current Rust backend now reflects that direction more closely:
 

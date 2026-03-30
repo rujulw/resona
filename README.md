@@ -1,10 +1,10 @@
 # resona
 
-resona is a lightweight, local-first desktop music system built for fast playback, large private libraries, and integrated audio intelligence. It combines a React user interface, a Tauri desktop shell, a Rust core, and SQLite-backed metadata to keep playback responsive while analysis runs in the background.
+resona is a lightweight, local-first desktop music system built for fast playback and large private libraries. It combines a React user interface, a Tauri desktop shell, a Rust core, and SQLite-backed metadata to keep local playback responsive while the app stays compact and utility-focused.
 
 ## Product Goal
 
-Build a private, performance-first music player that feels closer to a system utility than a streaming platform. The current v1 focus is dependable local playback, folder-based library import, deterministic queueing, and a dense desktop shell that can grow into Atlas-backed storage and timbre-powered insight work later.
+Build a private, performance-first music player that feels closer to a system utility than a streaming platform. The public v1 focus is dependable local playback, folder-based library import, deterministic queueing, and a dense desktop shell. Atlas, timbre, and Rust-owned playback remain follow-up releases rather than part of the first public tag.
 
 ## MVP Scope
 
@@ -15,6 +15,8 @@ Build a private, performance-first music player that feels closer to a system ut
 - Search tracks quickly without loading the full library into React state as one giant boot payload
 - Play indexed local tracks with persistent transport controls and progress sync
 - Manage queue, play/pause, previous, next, and restart-on-previous behavior
+- Render embedded artwork across the library table, queue page, and playback bar
+- Keep playback queue behavior stable even when the tracks route is filtered by search
 
 ## Non-Goals
 
@@ -27,17 +29,17 @@ Build a private, performance-first music player that feels closer to a system ut
 ## User Segments
 
 - Listeners with large local libraries who want a fast desktop player
-- Users storing their library in Atlas and needing seamless local caching
-- Builders interested in audio analysis without sacrificing playback performance
+- Technical users who want local control without streaming-platform clutter
+- Builders interested in a clean open-source desktop music stack
 
 ## Core Principles
 
 - Local-first
 - Predictable performance at 10k+ tracks
 - Minimal React state and rendering overhead
-- Analysis should enhance playback and never block it
 - Clear, utility-first interface over entertainment-platform patterns
 - Open-source core with private user-controlled media storage
+- Defer non-essential complexity until the local-first playback workflow is solid
 
 ## Planned Architecture
 
@@ -76,15 +78,16 @@ Build a private, performance-first music player that feels closer to a system ut
 - Desktop shell: Tauri
 - Core engine: Rust
 - Database: SQLite
-- Audio path: Web Audio in V1, native Rust playback path in V2
-- Remote storage: Atlas as the primary remote store for the indexed library
-- Analysis engine: fused from the local `timbre` codebase and integrated into the Rust core
+- Audio path: Web Audio in public `v1.0.0`, Rust-owned playback targeted for `v1.1.0`
+- Remote storage: Atlas integration deferred until `v3.0.0`
+- Analysis engine: `timbre` integration deferred until `v2.0.0`
 
 ## Frontend Foundation
 
 - The desktop client now uses `react-router-dom` for a persistent shell with `home`, `tracks`, `queue`, and `settings` routes
 - The left sidebar and bottom playback bar stay mounted across route changes
-- The top window area is moving toward an app-owned desktop chrome instead of relying fully on the native title text
+- The top window area now uses app-owned desktop chrome instead of relying fully on native title text
+- Release polish now includes Lucide-based navigation and transport icons instead of text-only shell controls
 - The client code is now split into `components/`, `pages/`, `hooks/`, `types/`, `constants/`, and `utils/` rather than keeping the shell in one `App.tsx`
 - The `tracks` route now uses a full-width inline search field, header-driven sorting, and a scrollable library table inside the persistent desktop shell
 
@@ -93,7 +96,7 @@ Build a private, performance-first music player that feels closer to a system ut
 - Selecting a track from the library now drives the active playback state in the persistent bottom bar
 - Local indexed MP3 files can now be played directly through the desktop client using Tauri asset-backed file access
 - Transport controls now handle play, pause, previous, next, restart-on-previous, and live progress updates
-- The queue route now reflects a derived next-up flow from the active local selection instead of placeholder shell copy
+- The queue route reflects a stable next-up flow derived from playback order rather than the currently filtered tracks table
 
 ## MVP Subsystems
 
@@ -122,7 +125,7 @@ In portfolio terms, the flex is not just "it scans folders." The interesting par
 
 ### Source Providers
 
-Supports `LocalSource` for filesystem access today and leaves room for a future `AtlasSource` retrieval path.
+Supports `LocalSource` for filesystem access today and leaves room for a future `AtlasSource` retrieval path in a later release.
 
 ### Cache Manager
 
@@ -152,7 +155,7 @@ Planned for later: asynchronous timbre profiling through an integrated `timbre` 
 
 ## Open Source Position
 
-resona is intended to remain open source as an application and systems project. Atlas integration is a storage adapter for user-controlled media, not a closed platform dependency, and the embedded `timbre` analysis layer should be integrated in a way that preserves a clear open-source development model.
+resona is intended to remain open source as an application and systems project. Future Atlas integration is a storage adapter for user-controlled media, not a closed platform dependency, and future `timbre` analysis work should be integrated in a way that preserves a clear open-source development model.
 
 ## Initial Development Slices
 
@@ -169,8 +172,19 @@ Each implementation slice should include:
 - Updated docs when scope or architecture changes
 - Build, lint, type, and test checks relevant to the slice
 - A short risk summary and the exact verification commands used
+- GitHub Actions coverage for the release-critical frontend and backend paths
 
 Current frontend verification includes:
 
 - `npm test` for client bridge and route/shell smoke checks
 - `npm run build` for Vite production build validation including Tailwind integration
+
+Current release CI includes:
+
+- GitHub Actions frontend checks on Ubuntu for `npm test` and `npm run build`
+- GitHub Actions backend checks on macOS for `cargo test` and `cargo check`
+
+Current packaging baseline includes:
+
+- Tauri bundle metadata for app name, description, category, and icon paths
+- Release-oriented desktop packaging configuration enabled in `server/tauri.conf.json`
