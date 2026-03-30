@@ -8,7 +8,7 @@ use rusqlite::{params, OptionalExtension, Transaction};
 use crate::database::{schema, AppDatabase};
 
 use super::models::{
-    LibraryCursor, LibraryPage, LibraryQuery, LibraryRootRecord, NormalizedTrack,
+    ArtworkSource, LibraryCursor, LibraryPage, LibraryQuery, LibraryRootRecord, NormalizedTrack,
     PersistedLibrarySummary, PlaybackSource, ScanError, ScanSummary,
 };
 use super::normalization::{build_library_root, discover_mp3_files, normalize_track};
@@ -178,6 +178,22 @@ impl LocalLibraryScanner {
         Ok(local_path.map(|local_path| PlaybackSource {
             track_id: track_id.to_owned(),
             local_path,
+        }))
+    }
+
+    pub fn resolve_artwork_source(
+        &self,
+        artwork_key: &str,
+    ) -> Result<Option<ArtworkSource>, ScanError> {
+        let artwork_path = self.app_database.app_data_dir().join("artwork").join(artwork_key);
+
+        if !artwork_path.exists() {
+            return Ok(None);
+        }
+
+        Ok(Some(ArtworkSource {
+            artwork_key: artwork_key.to_owned(),
+            local_path: artwork_path.display().to_string(),
         }))
     }
 

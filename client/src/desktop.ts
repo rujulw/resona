@@ -42,6 +42,12 @@ export type PlaybackSource = {
   assetUrl: string;
 };
 
+export type ArtworkSource = {
+  artworkKey: string;
+  localPath: string;
+  assetUrl: string;
+};
+
 export type ShellStatePayload = {
   navSections: NavSection[];
   libraryRows: LibraryRow[];
@@ -64,6 +70,7 @@ export type TrackListItem = {
   artist: string | null;
   album: string | null;
   durationSeconds: number | null;
+  artworkKey: string | null;
   relativePath: string;
   sourceStatus: string;
   cacheState: string;
@@ -198,6 +205,27 @@ export async function resolveTrackPlaybackSource(
 
     return {
       trackId: payload.trackId,
+      localPath: payload.localPath,
+      assetUrl: convertFileSrc(payload.localPath),
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function resolveArtworkSource(
+  artworkKey: string,
+): Promise<ArtworkSource | null> {
+  try {
+    const payload = await invoke<{ artworkKey: string; localPath: string }>(
+      "resolve_artwork_source",
+      {
+        artworkKey,
+      },
+    );
+
+    return {
+      artworkKey: payload.artworkKey,
       localPath: payload.localPath,
       assetUrl: convertFileSrc(payload.localPath),
     };

@@ -1,10 +1,14 @@
 import type { PlaybackShellState } from "../../desktop";
+import type { TrackListItem } from "../../desktop";
 import { formatDuration } from "../../utils/format";
+import { ArtworkTile } from "../ui/ArtworkTile";
 
 export function PlaybackBar({
+  activeTrack,
   playback,
   onPlaybackAction,
 }: {
+  activeTrack: TrackListItem | null;
   playback: PlaybackShellState;
   onPlaybackAction: (action: "previous" | "toggle" | "next") => void;
 }) {
@@ -15,15 +19,20 @@ export function PlaybackBar({
       : 0;
 
   return (
-    <footer className="col-span-full grid min-h-[104px] grid-cols-[248px_minmax(0,1fr)_220px] items-center gap-4 border-t border-white/6 bg-[#0e0e0e] pr-4">
-      <div className="flex min-w-0 items-center gap-3 self-stretch border-r border-white/6 py-4 pl-4">
-        <div className="h-12 w-12 rounded-xl border border-white/8 bg-gradient-to-br from-white/12 to-transparent" />
-        <div className="grid min-w-0 gap-0.5">
+    <footer className="col-span-full grid min-h-[108px] grid-cols-[minmax(260px,1fr)_minmax(420px,640px)_minmax(260px,1fr)] items-center gap-4 border-t border-white/6 bg-[#0e0e0e] px-4">
+      <div className="flex min-w-0 items-center gap-3 py-4">
+        <ArtworkTile
+          artworkKey={activeTrack?.artworkKey}
+          title={activeTrack?.title ?? playback.trackTitle ?? "Nothing playing"}
+          sizeClassName="h-14 w-14"
+          roundedClassName="rounded-sm"
+        />
+        <div className="grid min-w-0 flex-1 gap-0.5">
           <strong className="truncate text-sm font-medium text-[#f2f2f2]">
-            {playback.trackTitle ?? "Nothing playing"}
+            {activeTrack?.title ?? playback.trackTitle ?? "Nothing playing"}
           </strong>
           <span className="truncate text-sm text-[#8f8f8f]">
-            {playback.trackArtist ?? "Playback shell ready"}
+            {activeTrack?.artist ?? playback.trackArtist ?? "Playback shell ready"}
           </span>
         </div>
       </div>
@@ -67,10 +76,7 @@ export function PlaybackBar({
         </div>
       </div>
 
-      <div className="grid justify-items-end gap-1 pr-1">
-        <span className="text-xs text-[#8f8f8f]">output</span>
-        <span className="text-sm text-[#d4d4d4]">{playback.transportLabel}</span>
-      </div>
+      <div aria-hidden="true" />
     </footer>
   );
 }

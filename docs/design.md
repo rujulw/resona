@@ -23,7 +23,7 @@ resona is designed to feel immediate, controlled, and quiet. The interface shoul
 
 ### Library
 
-The working library view is a focused tracks table with search, sort, and pagination. Sidebar navigation should stay small and functional, covering home, tracks, queue, and settings without secondary content feeds. Import should begin from a clear folder-selection action in settings rather than from a raw path entry field embedded into the main track view.
+The working library view is a focused tracks table with search, sort, pagination, and compact artwork tiles. Sidebar navigation should stay small and functional, covering home, tracks, queue, and settings without secondary content feeds. Import should begin from a clear folder-selection action in settings rather than from a raw path entry field embedded into the main track view.
 
 ### Playback
 
@@ -31,7 +31,7 @@ Playback controls live in a persistent bottom bar with clear transport actions, 
 
 ### Queue
 
-Queue management should be explicit and deterministic. Users should always understand what plays next and why. The current baseline derives next-up behavior directly from the active local selection and visible library order, which keeps queue behavior legible before richer queue editing lands.
+Queue management should be explicit and deterministic. Users should always understand what plays next and why. The current baseline derives next-up behavior directly from the active local selection and visible library order, which keeps queue behavior legible before richer queue editing lands. The active queue view should also give the current track enough visual weight to feel like a player, including larger artwork for the now-playing item.
 
 ### Insights
 

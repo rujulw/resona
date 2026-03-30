@@ -83,7 +83,11 @@ export function AppShell({
           </Routes>
         </section>
 
-        <PlaybackBar playback={shellState.playback} onPlaybackAction={onPlaybackAction} />
+        <PlaybackBar
+          activeTrack={queueState.activeTrack}
+          playback={shellState.playback}
+          onPlaybackAction={onPlaybackAction}
+        />
       </main>
     </BrowserRouter>
   );

@@ -8,6 +8,7 @@ const getShellStateMock = vi.fn();
 const queryLibraryMock = vi.fn();
 const pickLibraryDirectoryMock = vi.fn();
 const playbackActionMock = vi.fn();
+const resolveArtworkSourceMock = vi.fn();
 const resolveTrackPlaybackSourceMock = vi.fn();
 const scanLocalLibraryMock = vi.fn();
 const mockAudioInstances: MockAudio[] = [];
@@ -18,6 +19,7 @@ vi.mock("./desktop", () => ({
   pickLibraryDirectory: (...args: unknown[]) => pickLibraryDirectoryMock(...args),
   queryLibrary: () => queryLibraryMock(),
   playbackAction: (...args: unknown[]) => playbackActionMock(...args),
+  resolveArtworkSource: (...args: unknown[]) => resolveArtworkSourceMock(...args),
   resolveTrackPlaybackSource: (...args: unknown[]) => resolveTrackPlaybackSourceMock(...args),
   scanLocalLibrary: (...args: unknown[]) => scanLocalLibraryMock(...args),
 }));
@@ -63,6 +65,7 @@ describe("app shell smoke checks", () => {
     queryLibraryMock.mockReset();
     pickLibraryDirectoryMock.mockReset();
     playbackActionMock.mockReset();
+    resolveArtworkSourceMock.mockReset();
     resolveTrackPlaybackSourceMock.mockReset();
     scanLocalLibraryMock.mockReset();
     mockAudioInstances.length = 0;
@@ -114,6 +117,7 @@ describe("app shell smoke checks", () => {
           artist: "North",
           album: "Signals",
           durationSeconds: 182,
+          artworkKey: "alpha-cover.png",
           relativePath: "alpha.mp3",
           sourceStatus: "local-only",
           cacheState: "none",
@@ -126,6 +130,7 @@ describe("app shell smoke checks", () => {
           artist: "South",
           album: "Horizons",
           durationSeconds: 205,
+          artworkKey: "bravo-cover.png",
           relativePath: "bravo.mp3",
           sourceStatus: "local-only",
           cacheState: "none",
@@ -141,6 +146,11 @@ describe("app shell smoke checks", () => {
       trackId,
       localPath: `/Users/rujulw/Music/${trackId}.mp3`,
       assetUrl: `asset://localhost/${trackId}.mp3`,
+    }));
+    resolveArtworkSourceMock.mockImplementation(async (artworkKey: string) => ({
+      artworkKey,
+      localPath: `/Users/rujulw/Library/Application Support/resona/artwork/${artworkKey}`,
+      assetUrl: `asset://localhost/${artworkKey}`,
     }));
     pickLibraryDirectoryMock.mockResolvedValue("/Users/rujulw/Music");
 
@@ -178,6 +188,9 @@ describe("app shell smoke checks", () => {
     expect(screen.getByText("Alpha")).toBeTruthy();
     expect(screen.getByText("Signals")).toBeTruthy();
     expect(screen.getByText("3:02")).toBeTruthy();
+    await waitFor(() => {
+      expect(screen.getByAltText("Alpha artwork")).toBeTruthy();
+    });
     expect(screen.getByText("Nothing playing")).toBeTruthy();
   });
 
@@ -249,6 +262,7 @@ describe("app shell smoke checks", () => {
     await waitFor(() => {
       expect(screen.getByText("now playing")).toBeTruthy();
       expect(screen.getByText("derived from the current local selection")).toBeTruthy();
+      expect(screen.getByAltText("Alpha artwork")).toBeTruthy();
       expect(
         screen.queryByText("No additional indexed tracks are queued after the current selection."),
       ).toBeNull();

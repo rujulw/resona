@@ -75,6 +75,22 @@ describe("desktop bootstrap bridge", () => {
     expect(payload?.trackId).toBe("track-1");
   });
 
+  it("resolves an artwork source into an asset url", async () => {
+    invokeMock.mockResolvedValueOnce({
+      artworkKey: "cover.png",
+      localPath: "/Users/rujulw/Library/Application Support/resona/artwork/cover.png",
+    });
+
+    const { resolveArtworkSource } = await import("./desktop");
+    const payload = await resolveArtworkSource("cover.png");
+
+    expect(invokeMock).toHaveBeenCalledWith("resolve_artwork_source", {
+      artworkKey: "cover.png",
+    });
+    expect(payload?.assetUrl).toContain("asset://localhost/");
+    expect(payload?.artworkKey).toBe("cover.png");
+  });
+
   it("opens a native directory picker for library selection", async () => {
     openMock.mockResolvedValueOnce("/Users/rujulw/Music");
 

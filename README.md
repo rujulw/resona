@@ -106,6 +106,7 @@ Indexes local files from a user-selected directory, scans nested folders for MP3
 The current ingest baseline now goes beyond tag-only metadata:
 - Track duration falls back to MP3 frame parsing when ID3 duration is missing
 - Embedded album art is extracted during scan and persisted into local app data for later UI use
+- The tracks table now renders artwork tiles for indexed items, and the queue view now shows larger cover art for the active track
 
 ## Engineering Notes
 

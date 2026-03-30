@@ -1,4 +1,5 @@
 import type { ScanState, TracksState } from "../types/app";
+import { ArtworkTile } from "../components/ui/ArtworkTile";
 import { formatDuration } from "../utils/format";
 
 export function TracksPage({
@@ -27,7 +28,7 @@ export function TracksPage({
       </header>
 
       <section className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-3xl border border-white/6 bg-[#1b1b1b]">
-        <div className="grid grid-cols-[minmax(280px,2fr)_minmax(180px,1.1fr)_96px] gap-4 border-b border-white/6 px-5 py-3 text-[11px] uppercase tracking-[0.14em] text-[#8f8f8f]">
+        <div className="grid grid-cols-[minmax(320px,2fr)_minmax(180px,1.1fr)_96px] gap-4 border-b border-white/6 px-5 py-3 text-[11px] tracking-[0.08em] text-[#8f8f8f]">
           <span>title</span>
           <span>album</span>
           <span>duration</span>
@@ -53,7 +54,7 @@ export function TracksPage({
             <button
               key={track.id}
               className={[
-                "grid w-full grid-cols-[minmax(280px,2fr)_minmax(180px,1.1fr)_96px] items-center gap-4 border-b border-white/5 px-5 py-3.5 text-left last:border-b-0",
+                "grid w-full grid-cols-[minmax(320px,2fr)_minmax(180px,1.1fr)_96px] items-center gap-4 border-b border-white/5 px-5 py-3.5 text-left last:border-b-0",
                 tracksState.selectedTrackId === track.id
                   ? "bg-white/8"
                   : "hover:bg-white/3",
@@ -65,11 +66,19 @@ export function TracksPage({
                 onTrackSelect(track);
               }}
             >
-              <div className="grid min-w-0 gap-1">
-                <span className="truncate text-sm text-[#f2f2f2]">{track.title}</span>
-                <span className="truncate text-xs text-[#8f8f8f]">
-                  {track.artist ?? "unknown artist"}
-                </span>
+              <div className="flex min-w-0 items-center gap-3">
+                <ArtworkTile
+                  artworkKey={track.artworkKey}
+                  title={track.title}
+                  sizeClassName="h-11 w-11"
+                  roundedClassName="rounded-sm"
+                />
+                <div className="grid min-w-0 gap-1">
+                  <span className="truncate text-sm text-[#f2f2f2]">{track.title}</span>
+                  <span className="truncate text-xs text-[#8f8f8f]">
+                    {track.artist ?? "unknown artist"}
+                  </span>
+                </div>
               </div>
               <span className="truncate text-sm text-[#d4d4d4]">
                 {track.album ?? "unknown album"}

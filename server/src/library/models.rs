@@ -37,6 +37,13 @@ pub struct PlaybackSource {
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct ArtworkSource {
+    pub artwork_key: String,
+    pub local_path: String,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct LibraryTrackItem {
     pub id: String,
     pub title: String,

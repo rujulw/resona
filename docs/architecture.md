@@ -189,6 +189,7 @@ Current frontend playback baseline:
 
 - Track selection in the library route sets the active playback item for the shell
 - The client resolves the selected local file into a Tauri asset-backed playback source
+- The client resolves persisted local artwork assets through the Tauri bridge for track-list and queue rendering
 - Transport controls in the bottom bar drive the same active track state used by the queue route
 - Progress and duration are synchronized from the active audio element back into shell state
 
