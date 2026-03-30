@@ -1,12 +1,12 @@
 [package]
-name = "resona-server"
+name = "resona"
 version = "0.1.0"
 description = "Tauri shell and Rust core for resona"
 authors = ["resona"]
 edition = "2021"
 
 [lib]
-name = "resona_server_lib"
+name = "resona"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

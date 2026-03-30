@@ -54,3 +54,43 @@
   - `server/src/lib.rs`
 - Linked commit/PR: pending
 - Notes: this fix is more about long-term performance posture than visible correctness, but it prevents library browsing from regressing as collection size and page depth increase.
+
+## 2026-03-30 - Known ingest gap for MP3 duration when files omit ID3 duration metadata
+- Status: open
+- Severity: medium
+- Symptom: some indexed tracks show `--:--` in the library table even though macOS and other media tools display a valid duration for the same files.
+- Root cause: the current scan pipeline reads duration from `id3::Tag::duration()` only, and many MP3 files do not store track length in the ID3 metadata even when the duration can be computed from the audio stream itself.
+- Fix: pending; upgrade the ingest path to compute duration from actual audio frame data instead of relying only on ID3 duration fields.
+- Verification: local files can display valid duration in system tools while `resona` stores `NULL` for `duration_seconds`; the normalization path currently uses `Tag::read_from_path(...).duration()`.
+- Files touched:
+  - `server/src/library/normalization.rs`
+  - `server/src/pages/TracksPage.tsx`
+- Linked commit/PR: pending
+- Notes: this is a metadata fidelity gap rather than a UI bug; the frontend is rendering the missing value honestly.
+
+## 2026-03-30 - Known ingest gap for embedded artwork extraction during local scan
+- Status: open
+- Severity: low
+- Symptom: tracks with visible cover art in system media tools still appear without artwork in `resona`.
+- Root cause: the current library ingest pipeline does not extract, persist, or expose embedded artwork from MP3 metadata, and `artwork_key` remains unset during track upsert.
+- Fix: pending; add artwork extraction and persistence so embedded cover images can be surfaced to the client.
+- Verification: the current track write path stores `artwork_key` as `NULL`, and no client route or command currently receives artwork data.
+- Files touched:
+  - `server/src/library/scanner.rs`
+  - `server/src/library/normalization.rs`
+- Linked commit/PR: pending
+- Notes: this is expected at the current stage of the branch, but it is a real ingest completeness gap worth tracking before playback and richer track presentation land.
+
+## 2026-03-30 - Avoided frontend shell regressions while splitting the client into routed pages and layout modules
+- Status: fixed
+- Severity: medium
+- Symptom: the client shell risked regressing during the `App.tsx` split because routing, bootstrap state, playback chrome, and track loading were all being moved at once.
+- Root cause: the original desktop shell had grown into a single top-level file, so structural cleanup could easily break route boot, shell persistence, or the tracks page without an obvious failure until manual testing.
+- Fix: added frontend smoke checks for routed app boot, tracks-route shell render, and navigation into settings while keeping the playback shell mounted.
+- Verification: `npm test` passes with smoke coverage for app boot and route rendering, and `npm run build` passes for the production Tailwind/Vite client build.
+- Files touched:
+  - `client/src/App.test.tsx`
+  - `client/package.json`
+  - `client/package-lock.json`
+- Linked commit/PR: pending
+- Notes: this branch still leaves real playback for the next branch, but the desktop shell itself now has basic regression protection.
