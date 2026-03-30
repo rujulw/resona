@@ -1,6 +1,12 @@
 mod database;
 
+use database::AppDatabase;
 use serde::Serialize;
+use tauri::State;
+
+struct DatabaseState {
+    app_database: AppDatabase,
+}
 
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -41,6 +47,7 @@ struct ShellStatePayload {
     nav_sections: Vec<NavSection>,
     library_rows: Vec<LibraryRow>,
     playback: PlaybackShellState,
+    persistence: PersistenceState,
 }
 
 #[derive(Clone, Serialize)]
@@ -68,7 +75,25 @@ struct PlaybackShellState {
 }
 
 #[tauri::command]
-fn get_shell_state() -> ShellStatePayload {
+fn get_shell_state(database_state: State<'_, DatabaseState>) -> ShellStatePayload {
+    build_shell_state(&database_state.app_database)
+}
+
+fn build_shell_state(app_database: &AppDatabase) -> ShellStatePayload {
+    let migration_status = app_database.migration_status().ok();
+    let persistence = PersistenceState {
+        status_label: if migration_status.is_some() {
+            "Ready"
+        } else {
+            "Unavailable"
+        },
+        detail: migration_status
+            .as_ref()
+            .map(|status| status.latest_migration)
+            .unwrap_or("migration status unavailable"),
+        database_path: app_database.db_path().display().to_string(),
+    };
+
     ShellStatePayload {
         nav_sections: vec![
             NavSection {
@@ -100,7 +125,7 @@ fn get_shell_state() -> ShellStatePayload {
             LibraryRow {
                 title: "Library",
                 detail: "No tracks loaded yet",
-                state: "Idle",
+                state: persistence.status_label,
             },
             LibraryRow {
                 title: "atlas",
@@ -119,6 +144,7 @@ fn get_shell_state() -> ShellStatePayload {
             progress_seconds: 0,
             duration_seconds: 0,
         },
+        persistence,
     }
 }
 
@@ -146,8 +172,20 @@ fn playback_action(action: &str) -> PlaybackShellState {
     }
 }
 
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct PersistenceState {
+    status_label: &'static str,
+    detail: &'static str,
+    database_path: String,
+}
+
 pub fn run() {
+    let app_database =
+        AppDatabase::initialize_default().expect("failed to initialize resona database");
+
     tauri::Builder::default()
+        .manage(DatabaseState { app_database })
         .invoke_handler(tauri::generate_handler![
             bootstrap_app,
             get_shell_state,
@@ -159,7 +197,23 @@ pub fn run() {
 
 #[cfg(test)]
 mod tests {
-    use super::{bootstrap_app, get_shell_state, playback_action};
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    use super::{bootstrap_app, build_shell_state, playback_action, DatabaseState};
+    use crate::database::AppDatabase;
+
+    fn test_database_state() -> DatabaseState {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system time should be after unix epoch")
+            .as_nanos();
+        let db_path = std::env::temp_dir().join(format!("resona-shell-state-{nanos}.sqlite3"));
+
+        DatabaseState {
+            app_database: AppDatabase::initialize_at(db_path)
+                .expect("test database should initialize"),
+        }
+    }
 
     #[test]
     fn bootstrap_payload_exposes_shell_runtime() {
@@ -174,11 +228,13 @@ mod tests {
 
     #[test]
     fn shell_state_returns_nav_rows_and_playback_defaults() {
-        let payload = get_shell_state();
+        let database_state = test_database_state();
+        let payload = build_shell_state(&database_state.app_database);
 
         assert_eq!(payload.nav_sections.len(), 6);
         assert_eq!(payload.library_rows.len(), 3);
         assert_eq!(payload.library_rows[1].title, "atlas");
+        assert_eq!(payload.persistence.status_label, "Ready");
         assert_eq!(payload.playback.status_label, "Nothing playing");
         assert_eq!(payload.playback.transport_label, "Idle");
     }
