@@ -1,4 +1,11 @@
 import { useEffect, useState } from "react";
+import {
+  BrowserRouter,
+  NavLink,
+  Navigate,
+  Route,
+  Routes,
+} from "react-router-dom";
 
 import {
   bootstrapApp,
@@ -11,239 +18,6 @@ import {
   type PlaybackShellState,
 } from "./desktop";
 
-const appSurfaceStyle = {
-  minHeight: "100vh",
-  display: "grid",
-  gridTemplateColumns: "240px minmax(0, 1fr)",
-  gridTemplateRows: "1fr 88px",
-  margin: 0,
-  background: "#151515",
-  color: "#e5e5e5",
-  fontFamily: "system-ui, sans-serif",
-} as const;
-
-const centeredStateStyle = {
-  minHeight: "100vh",
-  display: "grid",
-  placeItems: "center",
-  margin: 0,
-  background: "#151515",
-  color: "#e5e5e5",
-  fontFamily: "system-ui, sans-serif",
-} as const;
-
-const stackStyle = {
-  display: "grid",
-  gap: "0.55rem",
-  justifyItems: "center",
-  textAlign: "center",
-} as const;
-
-const headingStyle = {
-  margin: 0,
-  fontSize: "2rem",
-  fontWeight: 500,
-  letterSpacing: "-0.04em",
-} as const;
-
-const metaStyle = {
-  margin: 0,
-  color: "#8f8f8f",
-  fontSize: "0.95rem",
-} as const;
-
-const sidebarStyle = {
-  display: "grid",
-  alignContent: "start",
-  gap: "1.5rem",
-  padding: "1.25rem 1rem 1rem",
-  borderRight: "1px solid rgba(255, 255, 255, 0.06)",
-  background: "#171717",
-} as const;
-
-const brandBlockStyle = {
-  display: "grid",
-  gap: "0.4rem",
-} as const;
-
-const eyebrowStyle = {
-  margin: 0,
-  color: "#7b7b7b",
-  fontSize: "0.72rem",
-  fontWeight: 700,
-  letterSpacing: "0.12em",
-  textTransform: "uppercase",
-} as const;
-
-const sectionTitleStyle = {
-  margin: 0,
-  fontSize: "0.9rem",
-  fontWeight: 500,
-  color: "#d9d9d9",
-} as const;
-
-const navListStyle = {
-  display: "grid",
-  gap: "0.35rem",
-} as const;
-
-const navItemStyle = {
-  padding: "0.72rem 0.8rem",
-  borderRadius: "0.7rem",
-  color: "#bcbcbc",
-  background: "#1e1e1e",
-  border: "1px solid transparent",
-} as const;
-
-const navItemActiveStyle = {
-  ...navItemStyle,
-  color: "#ededed",
-  background: "#242424",
-  border: "1px solid rgba(255, 255, 255, 0.08)",
-} as const;
-
-const mainPaneStyle = {
-  display: "grid",
-  minWidth: 0,
-  gridTemplateRows: "auto 1fr",
-  background: "#151515",
-} as const;
-
-const paneHeaderStyle = {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  gap: "1rem",
-  padding: "1.25rem 1.5rem 1rem",
-  borderBottom: "1px solid rgba(255, 255, 255, 0.06)",
-} as const;
-
-const headerTextBlockStyle = {
-  display: "grid",
-  gap: "0.35rem",
-} as const;
-
-const mutedLabelStyle = {
-  margin: 0,
-  color: "#8a8a8a",
-  fontSize: "0.85rem",
-} as const;
-
-const importControlsStyle = {
-  display: "grid",
-  gap: "0.6rem",
-} as const;
-
-const importRowStyle = {
-  display: "flex",
-  gap: "0.6rem",
-  alignItems: "center",
-  flexWrap: "wrap",
-} as const;
-
-const inputStyle = {
-  flex: "1 1 320px",
-  minWidth: "240px",
-  padding: "0.72rem 0.8rem",
-  borderRadius: "0.7rem",
-  border: "1px solid rgba(255, 255, 255, 0.08)",
-  background: "#1e1e1e",
-  color: "#e5e5e5",
-  font: "inherit",
-} as const;
-
-const actionButtonStyle = {
-  padding: "0.72rem 0.95rem",
-  borderRadius: "0.7rem",
-  border: "1px solid rgba(255, 255, 255, 0.08)",
-  background: "#242424",
-  color: "#ededed",
-  font: "inherit",
-} as const;
-
-const libraryPaneStyle = {
-  padding: "1rem 1.5rem 1.5rem",
-  minWidth: 0,
-} as const;
-
-const panelStyle = {
-  height: "100%",
-  borderRadius: "1rem",
-  border: "1px solid rgba(255, 255, 255, 0.06)",
-  background: "#1a1a1a",
-  overflow: "hidden",
-} as const;
-
-const tableHeaderStyle = {
-  display: "grid",
-  gridTemplateColumns: "minmax(220px, 2fr) minmax(140px, 1.2fr) 96px",
-  gap: "1rem",
-  padding: "0.9rem 1rem",
-  borderBottom: "1px solid rgba(255, 255, 255, 0.06)",
-  color: "#7f7f7f",
-  fontSize: "0.85rem",
-  fontWeight: 400,
-} as const;
-
-const rowStyle = {
-  display: "grid",
-  gridTemplateColumns: "minmax(220px, 2fr) minmax(140px, 1.2fr) 96px",
-  gap: "1rem",
-  alignItems: "center",
-  padding: "1rem",
-  borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
-} as const;
-
-const playbackBarStyle = {
-  gridColumn: "1 / -1",
-  display: "grid",
-  gridTemplateColumns: "240px minmax(0, 1fr) 220px",
-  alignItems: "center",
-  gap: "1rem",
-  padding: "0 1rem 0 0",
-  borderTop: "1px solid rgba(255, 255, 255, 0.06)",
-  background: "#121212",
-} as const;
-
-const playbackSectionStyle = {
-  display: "flex",
-  alignItems: "center",
-  gap: "0.8rem",
-  minWidth: 0,
-} as const;
-
-const buttonGroupStyle = {
-  display: "flex",
-  justifyContent: "center",
-  gap: "0.6rem",
-} as const;
-
-const playbackButtonStyle = {
-  minWidth: "2.5rem",
-  height: "2.5rem",
-  border: "1px solid rgba(255, 255, 255, 0.08)",
-  borderRadius: "999px",
-  background: "#1f1f1f",
-  color: "#dcdcdc",
-  font: "inherit",
-} as const;
-
-const progressTrackStyle = {
-  position: "relative",
-  width: "100%",
-  height: "4px",
-  borderRadius: "999px",
-  background: "#2a2a2a",
-  overflow: "hidden",
-} as const;
-
-const progressFillStyle = {
-  width: "28%",
-  height: "100%",
-  borderRadius: "999px",
-  background: "#8d8d8d",
-} as const;
-
 type BootstrapState =
   | { status: "loading" }
   | { status: "ready"; payload: BootstrapPayload }
@@ -251,7 +25,6 @@ type BootstrapState =
 
 type ShellState = {
   navSections: NavSection[];
-  activeSectionId: string;
   libraryRows: LibraryRow[];
   playback: PlaybackShellState;
 };
@@ -262,11 +35,336 @@ type ScanState =
   | { status: "success"; message: string }
   | { status: "error"; message: string };
 
+type RouteItem = {
+  label: string;
+  path: string;
+};
+
+const routeGroups: Array<{ heading: string; items: RouteItem[] }> = [
+  {
+    heading: "library",
+    items: [{ label: "library", path: "/library" }],
+  },
+  {
+    heading: "workspace",
+    items: [
+      { label: "queue", path: "/queue" },
+      { label: "settings", path: "/settings" },
+    ],
+  },
+];
+
 function formatDuration(totalSeconds: number): string {
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
 
   return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+}
+
+function ShellStateScreen({
+  title,
+  detail,
+}: {
+  title: string;
+  detail?: string;
+}) {
+  return (
+    <main className="grid min-h-screen place-items-center bg-resona-925 text-resona-200">
+      <div className="grid gap-2 text-center">
+        <h1 className="m-0 text-3xl font-medium tracking-[-0.04em]">{title}</h1>
+        {detail ? <p className="m-0 text-sm text-resona-500">{detail}</p> : null}
+      </div>
+    </main>
+  );
+}
+
+function Sidebar({
+  appName,
+  runtimeLabel,
+  navSections,
+}: {
+  appName: string;
+  runtimeLabel: string;
+  navSections: NavSection[];
+}) {
+  const supportedLabels = new Set(["tracks", "albums", "artists", "queue", "settings"]);
+  const labels = new Set(navSections.map((section) => section.label.toLowerCase()));
+
+  return (
+    <aside className="grid content-start gap-6 border-r border-white/6 bg-resona-900 px-4 py-5">
+      <div className="grid gap-1">
+        <h1 className="m-0 text-3xl font-medium tracking-[-0.04em]">{appName}</h1>
+        <p className="m-0 text-sm text-resona-500">{runtimeLabel}</p>
+      </div>
+
+      {routeGroups.map((group) => (
+        <section key={group.heading} className="grid gap-3">
+          <h2 className="m-0 text-sm font-medium text-resona-300">{group.heading}</h2>
+          <nav className="grid gap-1" aria-label={`${group.heading} routes`}>
+            {group.items.map((item) => {
+              const isKnownLabel = supportedLabels.has(item.label);
+              const isPresent = labels.has(item.label);
+
+              return (
+                <NavLink
+                  key={item.path}
+                  to={item.path}
+                  className={({ isActive }) =>
+                    [
+                      "rounded-xl border px-3 py-3 text-sm transition-colors",
+                      isActive
+                        ? "border-white/10 bg-resona-825 text-resona-100"
+                        : "border-transparent bg-resona-850 text-resona-300 hover:border-white/8 hover:text-resona-100",
+                    ].join(" ")
+                  }
+                >
+                  <span className="block">{item.label}</span>
+                  <span className="mt-1 block text-xs text-resona-500">
+                    {isKnownLabel && isPresent ? "route ready" : "route scaffold"}
+                  </span>
+                </NavLink>
+              );
+            })}
+          </nav>
+        </section>
+      ))}
+    </aside>
+  );
+}
+
+function LibraryPage({
+  libraryRows,
+  libraryPath,
+  scanState,
+  platformLabel,
+  appVersion,
+  onLibraryPathChange,
+  onScan,
+}: {
+  libraryRows: LibraryRow[];
+  libraryPath: string;
+  scanState: ScanState;
+  platformLabel: string;
+  appVersion: string;
+  onLibraryPathChange: (value: string) => void;
+  onScan: () => void;
+}) {
+  return (
+    <>
+      <header className="flex flex-wrap items-start justify-between gap-4 border-b border-white/6 px-6 py-5">
+        <div className="grid min-w-0 flex-1 gap-3">
+          <div className="grid gap-1">
+            <h2 className="m-0 text-sm font-medium text-resona-300">library</h2>
+            <p className="m-0 text-sm text-resona-500">
+              Routed shell is in place. Folder picker lands in a later commit.
+            </p>
+          </div>
+
+          <div className="grid gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                aria-label="Temporary local library path"
+                placeholder="/Users/you/Music"
+                className="min-w-[240px] flex-1 rounded-xl border border-white/8 bg-resona-850 px-3 py-3 text-sm text-resona-200 outline-none placeholder:text-resona-500"
+                type="text"
+                value={libraryPath}
+                onChange={(event) => {
+                  onLibraryPathChange(event.target.value);
+                }}
+              />
+              <button
+                className="rounded-xl border border-white/8 bg-resona-825 px-4 py-3 text-sm text-resona-100 transition-colors hover:border-white/12 disabled:cursor-not-allowed disabled:opacity-60"
+                type="button"
+                onClick={onScan}
+                disabled={scanState.status === "running"}
+              >
+                {scanState.status === "running" ? "scanning..." : "add library"}
+              </button>
+            </div>
+            <p className="m-0 text-sm text-resona-500">{scanState.message}</p>
+          </div>
+        </div>
+
+        <p className="m-0 pt-1 text-sm text-resona-500">
+          {platformLabel} • v{appVersion}
+        </p>
+      </header>
+
+      <div className="min-w-0 p-6">
+        <section
+          aria-label="Library content placeholder"
+          className="overflow-hidden rounded-2xl border border-white/6 bg-resona-875"
+        >
+          <div className="grid grid-cols-[minmax(220px,2fr)_minmax(140px,1.2fr)_96px] gap-4 border-b border-white/6 px-4 py-3 text-sm text-resona-500">
+            <span>section</span>
+            <span>status</span>
+            <span>state</span>
+          </div>
+
+          {libraryRows.map((row) => (
+            <div
+              key={row.title}
+              className="grid grid-cols-[minmax(220px,2fr)_minmax(140px,1.2fr)_96px] items-center gap-4 border-b border-white/5 px-4 py-4 last:border-b-0"
+            >
+              <div className="grid min-w-0 gap-1">
+                <span className="text-sm text-resona-200">{row.title}</span>
+                <span className="truncate text-sm text-resona-500">{row.detail}</span>
+              </div>
+              <span className="text-sm text-resona-300">not yet implemented</span>
+              <span className="text-sm text-resona-500">{row.state}</span>
+            </div>
+          ))}
+        </section>
+      </div>
+    </>
+  );
+}
+
+function QueuePage() {
+  return (
+    <section className="grid h-full place-items-center px-6 py-10">
+      <div className="grid max-w-md gap-2 text-center">
+        <h2 className="m-0 text-xl font-medium text-resona-100">queue</h2>
+        <p className="m-0 text-sm text-resona-500">
+          Queue routing is wired. Reorder and transport-aware queue behavior land in later
+          commits.
+        </p>
+      </div>
+    </section>
+  );
+}
+
+function SettingsPage() {
+  return (
+    <section className="grid h-full place-items-center px-6 py-10">
+      <div className="grid max-w-md gap-2 text-center">
+        <h2 className="m-0 text-xl font-medium text-resona-100">settings</h2>
+        <p className="m-0 text-sm text-resona-500">
+          Settings routing is wired. Folder picker, playback preferences, and import controls come
+          later.
+        </p>
+      </div>
+    </section>
+  );
+}
+
+function PlaybackBar({
+  playback,
+  onPlaybackAction,
+}: {
+  playback: PlaybackShellState;
+  onPlaybackAction: (action: "previous" | "toggle" | "next") => void;
+}) {
+  const progressWidth =
+    playback.durationSeconds > 0
+      ? `${Math.min(100, (playback.progressSeconds / playback.durationSeconds) * 100)}%`
+      : "0%";
+
+  return (
+    <footer className="col-span-full grid grid-cols-[240px_minmax(0,1fr)_220px] items-center gap-4 border-t border-white/6 bg-resona-950 pr-4">
+      <div className="flex h-full min-w-0 items-center gap-3 border-r border-white/6 pl-4">
+        <div className="h-11 w-11 rounded-xl border border-white/8 bg-resona-825" />
+        <div className="grid min-w-0 gap-0.5">
+          <strong className="truncate text-sm font-medium text-resona-100">Nothing playing</strong>
+          <span className="text-sm text-resona-500">Playback bar scaffold</span>
+        </div>
+      </div>
+
+      <div className="grid gap-3 px-4 py-4">
+        <div className="flex justify-center gap-2">
+          {[
+            { action: "previous" as const, label: "<" },
+            { action: "toggle" as const, label: ">" },
+            { action: "next" as const, label: ">>" },
+          ].map((item) => (
+            <button
+              key={item.action}
+              className="h-10 min-w-10 rounded-full border border-white/8 bg-resona-850 text-sm text-resona-300 transition-colors hover:border-white/12 hover:text-resona-100"
+              type="button"
+              onClick={() => {
+                onPlaybackAction(item.action);
+              }}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="grid gap-2">
+          <div className="h-1 w-full overflow-hidden rounded-full bg-white/8">
+            <div
+              className="h-full rounded-full bg-resona-500 transition-[width]"
+              style={{ width: progressWidth }}
+            />
+          </div>
+          <div className="flex justify-between text-xs text-resona-500">
+            <span>{formatDuration(playback.progressSeconds)}</span>
+            <span>{formatDuration(playback.durationSeconds)}</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid justify-items-end gap-1 pr-1">
+        <span className="text-xs text-resona-500">output</span>
+        <span className="text-sm text-resona-300">{playback.transportLabel}</span>
+      </div>
+    </footer>
+  );
+}
+
+function AppShell({
+  payload,
+  shellState,
+  libraryPath,
+  scanState,
+  onLibraryPathChange,
+  onPlaybackAction,
+  onScan,
+}: {
+  payload: BootstrapPayload;
+  shellState: ShellState;
+  libraryPath: string;
+  scanState: ScanState;
+  onLibraryPathChange: (value: string) => void;
+  onPlaybackAction: (action: "previous" | "toggle" | "next") => void;
+  onScan: () => void;
+}) {
+  return (
+    <BrowserRouter>
+      <main className="grid min-h-screen grid-cols-[240px_minmax(0,1fr)] grid-rows-[1fr_88px] bg-resona-925 text-resona-200">
+        <Sidebar
+          appName={payload.appName}
+          runtimeLabel={`${payload.runtime.desktopShell} bootstrap ready`}
+          navSections={shellState.navSections}
+        />
+
+        <section className="grid min-w-0 grid-rows-[1fr] bg-resona-925">
+          <Routes>
+            <Route path="/" element={<Navigate to="/library" replace />} />
+            <Route
+              path="/library"
+              element={
+                <LibraryPage
+                  libraryRows={shellState.libraryRows}
+                  libraryPath={libraryPath}
+                  scanState={scanState}
+                  platformLabel={payload.platform}
+                  appVersion={payload.appVersion}
+                  onLibraryPathChange={onLibraryPathChange}
+                  onScan={onScan}
+                />
+              }
+            />
+            <Route path="/queue" element={<QueuePage />} />
+            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="*" element={<Navigate to="/library" replace />} />
+          </Routes>
+        </section>
+
+        <PlaybackBar playback={shellState.playback} onPlaybackAction={onPlaybackAction} />
+      </main>
+    </BrowserRouter>
+  );
 }
 
 export default function App() {
@@ -290,7 +388,6 @@ export default function App() {
         document.title = payload.windowTitle;
         setState({ status: "ready", payload });
         setShellState({
-          activeSectionId: shellPayload.navSections[0]?.id ?? "tracks",
           navSections: shellPayload.navSections,
           libraryRows: shellPayload.libraryRows,
           playback: shellPayload.playback,
@@ -311,49 +408,15 @@ export default function App() {
     };
   }, []);
 
-  if (state.status === "loading") {
-    return (
-      <main style={centeredStateStyle}>
-        <div style={stackStyle}>
-          <h1 style={headingStyle}>resona</h1>
-        </div>
-      </main>
-    );
-  }
-
-  if (state.status === "error") {
-    return (
-      <main style={centeredStateStyle}>
-        <div style={stackStyle}>
-          <h1 style={headingStyle}>resona</h1>
-          <p style={metaStyle}>{state.message}</p>
-        </div>
-      </main>
-    );
-  }
-
-  const { payload } = state;
-  const currentShellState = shellState;
-
-  if (!currentShellState) {
-    return (
-      <main style={centeredStateStyle}>
-        <div style={stackStyle}>
-          <h1 style={headingStyle}>{payload.appName}</h1>
-        </div>
-      </main>
-    );
-  }
-
-  const progressWidth =
-    currentShellState.playback.durationSeconds > 0
-      ? `${Math.min(
-          100,
-          (currentShellState.playback.progressSeconds /
-            currentShellState.playback.durationSeconds) *
-            100,
-        )}%`
-      : "0%";
+  const refreshShellState = () => {
+    void getShellState().then((shellPayload) => {
+      setShellState((existing) => ({
+        navSections: shellPayload.navSections,
+        libraryRows: shellPayload.libraryRows,
+        playback: existing?.playback ?? shellPayload.playback,
+      }));
+    });
+  };
 
   const handlePlaybackAction = (action: "previous" | "toggle" | "next") => {
     void playbackAction(action).then((playback) => {
@@ -367,17 +430,6 @@ export default function App() {
           playback,
         };
       });
-    });
-  };
-
-  const refreshShellState = () => {
-    void getShellState().then((shellPayload) => {
-      setShellState((existing) => ({
-        activeSectionId: existing?.activeSectionId ?? shellPayload.navSections[0]?.id ?? "tracks",
-        navSections: shellPayload.navSections,
-        libraryRows: shellPayload.libraryRows,
-        playback: existing?.playback ?? shellPayload.playback,
-      }));
     });
   };
 
@@ -413,221 +465,27 @@ export default function App() {
       });
   };
 
+  if (state.status === "loading") {
+    return <ShellStateScreen title="resona" />;
+  }
+
+  if (state.status === "error") {
+    return <ShellStateScreen title="resona" detail={state.message} />;
+  }
+
+  if (!shellState) {
+    return <ShellStateScreen title={state.payload.appName} />;
+  }
+
   return (
-    <main style={appSurfaceStyle}>
-      <aside style={sidebarStyle}>
-        <div style={brandBlockStyle}>
-          <h1 style={headingStyle}>{payload.appName}</h1>
-          <p style={mutedLabelStyle}>
-            {payload.runtime.desktopShell} bootstrap ready
-          </p>
-        </div>
-
-        <section style={{ display: "grid", gap: "0.7rem" }}>
-          <h2 style={sectionTitleStyle}>Library</h2>
-          <nav style={navListStyle} aria-label="Library sections">
-            {currentShellState.navSections.slice(0, 3).map((section) => (
-              <button
-                key={section.id}
-                style={
-                  currentShellState.activeSectionId === section.id
-                    ? navItemActiveStyle
-                    : navItemStyle
-                }
-                type="button"
-                onClick={() => {
-                  setShellState((existing) =>
-                    existing
-                      ? { ...existing, activeSectionId: section.id }
-                      : existing,
-                  );
-                }}
-              >
-                {section.label}
-              </button>
-            ))}
-          </nav>
-        </section>
-
-        <section style={{ display: "grid", gap: "0.7rem" }}>
-          <h2 style={sectionTitleStyle}>Workspace</h2>
-          <nav style={navListStyle} aria-label="Workspace sections">
-            {currentShellState.navSections.slice(3).map((section) => (
-              <button
-                key={section.id}
-                style={
-                  currentShellState.activeSectionId === section.id
-                    ? navItemActiveStyle
-                    : navItemStyle
-                }
-                type="button"
-                onClick={() => {
-                  setShellState((existing) =>
-                    existing
-                      ? { ...existing, activeSectionId: section.id }
-                      : existing,
-                  );
-                }}
-              >
-                {section.label}
-              </button>
-            ))}
-          </nav>
-        </section>
-      </aside>
-
-      <section style={mainPaneStyle}>
-        <header style={paneHeaderStyle}>
-          <div style={{ ...headerTextBlockStyle, minWidth: 0, flex: "1 1 auto" }}>
-            <h2 style={sectionTitleStyle}>Library</h2>
-            <div style={importControlsStyle}>
-              <div style={importRowStyle}>
-                <input
-                  aria-label="Temporary local library path"
-                  placeholder="/Users/you/Music"
-                  style={inputStyle}
-                  type="text"
-                  value={libraryPath}
-                  onChange={(event) => {
-                    setLibraryPath(event.target.value);
-                  }}
-                />
-                <button
-                  style={actionButtonStyle}
-                  type="button"
-                  onClick={handleScan}
-                  disabled={scanState.status === "running"}
-                >
-                  {scanState.status === "running" ? "Scanning..." : "Add library"}
-                </button>
-              </div>
-              <p style={mutedLabelStyle}>{scanState.message}</p>
-            </div>
-          </div>
-          <p style={mutedLabelStyle}>
-            {payload.platform} • v{payload.appVersion}
-          </p>
-        </header>
-
-        <div style={libraryPaneStyle}>
-          <section style={panelStyle} aria-label="Library content placeholder">
-            <div style={tableHeaderStyle}>
-              <span>section</span>
-              <span>status</span>
-              <span>state</span>
-            </div>
-            {currentShellState.libraryRows.map((row) => (
-              <div key={row.title} style={rowStyle}>
-                <div style={{ display: "grid", gap: "0.2rem", minWidth: 0 }}>
-                  <span style={{ fontWeight: 400 }}>{row.title}</span>
-                  <span
-                    style={{
-                      color: "#8a8a8a",
-                      fontSize: "0.9rem",
-                      whiteSpace: "nowrap",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                    }}
-                  >
-                    {row.detail}
-                  </span>
-                </div>
-                <span style={{ color: "#b2b2b2" }}>not yet implemented</span>
-                <span style={{ color: "#8a8a8a" }}>{row.state}</span>
-              </div>
-            ))}
-          </section>
-        </div>
-      </section>
-
-      <footer style={playbackBarStyle}>
-        <div
-          style={{
-            ...playbackSectionStyle,
-            paddingLeft: "1rem",
-            borderRight: "1px solid rgba(255, 255, 255, 0.06)",
-            height: "100%",
-          }}
-        >
-          <div
-            style={{
-              width: "44px",
-              height: "44px",
-              borderRadius: "0.75rem",
-              background: "#242424",
-              border: "1px solid rgba(255, 255, 255, 0.08)",
-            }}
-          />
-          <div style={{ display: "grid", gap: "0.15rem", minWidth: 0 }}>
-            <strong style={{ fontWeight: 500 }}>Nothing playing</strong>
-            <span style={{ color: "#8a8a8a", fontSize: "0.9rem" }}>
-              Playback bar scaffold
-            </span>
-          </div>
-        </div>
-
-        <div style={{ display: "grid", gap: "0.85rem", padding: "0 1rem" }}>
-          <div style={buttonGroupStyle}>
-            <button
-              style={playbackButtonStyle}
-              type="button"
-              onClick={() => {
-                handlePlaybackAction("previous");
-              }}
-            >
-              {"<"}
-            </button>
-            <button
-              style={playbackButtonStyle}
-              type="button"
-              onClick={() => {
-                handlePlaybackAction("toggle");
-              }}
-            >
-              {">"}
-            </button>
-            <button
-              style={playbackButtonStyle}
-              type="button"
-              onClick={() => {
-                handlePlaybackAction("next");
-              }}
-            >
-              {">>"}
-            </button>
-          </div>
-          <div style={{ display: "grid", gap: "0.45rem" }}>
-            <div style={progressTrackStyle}>
-              <div style={{ ...progressFillStyle, width: progressWidth }} />
-            </div>
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                color: "#7d7d7d",
-                fontSize: "0.8rem",
-              }}
-            >
-              <span>{formatDuration(currentShellState.playback.progressSeconds)}</span>
-              <span>{formatDuration(currentShellState.playback.durationSeconds)}</span>
-            </div>
-          </div>
-        </div>
-
-        <div
-          style={{
-            display: "grid",
-            justifyItems: "end",
-            gap: "0.2rem",
-            paddingRight: "1rem",
-          }}
-        >
-          <span style={{ color: "#8a8a8a", fontSize: "0.85rem" }}>Output</span>
-          <span style={{ color: "#d3d3d3", fontSize: "0.95rem" }}>
-            {currentShellState.playback.transportLabel}
-          </span>
-        </div>
-      </footer>
-    </main>
+    <AppShell
+      payload={state.payload}
+      shellState={shellState}
+      libraryPath={libraryPath}
+      scanState={scanState}
+      onLibraryPathChange={setLibraryPath}
+      onPlaybackAction={handlePlaybackAction}
+      onScan={handleScan}
+    />
   );
 }
