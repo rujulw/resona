@@ -8,7 +8,8 @@ Build a private, performance-first music player that feels closer to a system ut
 
 ## MVP Scope
 
-- Import and index local music folders
+- Select a local music folder through the desktop app instead of entering raw filesystem paths
+- Recursively discover MP3 files in the selected folder and nested subfolders
 - Persist track metadata in SQLite
 - Browse large libraries with paginated queries
 - Search tracks quickly without loading the full library into UI state
@@ -86,7 +87,7 @@ Build a private, performance-first music player that feels closer to a system ut
 
 ### Library Engine
 
-Indexes local files, syncs Atlas-backed library metadata, normalizes track records, and exposes paginated library queries.
+Indexes local files from a user-selected directory, scans nested folders for MP3 content, syncs Atlas-backed library metadata, normalizes track records, and exposes paginated library queries.
 
 ### Source Providers
 
