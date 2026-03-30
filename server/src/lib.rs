@@ -109,7 +109,10 @@ fn build_shell_state(app_database: &AppDatabase) -> ShellStatePayload {
             .map(|status| status.latest_migration)
             .unwrap_or("migration status unavailable"),
         database_path: app_database.db_path().display().to_string(),
-        track_count: library_summary.as_ref().map(|summary| summary.tracks).unwrap_or(0),
+        track_count: library_summary
+            .as_ref()
+            .map(|summary| summary.tracks)
+            .unwrap_or(0),
         library_root_count: library_summary
             .as_ref()
             .map(|summary| summary.library_roots)
@@ -198,8 +201,7 @@ fn scan_local_library_with_database(
     root_path: &str,
     display_name: Option<&str>,
 ) -> Result<ScanSummary, library::ScanError> {
-    LocalLibraryScanner::new(app_database.clone())
-        .scan_path(root_path, display_name)
+    LocalLibraryScanner::new(app_database.clone()).scan_path(root_path, display_name)
 }
 
 #[tauri::command]
@@ -241,14 +243,13 @@ fn query_library_with_database(
         _ => SortDirection::Asc,
     };
 
-    LocalLibraryScanner::new(app_database.clone())
-        .query_library(&LibraryQuery {
-            page_size: page_size.unwrap_or(50),
-            cursor,
-            search,
-            sort_key,
-            sort_direction,
-        })
+    LocalLibraryScanner::new(app_database.clone()).query_library(&LibraryQuery {
+        page_size: page_size.unwrap_or(50),
+        cursor,
+        search,
+        sort_key,
+        sort_direction,
+    })
 }
 
 #[tauri::command]

@@ -86,7 +86,7 @@ impl AnalysisStatus {
 #[cfg(test)]
 mod tests {
     use super::{
-        AnalysisStatus, CacheState, INITIAL_SCHEMA_MIGRATION, SourceMode, TrackSourceStatus,
+        AnalysisStatus, CacheState, SourceMode, TrackSourceStatus, INITIAL_SCHEMA_MIGRATION,
         TABLE_ANALYSIS_RESULTS, TABLE_CACHE_ENTRIES, TABLE_LIBRARY_ROOTS, TABLE_TRACKS,
         TABLE_TRACK_SOURCES,
     };

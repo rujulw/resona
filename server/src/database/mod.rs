@@ -54,11 +54,10 @@ impl AppDatabase {
 
     pub fn migration_status(&self) -> Result<MigrationStatus, DatabaseError> {
         let connection = self.connect()?;
-        let migration_count: i64 = connection.query_row(
-            "SELECT COUNT(*) FROM schema_migrations",
-            [],
-            |row| row.get(0),
-        )?;
+        let migration_count: i64 =
+            connection.query_row("SELECT COUNT(*) FROM schema_migrations", [], |row| {
+                row.get(0)
+            })?;
 
         Ok(MigrationStatus {
             database_path: self.db_path.clone(),
