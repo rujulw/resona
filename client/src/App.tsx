@@ -1,6 +1,14 @@
 import { useEffect, useState } from "react";
 
-import { bootstrapApp, type BootstrapPayload } from "./desktop";
+import {
+  bootstrapApp,
+  getShellState,
+  playbackAction,
+  type BootstrapPayload,
+  type LibraryRow,
+  type NavSection,
+  type PlaybackShellState,
+} from "./desktop";
 
 const appSurfaceStyle = {
   minHeight: "100vh",
@@ -203,31 +211,46 @@ const progressFillStyle = {
   background: "#8d8d8d",
 } as const;
 
-const libraryRows = [
-  { title: "Library", detail: "No tracks loaded yet", state: "Idle" },
-  { title: "atlas", detail: "Remote source not connected", state: "Idle" },
-  { title: "timbre", detail: "Analysis queue unavailable", state: "Idle" },
-];
-
 type BootstrapState =
   | { status: "loading" }
   | { status: "ready"; payload: BootstrapPayload }
   | { status: "error"; message: string };
 
+type ShellState = {
+  navSections: NavSection[];
+  activeSectionId: string;
+  libraryRows: LibraryRow[];
+  playback: PlaybackShellState;
+};
+
+function formatDuration(totalSeconds: number): string {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+}
+
 export default function App() {
   const [state, setState] = useState<BootstrapState>({ status: "loading" });
+  const [shellState, setShellState] = useState<ShellState | null>(null);
 
   useEffect(() => {
     let cancelled = false;
 
-    void bootstrapApp()
-      .then((payload) => {
+    void Promise.all([bootstrapApp(), getShellState()])
+      .then(([payload, shellPayload]) => {
         if (cancelled) {
           return;
         }
 
         document.title = payload.windowTitle;
         setState({ status: "ready", payload });
+        setShellState({
+          activeSectionId: shellPayload.navSections[0]?.id ?? "tracks",
+          navSections: shellPayload.navSections,
+          libraryRows: shellPayload.libraryRows,
+          playback: shellPayload.playback,
+        });
       })
       .catch((error: unknown) => {
         if (cancelled) {
@@ -266,6 +289,42 @@ export default function App() {
   }
 
   const { payload } = state;
+  const currentShellState = shellState;
+
+  if (!currentShellState) {
+    return (
+      <main style={centeredStateStyle}>
+        <div style={stackStyle}>
+          <h1 style={headingStyle}>{payload.appName}</h1>
+        </div>
+      </main>
+    );
+  }
+
+  const progressWidth =
+    currentShellState.playback.durationSeconds > 0
+      ? `${Math.min(
+          100,
+          (currentShellState.playback.progressSeconds /
+            currentShellState.playback.durationSeconds) *
+            100,
+        )}%`
+      : "0%";
+
+  const handlePlaybackAction = (action: "previous" | "toggle" | "next") => {
+    void playbackAction(action).then((playback) => {
+      setShellState((existing) => {
+        if (!existing) {
+          return existing;
+        }
+
+        return {
+          ...existing,
+          playback,
+        };
+      });
+    });
+  };
 
   return (
     <main style={appSurfaceStyle}>
@@ -280,18 +339,52 @@ export default function App() {
         <section style={{ display: "grid", gap: "0.7rem" }}>
           <h2 style={sectionTitleStyle}>Library</h2>
           <nav style={navListStyle} aria-label="Library sections">
-            <div style={navItemActiveStyle}>Tracks</div>
-            <div style={navItemStyle}>Albums</div>
-            <div style={navItemStyle}>Artists</div>
+            {currentShellState.navSections.slice(0, 3).map((section) => (
+              <button
+                key={section.id}
+                style={
+                  currentShellState.activeSectionId === section.id
+                    ? navItemActiveStyle
+                    : navItemStyle
+                }
+                type="button"
+                onClick={() => {
+                  setShellState((existing) =>
+                    existing
+                      ? { ...existing, activeSectionId: section.id }
+                      : existing,
+                  );
+                }}
+              >
+                {section.label}
+              </button>
+            ))}
           </nav>
         </section>
 
         <section style={{ display: "grid", gap: "0.7rem" }}>
           <h2 style={sectionTitleStyle}>Workspace</h2>
           <nav style={navListStyle} aria-label="Workspace sections">
-            <div style={navItemStyle}>Queue</div>
-            <div style={navItemStyle}>Insights</div>
-            <div style={navItemStyle}>Settings</div>
+            {currentShellState.navSections.slice(3).map((section) => (
+              <button
+                key={section.id}
+                style={
+                  currentShellState.activeSectionId === section.id
+                    ? navItemActiveStyle
+                    : navItemStyle
+                }
+                type="button"
+                onClick={() => {
+                  setShellState((existing) =>
+                    existing
+                      ? { ...existing, activeSectionId: section.id }
+                      : existing,
+                  );
+                }}
+              >
+                {section.label}
+              </button>
+            ))}
           </nav>
         </section>
       </aside>
@@ -313,7 +406,7 @@ export default function App() {
               <span>status</span>
               <span>state</span>
             </div>
-            {libraryRows.map((row) => (
+            {currentShellState.libraryRows.map((row) => (
               <div key={row.title} style={rowStyle}>
                 <div style={{ display: "grid", gap: "0.2rem", minWidth: 0 }}>
                   <span style={{ fontWeight: 400 }}>{row.title}</span>
@@ -365,19 +458,37 @@ export default function App() {
 
         <div style={{ display: "grid", gap: "0.85rem", padding: "0 1rem" }}>
           <div style={buttonGroupStyle}>
-            <button style={playbackButtonStyle} type="button">
+            <button
+              style={playbackButtonStyle}
+              type="button"
+              onClick={() => {
+                handlePlaybackAction("previous");
+              }}
+            >
               {"<"}
             </button>
-            <button style={playbackButtonStyle} type="button">
+            <button
+              style={playbackButtonStyle}
+              type="button"
+              onClick={() => {
+                handlePlaybackAction("toggle");
+              }}
+            >
               {">"}
             </button>
-            <button style={playbackButtonStyle} type="button">
+            <button
+              style={playbackButtonStyle}
+              type="button"
+              onClick={() => {
+                handlePlaybackAction("next");
+              }}
+            >
               {">>"}
             </button>
           </div>
           <div style={{ display: "grid", gap: "0.45rem" }}>
             <div style={progressTrackStyle}>
-              <div style={progressFillStyle} />
+              <div style={{ ...progressFillStyle, width: progressWidth }} />
             </div>
             <div
               style={{
@@ -387,8 +498,8 @@ export default function App() {
                 fontSize: "0.8rem",
               }}
             >
-              <span>0:00</span>
-              <span>0:00</span>
+              <span>{formatDuration(currentShellState.playback.progressSeconds)}</span>
+              <span>{formatDuration(currentShellState.playback.durationSeconds)}</span>
             </div>
           </div>
         </div>
@@ -403,7 +514,7 @@ export default function App() {
         >
           <span style={{ color: "#8a8a8a", fontSize: "0.85rem" }}>Output</span>
           <span style={{ color: "#d3d3d3", fontSize: "0.95rem" }}>
-            {payload.runtime.core}
+            {currentShellState.playback.transportLabel}
           </span>
         </div>
       </footer>
