@@ -13,6 +13,7 @@ pub fn run() {
         AppDatabase::initialize_default().expect("failed to initialize resona database");
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .manage(DatabaseState { app_database })
         .invoke_handler(tauri::generate_handler![
             bootstrap_app,

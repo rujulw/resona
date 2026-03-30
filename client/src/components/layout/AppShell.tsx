@@ -16,7 +16,7 @@ export function AppShell({
   tracksState,
   libraryPath,
   scanState,
-  onLibraryPathChange,
+  onPickLibraryDirectory,
   onPlaybackAction,
   onTrackSelect,
   onScan,
@@ -27,7 +27,7 @@ export function AppShell({
   tracksState: TracksState;
   libraryPath: string;
   scanState: ScanState;
-  onLibraryPathChange: (value: string) => void;
+  onPickLibraryDirectory: () => void;
   onPlaybackAction: (action: "previous" | "toggle" | "next") => void;
   onTrackSelect: (track: TrackListItem) => void;
   onScan: () => void;
@@ -72,7 +72,7 @@ export function AppShell({
                   platformLabel={payload.platform}
                   appVersion={payload.appVersion}
                   scanState={scanState}
-                  onLibraryPathChange={onLibraryPathChange}
+                  onPickLibraryDirectory={onPickLibraryDirectory}
                   onScan={onScan}
                 />
               }

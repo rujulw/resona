@@ -109,3 +109,18 @@
   - `client/src/App.test.tsx`
 - Linked commit/PR: pending
 - Notes: this fix establishes a clean local-playback baseline before remote playback, richer queue editing, and repeat/shuffle logic are layered in.
+
+## 2026-03-30 - Avoided silent folder-picker failure from missing dialog capability wiring
+- Status: fixed
+- Severity: medium
+- Symptom: the `choose folder` action appeared dead in settings because the Tauri dialog plugin was registered, but the main window did not have the capability permission needed to open the native directory picker.
+- Root cause: the frontend picker call was valid, but the app had no explicit `dialog:allow-open` capability bound to the active window label, and the client also swallowed picker errors in a way that made the failure look like a no-op.
+- Fix: added a default Tauri capability for the `main` window with `dialog:allow-open`, aligned the window label in the Tauri config, and stopped suppressing picker errors silently.
+- Verification: `npm test`, `npm run build`, and `cargo check` all pass after the capability and client error-handling changes, and the directory picker can be retried through the settings route after a full desktop restart.
+- Files touched:
+  - `server/capabilities/default.json`
+  - `server/tauri.conf.json`
+  - `client/src/desktop.ts`
+  - `client/src/hooks/useAppShell.ts`
+- Linked commit/PR: pending
+- Notes: canceling the picker is now treated as a quiet no-op rather than as a noisy status update, which better matches desktop utility expectations.

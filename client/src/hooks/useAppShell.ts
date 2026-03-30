@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   bootstrapApp,
   getShellState,
+  pickLibraryDirectory,
   playbackAction,
   queryLibrary,
   resolveTrackPlaybackSource,
@@ -492,6 +493,30 @@ export function useAppShell() {
       });
   };
 
+  const handlePickLibraryDirectory = () => {
+    void pickLibraryDirectory(libraryPath)
+      .then((selectedPath) => {
+        if (!selectedPath) {
+          return;
+        }
+
+        setLibraryPath(selectedPath);
+        setScanState({
+          status: "idle",
+          message: `Selected ${selectedPath}.`,
+        });
+      })
+      .catch((error: unknown) => {
+        setScanState({
+          status: "error",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Failed to open folder picker.",
+        });
+      });
+  };
+
   const queueState = deriveQueueState(
     tracksState.items,
     shellState?.playback.trackId ?? tracksState.selectedTrackId,
@@ -505,6 +530,7 @@ export function useAppShell() {
     libraryPath,
     scanState,
     setLibraryPath,
+    handlePickLibraryDirectory,
     handlePlaybackAction,
     handleTrackSelection,
     handleScan,

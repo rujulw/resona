@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const bootstrapAppMock = vi.fn();
 const getShellStateMock = vi.fn();
 const queryLibraryMock = vi.fn();
+const pickLibraryDirectoryMock = vi.fn();
 const playbackActionMock = vi.fn();
 const resolveTrackPlaybackSourceMock = vi.fn();
 const scanLocalLibraryMock = vi.fn();
@@ -14,6 +15,7 @@ const mockAudioInstances: MockAudio[] = [];
 vi.mock("./desktop", () => ({
   bootstrapApp: () => bootstrapAppMock(),
   getShellState: () => getShellStateMock(),
+  pickLibraryDirectory: (...args: unknown[]) => pickLibraryDirectoryMock(...args),
   queryLibrary: () => queryLibraryMock(),
   playbackAction: (...args: unknown[]) => playbackActionMock(...args),
   resolveTrackPlaybackSource: (...args: unknown[]) => resolveTrackPlaybackSourceMock(...args),
@@ -59,6 +61,7 @@ describe("app shell smoke checks", () => {
     bootstrapAppMock.mockReset();
     getShellStateMock.mockReset();
     queryLibraryMock.mockReset();
+    pickLibraryDirectoryMock.mockReset();
     playbackActionMock.mockReset();
     resolveTrackPlaybackSourceMock.mockReset();
     scanLocalLibraryMock.mockReset();
@@ -139,6 +142,7 @@ describe("app shell smoke checks", () => {
       localPath: `/Users/rujulw/Music/${trackId}.mp3`,
       assetUrl: `asset://localhost/${trackId}.mp3`,
     }));
+    pickLibraryDirectoryMock.mockResolvedValue("/Users/rujulw/Music");
 
     window.history.replaceState({}, "", "/");
   });
@@ -329,5 +333,20 @@ describe("app shell smoke checks", () => {
 
     expect(screen.getByRole("button", { name: /scan library/i })).toBeTruthy();
     expect(screen.getByText("Nothing playing")).toBeTruthy();
+  });
+
+  it("replaces raw path typing with the folder picker flow", async () => {
+    window.history.replaceState({}, "", "/settings");
+
+    const { default: App } = await import("./App");
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "choose folder" }));
+
+    await waitFor(() => {
+      expect(pickLibraryDirectoryMock).toHaveBeenCalledTimes(1);
+      expect(screen.getByText("/Users/rujulw/Music")).toBeTruthy();
+      expect(screen.getByRole("button", { name: "scan library" })).toBeTruthy();
+    });
   });
 });

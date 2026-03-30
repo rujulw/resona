@@ -30,7 +30,7 @@ export default function App() {
       tracksState={appShell.tracksState}
       libraryPath={appShell.libraryPath}
       scanState={appShell.scanState}
-      onLibraryPathChange={appShell.setLibraryPath}
+      onPickLibraryDirectory={appShell.handlePickLibraryDirectory}
       onPlaybackAction={appShell.handlePlaybackAction}
       onTrackSelect={appShell.handleTrackSelection}
       onScan={appShell.handleScan}

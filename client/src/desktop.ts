@@ -1,4 +1,5 @@
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
+import { open } from "@tauri-apps/plugin-dialog";
 
 export type BootstrapPayload = {
   appName: string;
@@ -203,4 +204,18 @@ export async function resolveTrackPlaybackSource(
   } catch {
     return null;
   }
+}
+
+export async function pickLibraryDirectory(
+  defaultPath?: string | null,
+): Promise<string | null> {
+  const selected = await open({
+    title: "Choose music folder",
+    directory: true,
+    multiple: false,
+    recursive: true,
+    defaultPath: defaultPath?.trim() ? defaultPath : undefined,
+  });
+
+  return typeof selected === "string" ? selected : null;
 }
