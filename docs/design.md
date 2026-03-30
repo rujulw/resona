@@ -27,11 +27,11 @@ The working library view is a focused tracks table with search, sort, and pagina
 
 ### Playback
 
-Playback controls live in a persistent bottom bar with clear transport actions, current track identity, progress, and source or cache status. Core actions should be available with minimal pointer movement.
+Playback controls live in a persistent bottom bar with clear transport actions, current track identity, progress, and source or cache status. Core actions should be available with minimal pointer movement, and the selected track in the library should immediately become the active shell track.
 
 ### Queue
 
-Queue management should be explicit and deterministic. Users should always understand what plays next and why. V1 should avoid hidden automation beyond user-selected shuffle and repeat modes.
+Queue management should be explicit and deterministic. Users should always understand what plays next and why. The current baseline derives next-up behavior directly from the active local selection and visible library order, which keeps queue behavior legible before richer queue editing lands.
 
 ### Insights
 
@@ -62,6 +62,7 @@ Track insights from timbre should appear in secondary detail surfaces such as a 
 - Playback-critical flows are owned by Rust to reduce frontend complexity
 - The app remains open source even when used with private Atlas-backed media libraries
 - The desktop client should use a persistent routed shell so home, tracks, queue, and settings share the same navigation and playback frame
+- The playback bar and queue route should both read from the same active-track state so transport and next-up behavior cannot drift apart
 
 ## Non-Goals
 

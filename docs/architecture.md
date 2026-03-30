@@ -113,6 +113,7 @@ The backend is intentionally split so each layer has a clear responsibility boun
 - Layout components own persistent desktop chrome such as sidebar, top bar, and playback bar
 - Page components own route-local content instead of burying the whole client in one top-level file
 - The app-shell hook owns bootstrap, query refresh, and scan-trigger state coordination
+- The app-shell hook also owns active-track playback state, derived queue state, and audio progress synchronization
 
 ### fused timbre engine
 
@@ -180,6 +181,13 @@ That shape matters for both performance and clarity. The traversal is effectivel
 - Resolves playback path in priority order: local, cached, remote
 - Owns queue state, transport controls, buffering state, and transitions
 - Starts with a Web Audio-based path in V1 and leaves room for a native Rust path in V2
+
+Current frontend playback baseline:
+
+- Track selection in the library route sets the active playback item for the shell
+- The client resolves the selected local file into a Tauri asset-backed playback source
+- Transport controls in the bottom bar drive the same active track state used by the queue route
+- Progress and duration are synchronized from the active audio element back into shell state
 
 ### Analysis Engine
 
@@ -257,6 +265,14 @@ This is the right tradeoff for `resona` because SQLite already provides ordered 
 3. The persistent sidebar, top bar, and playback bar render once and remain mounted across route changes
 4. Route content swaps between home, tracks, queue, and settings without rebuilding the full desktop shell
 
+### Frontend Playback Flow
+
+1. A track row selection marks the active local item in shell state
+2. The desktop client resolves that indexed item into a local playback source through the Tauri bridge
+3. The client audio element begins playback and emits metadata and time updates
+4. The shell playback bar and queue route both read from the same active-track state
+5. Previous and next transport actions derive their behavior from the currently loaded local track order
+
 ### Playback Resolution
 
 1. Playback request enters the Rust engine
@@ -303,3 +319,5 @@ The current Rust backend now reflects that direction more closely:
 That separation is still early and can deepen further with repositories, playback services, and analysis services, but the code is no longer relying on one catch-all module per subsystem.
 
 The frontend now follows the same direction: a routed shell, separated layout components, route-owned pages, and a dedicated hook for boot/query/scan coordination instead of one monolithic client entry file.
+
+The playback-core branch extends that pattern by keeping active-track selection, transport actions, queue derivation, and audio progress updates behind the same client-side shell boundary instead of scattering those responsibilities across unrelated pages.

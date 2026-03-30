@@ -94,3 +94,18 @@
   - `client/package-lock.json`
 - Linked commit/PR: pending
 - Notes: this branch still leaves real playback for the next branch, but the desktop shell itself now has basic regression protection.
+
+## 2026-03-30 - Avoided drift between selected track state, transport controls, and queue behavior
+- Status: fixed
+- Severity: medium
+- Symptom: once local playback was added, the app risked showing one selected track in the library while the playback bar, transport controls, and queue route reflected a different item or stale next-up state.
+- Root cause: active playback identity, transport actions, and queue rendering were all introduced in separate slices, which created a real risk that one surface would update without the others.
+- Fix: routed active-track selection, previous/next behavior, queue derivation, and progress synchronization through the same app-shell playback state instead of letting each page own its own interpretation.
+- Verification: `npm test` passes with smoke coverage for selection, transport movement, queue derivation, progress sync, and restart-on-previous behavior, and `npm run build` passes for the production client build.
+- Files touched:
+  - `client/src/hooks/useAppShell.ts`
+  - `client/src/components/layout/PlaybackBar.tsx`
+  - `client/src/pages/QueuePage.tsx`
+  - `client/src/App.test.tsx`
+- Linked commit/PR: pending
+- Notes: this fix establishes a clean local-playback baseline before remote playback, richer queue editing, and repeat/shuffle logic are layered in.

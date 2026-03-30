@@ -42,10 +42,17 @@ resona aims to become a high-performance music system for private libraries, bal
 
 ## Milestone 4: Playback and Queue
 
-- Implement playback state management
+- Implement playback state management for active local track selection and shell sync
 - Add queue creation, reorder, and removal flows
 - Support local playback and cached playback
 - Introduce initial remote buffering path for Atlas tracks
+
+Current milestone progress:
+
+- Active local track selection now drives the persistent playback bar
+- Local indexed MP3 playback is now working in the desktop client
+- Previous, next, pause, restart, and progress sync now operate against the active track
+- The queue route now reflects a derived next-up flow from the current local selection
 
 ## Milestone 5: Cache and Remote Media
 

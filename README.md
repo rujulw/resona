@@ -90,6 +90,13 @@ Build a private, performance-first music player that feels closer to a system ut
 - The top window area is moving toward an app-owned desktop chrome instead of relying fully on the native title text
 - The client code is now split into `components/`, `pages/`, `hooks/`, `types/`, `constants/`, and `utils/` rather than keeping the shell in one `App.tsx`
 
+## Current Playback Baseline
+
+- Selecting a track from the library now drives the active playback state in the persistent bottom bar
+- Local indexed MP3 files can now be played directly through the desktop client using Tauri asset-backed file access
+- Transport controls now handle play, pause, previous, next, restart-on-previous, and live progress updates
+- The queue route now reflects a derived next-up flow from the active local selection instead of placeholder shell copy
+
 ## MVP Subsystems
 
 ### Library Engine
@@ -123,6 +130,8 @@ Chooses the fastest viable path for playback:
 1. Local file
 2. Cached file
 3. Remote fetch to temporary buffer, then playback
+
+The current implementation baseline already supports direct local playback for indexed MP3 files through the desktop client, with the next-up queue derived from the currently active library selection.
 
 ### Analysis Engine
 
