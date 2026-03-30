@@ -17,7 +17,7 @@ vi.mock("./desktop", () => ({
   bootstrapApp: () => bootstrapAppMock(),
   getShellState: () => getShellStateMock(),
   pickLibraryDirectory: (...args: unknown[]) => pickLibraryDirectoryMock(...args),
-  queryLibrary: () => queryLibraryMock(),
+  queryLibrary: (...args: unknown[]) => queryLibraryMock(...args),
   playbackAction: (...args: unknown[]) => playbackActionMock(...args),
   resolveArtworkSource: (...args: unknown[]) => resolveArtworkSourceMock(...args),
   resolveTrackPlaybackSource: (...args: unknown[]) => resolveTrackPlaybackSourceMock(...args),
@@ -194,6 +194,154 @@ describe("app shell smoke checks", () => {
     expect(screen.getByText("Nothing playing")).toBeTruthy();
   });
 
+  it("drives search and header sort controls through the tracks query contract", async () => {
+    window.history.replaceState({}, "", "/tracks");
+    queryLibraryMock.mockReset();
+    queryLibraryMock
+      .mockResolvedValueOnce({
+        items: [
+          {
+            id: "track-1",
+            title: "Alpha",
+            artist: "North",
+            album: "Signals",
+            durationSeconds: 182,
+            artworkKey: "alpha-cover.png",
+            relativePath: "alpha.mp3",
+            sourceStatus: "local-only",
+            cacheState: "none",
+            analysisStatus: "pending",
+            indexedAt: "1700000000",
+          },
+        ],
+        nextCursor: null,
+        total: 3,
+        pageSize: 200,
+      })
+      .mockResolvedValueOnce({
+        items: [
+          {
+            id: "track-2",
+            title: "Bravo",
+            artist: "South",
+            album: "Horizons",
+            durationSeconds: 205,
+            artworkKey: "bravo-cover.png",
+            relativePath: "bravo.mp3",
+            sourceStatus: "local-only",
+            cacheState: "none",
+            analysisStatus: "pending",
+            indexedAt: "1700000100",
+          },
+        ],
+        nextCursor: null,
+        total: 1,
+        pageSize: 200,
+      })
+      .mockResolvedValueOnce({
+        items: [
+          {
+            id: "track-2",
+            title: "Bravo",
+            artist: "South",
+            album: "Horizons",
+            durationSeconds: 205,
+            artworkKey: "bravo-cover.png",
+            relativePath: "bravo.mp3",
+            sourceStatus: "local-only",
+            cacheState: "none",
+            analysisStatus: "pending",
+            indexedAt: "1700000100",
+          },
+        ],
+        nextCursor: null,
+        total: 1,
+        pageSize: 200,
+      })
+      .mockResolvedValueOnce({
+        items: [
+          {
+            id: "track-2",
+            title: "Bravo",
+            artist: "South",
+            album: "Horizons",
+            durationSeconds: 205,
+            artworkKey: "bravo-cover.png",
+            relativePath: "bravo.mp3",
+            sourceStatus: "local-only",
+            cacheState: "none",
+            analysisStatus: "pending",
+            indexedAt: "1700000100",
+          },
+        ],
+        nextCursor: null,
+        total: 1,
+        pageSize: 200,
+      })
+      .mockResolvedValueOnce({
+        items: [
+          {
+            id: "track-2",
+            title: "Bravo",
+            artist: "South",
+            album: "Horizons",
+            durationSeconds: 205,
+            artworkKey: "bravo-cover.png",
+            relativePath: "bravo.mp3",
+            sourceStatus: "local-only",
+            cacheState: "none",
+            analysisStatus: "pending",
+            indexedAt: "1700000100",
+          },
+        ],
+        nextCursor: null,
+        total: 1,
+        pageSize: 200,
+      });
+
+    const { default: App } = await import("./App");
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "library table" });
+
+    fireEvent.change(screen.getByPlaceholderText("Search title, artist, album"), {
+      target: { value: "bravo" },
+    });
+    fireEvent.keyDown(screen.getByPlaceholderText("Search title, artist, album"), {
+      key: "Enter",
+      code: "Enter",
+    });
+
+    await waitFor(() => {
+      expect(queryLibraryMock).toHaveBeenLastCalledWith({
+        pageSize: 200,
+        cursor: null,
+        search: "bravo",
+        sortKey: "title",
+        sortDirection: "asc",
+      });
+      expect(screen.getByText("Bravo")).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "title ↑" }));
+    await screen.findByRole("button", { name: "title ↓" });
+
+    fireEvent.click(screen.getByRole("button", { name: "title ↓" }));
+    await screen.findByRole("button", { name: "artist ↑" });
+
+    fireEvent.click(screen.getByRole("button", { name: "artist ↑" }));
+
+    await waitFor(() => {
+      expect(queryLibraryMock).toHaveBeenLastCalledWith({
+        pageSize: 200,
+        cursor: null,
+        search: "bravo",
+        sortKey: "artist",
+        sortDirection: "desc",
+      });
+    });
+  });
+
   it("pushes the selected track into the playback shell state", async () => {
     window.history.replaceState({}, "", "/tracks");
 
@@ -207,7 +355,7 @@ describe("app shell smoke checks", () => {
       expect(
         screen.getByRole("button", { name: "Select Alpha" }).getAttribute("aria-pressed"),
       ).toBe("true");
-      expect(screen.getByText("Playing")).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Pause playback" })).toBeTruthy();
     });
   });
 
@@ -223,7 +371,7 @@ describe("app shell smoke checks", () => {
       expect(
         screen.getByRole("button", { name: "Select Alpha" }).getAttribute("aria-pressed"),
       ).toBe("true");
-      expect(screen.getByText("Playing")).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Pause playback" })).toBeTruthy();
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Next track" }));

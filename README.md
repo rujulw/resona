@@ -4,20 +4,17 @@ resona is a lightweight, local-first desktop music system built for fast playbac
 
 ## Product Goal
 
-Build a private, performance-first music player that feels closer to a system utility than a streaming platform. The MVP focuses on dependable local playback, Atlas-backed storage and sync for the same library, deterministic queueing, and non-blocking timbre analysis for track-level insights.
+Build a private, performance-first music player that feels closer to a system utility than a streaming platform. The current v1 focus is dependable local playback, folder-based library import, deterministic queueing, and a dense desktop shell that can grow into Atlas-backed storage and timbre-powered insight work later.
 
 ## MVP Scope
 
 - Select a local music folder through the desktop app instead of entering raw filesystem paths
 - Recursively discover MP3 files in the selected folder and nested subfolders
 - Persist track metadata in SQLite
-- Browse large libraries with paginated queries
-- Search tracks quickly without loading the full library into UI state
-- Play local, cached, and remotely fetched Atlas tracks
-- Manage queue, play/pause, seek, shuffle, and repeat
-- Cache remote tracks with size-bounded LRU eviction
-- Run background timbre analysis without interrupting playback
-- Surface track-level insights such as BPM, energy, tonal profile, and flow metrics
+- Browse large libraries in a scrollable tracks table with search and header-driven sorting
+- Search tracks quickly without loading the full library into React state as one giant boot payload
+- Play indexed local tracks with persistent transport controls and progress sync
+- Manage queue, play/pause, previous, next, and restart-on-previous behavior
 
 ## Non-Goals
 
@@ -35,10 +32,10 @@ Build a private, performance-first music player that feels closer to a system ut
 
 ## Core Principles
 
-- Local-first, Atlas-backed
+- Local-first
 - Predictable performance at 10k+ tracks
 - Minimal React state and rendering overhead
-- Analysis enhances playback and never blocks it
+- Analysis should enhance playback and never block it
 - Clear, utility-first interface over entertainment-platform patterns
 - Open-source core with private user-controlled media storage
 
@@ -89,6 +86,7 @@ Build a private, performance-first music player that feels closer to a system ut
 - The left sidebar and bottom playback bar stay mounted across route changes
 - The top window area is moving toward an app-owned desktop chrome instead of relying fully on the native title text
 - The client code is now split into `components/`, `pages/`, `hooks/`, `types/`, `constants/`, and `utils/` rather than keeping the shell in one `App.tsx`
+- The `tracks` route now uses a full-width inline search field, header-driven sorting, and a scrollable library table inside the persistent desktop shell
 
 ## Current Playback Baseline
 
@@ -101,7 +99,7 @@ Build a private, performance-first music player that feels closer to a system ut
 
 ### Library Engine
 
-Indexes local files from a user-selected directory, scans nested folders for MP3 content, syncs Atlas-backed library metadata, normalizes track records, and exposes paginated library queries.
+Indexes local files from a user-selected directory, scans nested folders for MP3 content, normalizes track records, and exposes searchable/sortable library queries.
 
 The current ingest baseline now goes beyond tag-only metadata:
 - Track duration falls back to MP3 frame parsing when ID3 duration is missing
@@ -116,21 +114,21 @@ The local-library scanner is one of the main systems-oriented pieces in the MVP.
 - Track reconciliation uses a hash map keyed by relative path, so rescan diffing runs in near-linear time instead of degenerating into repeated nested comparisons.
 - Scan results are sorted deterministically before normalization and persistence, which keeps output stable for testing and debugging.
 - SQLite writes run inside a transaction so insert, update, cache-state initialization, and analysis-state initialization happen as one consistent batch.
-- Library browsing uses indexed sort paths and cursor pagination, which scales better than hydrating the entire library or paginating with large SQL offsets.
+- Library browsing uses indexed sort paths, while the client stitches backend query pages together into one continuous scrollable library view.
 
 In portfolio terms, the flex is not just "it scans folders." The interesting part is the combination of traversal strategy, normalization, stable ID generation, diff-based persistence, and bounded growth characteristics when the library gets large.
 
 ### Source Providers
 
-Supports `LocalSource` for filesystem access and `AtlasSource` for the primary remote library store and retrieval path.
+Supports `LocalSource` for filesystem access today and leaves room for a future `AtlasSource` retrieval path.
 
 ### Cache Manager
 
-Maintains warm cache, temporary buffers, and promotion from streamed content into ready local cache with version-aware invalidation.
+Planned for later: warm cache, temporary buffers, and promotion from streamed content into ready local cache with version-aware invalidation.
 
 ### Playback Engine
 
-Chooses the fastest viable path for playback:
+Current v1 playback chooses the local indexed file path. Later branches can extend that path priority to:
 
 1. Local file
 2. Cached file
@@ -140,7 +138,7 @@ The current implementation baseline already supports direct local playback for i
 
 ### Analysis Engine
 
-Runs asynchronous timbre profiling through an integrated `timbre` engine to extract BPM, energy, spectral, tonal, dynamic, and custom flow features while keeping CPU use constrained.
+Planned for later: asynchronous timbre profiling through an integrated `timbre` engine to extract BPM, energy, spectral, tonal, dynamic, and custom flow features while keeping CPU use constrained.
 
 ## Performance Targets
 

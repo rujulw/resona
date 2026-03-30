@@ -47,3 +47,10 @@ export type QueueState = {
   upcomingTracks: TrackListItem[];
   totalTracks: number;
 };
+
+export type TracksQueryState = {
+  searchDraft: string;
+  search: string;
+  sortKey: "title" | "artist" | "album" | "indexed_at";
+  sortDirection: "asc" | "desc";
+};

@@ -28,12 +28,17 @@ export default function App() {
       queueState={appShell.queueState}
       shellState={appShell.shellState}
       tracksState={appShell.tracksState}
+      tracksQueryState={appShell.tracksQueryState}
       libraryPath={appShell.libraryPath}
       scanState={appShell.scanState}
       onPickLibraryDirectory={appShell.handlePickLibraryDirectory}
       onPlaybackAction={appShell.handlePlaybackAction}
       onTrackSelect={appShell.handleTrackSelection}
       onScan={appShell.handleScan}
+      onTracksSearchDraftChange={appShell.handleTracksSearchDraftChange}
+      onTracksSearchSubmit={appShell.handleTracksSearchSubmit}
+      onTracksTitleHeaderSort={appShell.handleTracksTitleHeaderSort}
+      onTracksAlbumHeaderSort={appShell.handleTracksAlbumHeaderSort}
     />
   );
 }

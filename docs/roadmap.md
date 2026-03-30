@@ -36,9 +36,12 @@ resona aims to become a high-performance music system for private libraries, bal
 - Implement recursive MP3 discovery for selected folders and nested directories
 - Link imported files to Atlas-backed identities where available
 - Add metadata normalization and pagination queries
-- Add search and sort capabilities for the main library view with indexed query paths and cursor pagination
+- Add search and sort capabilities for the main library view with indexed query paths and cursor-backed browsing
 - Split early `mod.rs` implementations into focused Rust modules once the scan and persistence interfaces stabilize
 - Add frontend smoke coverage for route boot, shell render, and production build stability
+
+Current milestone progress:
+- The `tracks` route now exposes inline search, header-driven sort cycling, and a continuous scrollable library view backed by cursor-based query stitching
 
 ## Milestone 4: Playback and Queue
 
@@ -53,6 +56,7 @@ Current milestone progress:
 - Local indexed MP3 playback is now working in the desktop client
 - Previous, next, pause, restart, and progress sync now operate against the active track
 - The queue route now reflects a derived next-up flow from the current local selection
+- Embedded artwork now renders in the tracks view, queue view, and playback bar
 
 ## Milestone 5: Cache and Remote Media
 
@@ -85,3 +89,4 @@ Current milestone progress:
 - The local `~/dev/timbre` integration needs a defined module boundary and update workflow
 - Audio output path needs validation for the Web Audio based V1 approach
 - Library import behavior for malformed tags, missing artwork, permission failures, and non-MP3 files should be documented during implementation
+- Atlas sync and timbre analysis should stay explicitly deferred until the public v1 local-first release is stable

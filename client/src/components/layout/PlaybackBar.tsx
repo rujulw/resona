@@ -32,7 +32,7 @@ export function PlaybackBar({
             {activeTrack?.title ?? playback.trackTitle ?? "Nothing playing"}
           </strong>
           <span className="truncate text-sm text-[#8f8f8f]">
-            {activeTrack?.artist ?? playback.trackArtist ?? "Playback shell ready"}
+            {activeTrack?.artist ?? playback.trackArtist ?? ""}
           </span>
         </div>
       </div>

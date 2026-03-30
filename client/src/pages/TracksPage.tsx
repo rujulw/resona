@@ -1,22 +1,32 @@
-import type { ScanState, TracksState } from "../types/app";
+import type { ScanState, TracksQueryState, TracksState } from "../types/app";
 import { ArtworkTile } from "../components/ui/ArtworkTile";
 import { formatDuration } from "../utils/format";
 
 export function TracksPage({
   libraryPath,
   scanState,
+  tracksQueryState,
   tracksState,
   onTrackSelect,
+  onTracksSearchDraftChange,
+  onTracksSearchSubmit,
+  onTracksTitleHeaderSort,
+  onTracksAlbumHeaderSort,
 }: {
   libraryPath: string;
   scanState: ScanState;
+  tracksQueryState: TracksQueryState;
   tracksState: TracksState;
   onTrackSelect: (track: TracksState["items"][number]) => void;
+  onTracksSearchDraftChange: (value: string) => void;
+  onTracksSearchSubmit: () => void;
+  onTracksTitleHeaderSort: () => void;
+  onTracksAlbumHeaderSort: () => void;
 }) {
   const emptyState = getEmptyState(libraryPath, scanState);
 
   return (
-    <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-6 overflow-hidden px-6 py-6">
+    <div className="grid h-full min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] gap-4 overflow-hidden px-6 py-5">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="m-0 text-[11px] tracking-[0.08em] text-[#8f8f8f]">tracks</p>
@@ -24,13 +34,44 @@ export function TracksPage({
             library table
           </h2>
         </div>
-        <p className="m-0 text-sm text-[#8f8f8f]">{tracksState.total} total</p>
+        <div className="grid justify-items-end gap-1">
+          <p className="m-0 text-sm text-[#8f8f8f]">{tracksState.total} total</p>
+        </div>
       </header>
+
+      <label className="block min-w-0">
+        <input
+          className="w-full rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3 text-sm text-[#f2f2f2] outline-none placeholder:text-[#6f6f6f]"
+          type="text"
+          value={tracksQueryState.searchDraft}
+          placeholder="Search title, artist, album"
+          onChange={(event) => {
+            onTracksSearchDraftChange(event.target.value);
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              onTracksSearchSubmit();
+            }
+          }}
+        />
+      </label>
 
       <section className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-3xl border border-white/6 bg-[#1b1b1b]">
         <div className="grid grid-cols-[minmax(320px,2fr)_minmax(180px,1.1fr)_96px] gap-4 border-b border-white/6 px-5 py-3 text-[11px] tracking-[0.08em] text-[#8f8f8f]">
-          <span>title</span>
-          <span>album</span>
+          <button
+            className="justify-self-start text-[11px] tracking-[0.08em] text-[#8f8f8f] transition-colors hover:text-[#d4d4d4]"
+            type="button"
+            onClick={onTracksTitleHeaderSort}
+          >
+            {titleHeaderLabel(tracksQueryState)}
+          </button>
+          <button
+            className="justify-self-start text-[11px] tracking-[0.08em] text-[#8f8f8f] transition-colors hover:text-[#d4d4d4]"
+            type="button"
+            onClick={onTracksAlbumHeaderSort}
+          >
+            {albumHeaderLabel(tracksQueryState)}
+          </button>
           <span>duration</span>
         </div>
 
@@ -94,6 +135,26 @@ export function TracksPage({
       </section>
     </div>
   );
+}
+
+function titleHeaderLabel(tracksQueryState: TracksQueryState) {
+  if (tracksQueryState.sortKey === "title") {
+    return tracksQueryState.sortDirection === "asc" ? "title ↑" : "title ↓";
+  }
+
+  if (tracksQueryState.sortKey === "artist") {
+    return tracksQueryState.sortDirection === "asc" ? "artist ↑" : "artist ↓";
+  }
+
+  return "title";
+}
+
+function albumHeaderLabel(tracksQueryState: TracksQueryState) {
+  if (tracksQueryState.sortKey === "album") {
+    return tracksQueryState.sortDirection === "asc" ? "album ↑" : "album ↓";
+  }
+
+  return "album";
 }
 
 function getEmptyState(libraryPath: string, scanState: ScanState) {

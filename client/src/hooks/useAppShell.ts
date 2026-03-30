@@ -16,6 +16,7 @@ import type {
   QueueState,
   ScanState,
   ShellState,
+  TracksQueryState,
   TracksState,
 } from "../types/app";
 
@@ -37,11 +38,25 @@ export function useAppShell() {
     message: "",
     lastScan: null,
   });
+  const [tracksQueryState, setTracksQueryState] = useState<TracksQueryState>({
+    searchDraft: "",
+    search: "",
+    sortKey: "title",
+    sortDirection: "asc",
+  });
 
   useEffect(() => {
     let cancelled = false;
 
-    void Promise.all([bootstrapApp(), getShellState(), queryLibrary({ pageSize: 200 })])
+    void Promise.all([
+      bootstrapApp(),
+      getShellState(),
+      fetchAllTracks({
+        search: null,
+        sortKey: "title",
+        sortDirection: "asc",
+      }),
+    ])
       .then(([payload, shellPayload, libraryPage]) => {
         if (cancelled) {
           return;
@@ -184,13 +199,22 @@ export function useAppShell() {
     });
   };
 
-  const refreshTracks = () => {
+  const refreshTracks = (overrides?: Partial<TracksQueryState>) => {
+    const effectiveQuery = {
+      ...tracksQueryState,
+      ...overrides,
+    };
+
     setTracksState((existing) => ({
       ...existing,
       status: "loading",
     }));
 
-    void queryLibrary({ pageSize: 200 })
+    void fetchAllTracks({
+      search: effectiveQuery.search || null,
+      sortKey: effectiveQuery.sortKey,
+      sortDirection: effectiveQuery.sortDirection,
+    })
       .then((libraryPage) => {
         setTracksState({
           status: "ready",
@@ -199,6 +223,10 @@ export function useAppShell() {
           selectedTrackId:
             existingSelectedTrackId(libraryPage.items, tracksState.selectedTrackId),
         });
+        setTracksQueryState((existing) => ({
+          ...existing,
+          ...overrides,
+        }));
       })
       .catch((error: unknown) => {
         setTracksState({
@@ -209,6 +237,10 @@ export function useAppShell() {
           message:
             error instanceof Error ? error.message : "Failed to load track library.",
         });
+        setTracksQueryState((existing) => ({
+          ...existing,
+          ...overrides,
+        }));
       });
   };
 
@@ -529,6 +561,50 @@ export function useAppShell() {
       });
   };
 
+  const handleTracksSearchDraftChange = (value: string) => {
+    setTracksQueryState((existing) => ({
+      ...existing,
+      searchDraft: value,
+    }));
+  };
+
+  const handleTracksSearchSubmit = () => {
+    refreshTracks({
+      search: tracksQueryState.searchDraft.trim(),
+    });
+  };
+
+  const handleTracksTitleHeaderSort = () => {
+    const nextSort =
+      tracksQueryState.sortKey === "title" && tracksQueryState.sortDirection === "asc"
+        ? { sortKey: "title" as const, sortDirection: "desc" as const }
+        : tracksQueryState.sortKey === "title" &&
+            tracksQueryState.sortDirection === "desc"
+          ? { sortKey: "artist" as const, sortDirection: "asc" as const }
+          : tracksQueryState.sortKey === "artist" &&
+              tracksQueryState.sortDirection === "asc"
+            ? { sortKey: "artist" as const, sortDirection: "desc" as const }
+            : { sortKey: "title" as const, sortDirection: "asc" as const };
+
+    refreshTracks({
+      ...nextSort,
+    });
+  };
+
+  const handleTracksAlbumHeaderSort = () => {
+    const nextSort =
+      tracksQueryState.sortKey === "album" && tracksQueryState.sortDirection === "asc"
+        ? { sortKey: "album" as const, sortDirection: "desc" as const }
+        : tracksQueryState.sortKey === "album" &&
+            tracksQueryState.sortDirection === "desc"
+          ? { sortKey: "title" as const, sortDirection: "asc" as const }
+          : { sortKey: "album" as const, sortDirection: "asc" as const };
+
+    refreshTracks({
+      ...nextSort,
+    });
+  };
+
   const queueState = deriveQueueState(
     tracksState.items,
     shellState?.playback.trackId ?? tracksState.selectedTrackId,
@@ -539,6 +615,7 @@ export function useAppShell() {
     queueState,
     shellState,
     tracksState,
+    tracksQueryState,
     libraryPath,
     scanState,
     setLibraryPath,
@@ -546,7 +623,45 @@ export function useAppShell() {
     handlePlaybackAction,
     handleTrackSelection,
     handleScan,
+    handleTracksSearchDraftChange,
+    handleTracksSearchSubmit,
+    handleTracksTitleHeaderSort,
+    handleTracksAlbumHeaderSort,
   };
+}
+
+async function fetchAllTracks(options: {
+  search: string | null;
+  sortKey: "title" | "artist" | "album" | "indexed_at";
+  sortDirection: "asc" | "desc";
+}) {
+  const items: TrackListItem[] = [];
+  const seenCursors = new Set<string>();
+  let cursor: string | null = null;
+  let total = 0;
+
+  while (true) {
+    const page = await queryLibrary({
+      pageSize: 200,
+      cursor,
+      search: options.search,
+      sortKey: options.sortKey,
+      sortDirection: options.sortDirection,
+    });
+
+    items.push(...page.items);
+    total = page.total;
+
+    if (!page.nextCursor || seenCursors.has(page.nextCursor)) {
+      return {
+        items,
+        total,
+      };
+    }
+
+    seenCursors.add(page.nextCursor);
+    cursor = page.nextCursor;
+  }
 }
 
 function toImportSummary(summary: {
