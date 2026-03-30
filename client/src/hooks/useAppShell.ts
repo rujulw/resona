@@ -22,6 +22,9 @@ import type {
 
 export function useAppShell() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const playbackRequestIdRef = useRef(0);
+  const tracksRequestIdRef = useRef(0);
+  const trackCatalogRef = useRef(new Map<string, TrackListItem>());
   const [bootstrapState, setBootstrapState] = useState<BootstrapState>({
     status: "loading",
   });
@@ -44,6 +47,7 @@ export function useAppShell() {
     sortKey: "title",
     sortDirection: "asc",
   });
+  const [playbackQueueTrackIds, setPlaybackQueueTrackIds] = useState<string[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -74,6 +78,7 @@ export function useAppShell() {
           total: libraryPage.total,
           selectedTrackId: null,
         });
+        mergeTrackCatalog(trackCatalogRef.current, libraryPage.items);
       })
       .catch((error: unknown) => {
         if (cancelled) {
@@ -204,6 +209,8 @@ export function useAppShell() {
       ...tracksQueryState,
       ...overrides,
     };
+    const requestId = tracksRequestIdRef.current + 1;
+    tracksRequestIdRef.current = requestId;
 
     setTracksState((existing) => ({
       ...existing,
@@ -216,6 +223,11 @@ export function useAppShell() {
       sortDirection: effectiveQuery.sortDirection,
     })
       .then((libraryPage) => {
+        if (tracksRequestIdRef.current != requestId) {
+          return;
+        }
+
+        mergeTrackCatalog(trackCatalogRef.current, libraryPage.items);
         setTracksState({
           status: "ready",
           items: libraryPage.items,
@@ -229,6 +241,10 @@ export function useAppShell() {
         }));
       })
       .catch((error: unknown) => {
+        if (tracksRequestIdRef.current != requestId) {
+          return;
+        }
+
         setTracksState({
           status: "error",
           items: [],
@@ -250,7 +266,7 @@ export function useAppShell() {
     if (action === "previous" || action === "next") {
       const activeTrackId = shellState?.playback.trackId ?? tracksState.selectedTrackId;
       const activeIndex = activeTrackId
-        ? tracksState.items.findIndex((item) => item.id === activeTrackId)
+        ? playbackQueueTrackIds.findIndex((trackId) => trackId === activeTrackId)
         : -1;
 
       if (action === "previous" && audio && audio.currentTime > 3 && activeIndex >= 0) {
@@ -280,7 +296,11 @@ export function useAppShell() {
           : action === "next"
             ? 0
             : -1;
-      const targetTrack = targetIndex >= 0 ? tracksState.items[targetIndex] : undefined;
+      const targetTrackId =
+        targetIndex >= 0 ? playbackQueueTrackIds[targetIndex] : undefined;
+      const targetTrack = targetTrackId
+        ? trackCatalogRef.current.get(targetTrackId)
+        : undefined;
 
       if (targetTrack) {
         startTrackPlayback(targetTrack, true);
@@ -382,6 +402,22 @@ export function useAppShell() {
   };
 
   const startTrackPlayback = (track: TrackListItem, autoplay: boolean) => {
+    const requestId = playbackRequestIdRef.current + 1;
+    playbackRequestIdRef.current = requestId;
+    setPlaybackQueueTrackIds((existing) => {
+      const visibleTrackIds = tracksState.items.map((item) => item.id);
+      if (visibleTrackIds.includes(track.id)) {
+        return visibleTrackIds;
+      }
+
+      if (existing.includes(track.id)) {
+        return existing;
+      }
+
+      return [track.id];
+    });
+    trackCatalogRef.current.set(track.id, track);
+
     setTracksState((existing) => ({
       ...existing,
       selectedTrackId: track.id,
@@ -410,6 +446,10 @@ export function useAppShell() {
     });
 
     void resolveTrackPlaybackSource(track.id).then((source) => {
+      if (playbackRequestIdRef.current != requestId) {
+        return;
+      }
+
       if (!source) {
         setShellState((existing) => {
           if (!existing || existing.playback.trackId !== track.id) {
@@ -433,6 +473,7 @@ export function useAppShell() {
         return;
       }
 
+      audio.pause();
       audio.src = source.assetUrl;
       audio.currentTime = 0;
 
@@ -458,6 +499,10 @@ export function useAppShell() {
       void audio
         .play()
         .then(() => {
+          if (playbackRequestIdRef.current != requestId) {
+            return;
+          }
+
           setShellState((existing) => {
             if (!existing || existing.playback.trackId !== track.id) {
               return existing;
@@ -475,6 +520,10 @@ export function useAppShell() {
           });
         })
         .catch(() => {
+          if (playbackRequestIdRef.current != requestId) {
+            return;
+          }
+
           setShellState((existing) => {
             if (!existing || existing.playback.trackId !== track.id) {
               return existing;
@@ -499,7 +548,7 @@ export function useAppShell() {
     if (!trimmedPath) {
       setScanState({
         status: "error",
-        message: "Enter a local folder path for this temporary scaffold.",
+        message: "Choose a folder before scanning your library.",
         lastScan: scanState.lastScan,
       });
       return;
@@ -606,7 +655,8 @@ export function useAppShell() {
   };
 
   const queueState = deriveQueueState(
-    tracksState.items,
+    trackCatalogRef.current,
+    playbackQueueTrackIds,
     shellState?.playback.trackId ?? tracksState.selectedTrackId,
   );
 
@@ -698,7 +748,8 @@ function existingSelectedTrackId(
 }
 
 function deriveQueueState(
-  items: TrackListItem[],
+  trackCatalog: Map<string, TrackListItem>,
+  queueTrackIds: string[],
   activeTrackId: string | null | undefined,
 ): QueueState {
   if (!activeTrackId) {
@@ -709,18 +760,30 @@ function deriveQueueState(
     };
   }
 
-  const activeIndex = items.findIndex((item) => item.id === activeTrackId);
+  const queueItems = queueTrackIds
+    .map((trackId) => trackCatalog.get(trackId))
+    .filter((track): track is TrackListItem => Boolean(track));
+  const activeIndex = queueItems.findIndex((item) => item.id === activeTrackId);
   if (activeIndex < 0) {
     return {
-      activeTrack: null,
+      activeTrack: trackCatalog.get(activeTrackId) ?? null,
       upcomingTracks: [],
-      totalTracks: 0,
+      totalTracks: trackCatalog.has(activeTrackId) ? 1 : 0,
     };
   }
 
   return {
-    activeTrack: items[activeIndex],
-    upcomingTracks: items.slice(activeIndex + 1),
-    totalTracks: items.length - activeIndex,
+    activeTrack: queueItems[activeIndex],
+    upcomingTracks: queueItems.slice(activeIndex + 1),
+    totalTracks: queueItems.length - activeIndex,
   };
+}
+
+function mergeTrackCatalog(
+  trackCatalog: Map<string, TrackListItem>,
+  items: TrackListItem[],
+) {
+  for (const item of items) {
+    trackCatalog.set(item.id, item);
+  }
 }

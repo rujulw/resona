@@ -127,3 +127,29 @@
   - `client/src/hooks/useAppShell.ts`
 - Linked commit/PR: pending
 - Notes: canceling the picker is now treated as a quiet no-op rather than as a noisy status update, which better matches desktop utility expectations.
+
+## 2026-03-30 - Avoided stale playback and library-view races from overlapping async client requests
+- Status: fixed
+- Severity: high
+- Symptom: quickly changing tracks or firing multiple search/sort refreshes could let an older async response overwrite the newest UI state, leading to the wrong track source loading or stale query results replacing the latest library view.
+- Root cause: the client accepted `resolveTrackPlaybackSource` and `fetchAllTracks` responses without guarding them against newer requests that had started afterward.
+- Fix: added request-id guards for both playback source resolution and library refreshes so only the latest in-flight response can mutate shell playback state or the visible tracks view.
+- Verification: `npm test` covers rapid track selection and overlapping search refreshes, and `npm run build` passes with the guarded hook logic compiled.
+- Files touched:
+  - `client/src/hooks/useAppShell.ts`
+  - `client/src/App.test.tsx`
+- Linked commit/PR: pending
+- Notes: this is the kind of release-quality bug that often hides behind “works on my machine” manual testing until people click faster than the happy path assumed.
+
+## 2026-03-30 - Avoided queue drift when search changed the visible tracks table during playback
+- Status: fixed
+- Severity: high
+- Symptom: after playback started, filtering the tracks route through search could mutate the queue view while transport navigation still relied on the changing visible list, causing `next` behavior to feel wrong or inconsistent with what the queue suggested.
+- Root cause: queue derivation and `previous`/`next` navigation were coupled to `tracksState.items`, which is the filtered route dataset rather than a stable playback-order snapshot.
+- Fix: separated playback queue ownership from the visible tracks table by snapshotting queue order at track selection time, keeping a track catalog by id, and deriving queue/transport behavior from that stable playback order instead of the filtered route state.
+- Verification: `npm test` now covers queue stability after search filtering, and `npm run build` passes with the queue-state refactor in place.
+- Files touched:
+  - `client/src/hooks/useAppShell.ts`
+  - `client/src/App.test.tsx`
+- Linked commit/PR: pending
+- Notes: the tracks route can now keep behaving like a searchable library surface without mutating what the player means by “next up” mid-session.

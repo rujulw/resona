@@ -58,6 +58,31 @@ class MockAudio extends EventTarget {
   }
 }
 
+type DeferredPlaybackSource = {
+  trackId: string;
+  localPath: string;
+  assetUrl: string;
+};
+
+type DeferredLibraryPage = {
+  items: Array<{
+    id: string;
+    title: string;
+    artist: string | null;
+    album: string | null;
+    durationSeconds: number | null;
+    artworkKey: string | null;
+    relativePath: string;
+    sourceStatus: string;
+    cacheState: string;
+    analysisStatus: string;
+    indexedAt: string;
+  }>;
+  nextCursor: null;
+  total: number;
+  pageSize: number;
+};
+
 describe("app shell smoke checks", () => {
   beforeEach(() => {
     bootstrapAppMock.mockReset();
@@ -487,9 +512,8 @@ describe("app shell smoke checks", () => {
     fireEvent.click(screen.getByRole("button", { name: "Next track" }));
 
     await waitFor(() => {
-      expect(
-        screen.getByRole("button", { name: "Select Bravo" }).getAttribute("aria-pressed"),
-      ).toBe("true");
+      expect(screen.getAllByText("Bravo").length).toBeGreaterThan(0);
+      expect(screen.getByRole("button", { name: "Pause playback" })).toBeTruthy();
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Previous track" }));
@@ -529,6 +553,102 @@ describe("app shell smoke checks", () => {
     expect(screen.getAllByText("Alpha").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Bravo").length).toBeGreaterThan(0);
     expect(screen.getByText("01")).toBeTruthy();
+  });
+
+  it("keeps queue navigation stable after the tracks view is filtered by search", async () => {
+    window.history.replaceState({}, "", "/tracks");
+    queryLibraryMock.mockReset();
+    queryLibraryMock
+      .mockResolvedValueOnce({
+        items: [
+          {
+            id: "track-1",
+            title: "Alpha",
+            artist: "North",
+            album: "Signals",
+            durationSeconds: 182,
+            artworkKey: "alpha-cover.png",
+            relativePath: "alpha.mp3",
+            sourceStatus: "local-only",
+            cacheState: "none",
+            analysisStatus: "pending",
+            indexedAt: "1700000000",
+          },
+          {
+            id: "track-2",
+            title: "Bravo",
+            artist: "South",
+            album: "Horizons",
+            durationSeconds: 205,
+            artworkKey: "bravo-cover.png",
+            relativePath: "bravo.mp3",
+            sourceStatus: "local-only",
+            cacheState: "none",
+            analysisStatus: "pending",
+            indexedAt: "1700000100",
+          },
+        ],
+        nextCursor: null,
+        total: 2,
+        pageSize: 200,
+      })
+      .mockResolvedValueOnce({
+        items: [
+          {
+            id: "track-1",
+            title: "Alpha",
+            artist: "North",
+            album: "Signals",
+            durationSeconds: 182,
+            artworkKey: "alpha-cover.png",
+            relativePath: "alpha.mp3",
+            sourceStatus: "local-only",
+            cacheState: "none",
+            analysisStatus: "pending",
+            indexedAt: "1700000000",
+          },
+        ],
+        nextCursor: null,
+        total: 1,
+        pageSize: 200,
+      });
+
+    const { default: App } = await import("./App");
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Select Alpha" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Pause playback" })).toBeTruthy();
+    });
+
+    fireEvent.change(screen.getByPlaceholderText("Search title, artist, album"), {
+      target: { value: "alpha" },
+    });
+    fireEvent.keyDown(screen.getByPlaceholderText("Search title, artist, album"), {
+      key: "Enter",
+      code: "Enter",
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByText("Bravo")).toBeNull();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Next track" }));
+
+    await waitFor(() => {
+      expect(screen.getAllByText("Bravo").length).toBeGreaterThan(0);
+      expect(screen.getByRole("button", { name: "Pause playback" })).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole("link", { name: /queue/i }));
+
+    await waitFor(() => {
+      expect(screen.getAllByText("Bravo").length).toBeGreaterThan(0);
+      expect(
+        screen.getByText("No additional indexed tracks are queued after the current selection."),
+      ).toBeTruthy();
+    });
   });
 
   it("syncs progress labels from the active audio element", async () => {
@@ -723,6 +843,155 @@ describe("app shell smoke checks", () => {
     await waitFor(() => {
       expect(screen.getByText("Fresh Start")).toBeTruthy();
       expect(screen.getByText("Arrivals")).toBeTruthy();
+    });
+  });
+
+  it("keeps the newest selected track active when playback source resolution races", async () => {
+    window.history.replaceState({}, "", "/tracks");
+
+    let resolveAlpha: ((value: DeferredPlaybackSource) => void) | undefined;
+    resolveTrackPlaybackSourceMock.mockImplementation(
+      (trackId: string) =>
+        new Promise<DeferredPlaybackSource>((resolve) => {
+          if (trackId === "track-1") {
+            resolveAlpha = resolve;
+            return;
+          }
+
+          resolve({
+            trackId,
+            localPath: `/Users/rujulw/Music/${trackId}.mp3`,
+            assetUrl: `asset://localhost/${trackId}.mp3`,
+          });
+        }),
+    );
+
+    const { default: App } = await import("./App");
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Select Alpha" }));
+    fireEvent.click(screen.getByRole("button", { name: "Select Bravo" }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "Select Bravo" }).getAttribute("aria-pressed"),
+      ).toBe("true");
+      expect(screen.getByRole("button", { name: "Pause playback" })).toBeTruthy();
+    });
+
+    const fulfillAlpha = resolveAlpha;
+    if (fulfillAlpha) {
+      fulfillAlpha({
+        trackId: "track-1",
+        localPath: "/Users/rujulw/Music/track-1.mp3",
+        assetUrl: "asset://localhost/track-1.mp3",
+      });
+    }
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "Select Bravo" }).getAttribute("aria-pressed"),
+      ).toBe("true");
+      expect(screen.queryByRole("button", { name: "Select Alpha" })?.getAttribute("aria-pressed")).toBe("false");
+    });
+  });
+
+  it("keeps the latest tracks query result when search requests overlap", async () => {
+    window.history.replaceState({}, "", "/tracks");
+    queryLibraryMock.mockReset();
+
+    let resolveAlphaSearch: ((value: DeferredLibraryPage) => void) | undefined;
+
+    queryLibraryMock
+      .mockResolvedValueOnce({
+        items: [
+          {
+            id: "track-1",
+            title: "Alpha",
+            artist: "North",
+            album: "Signals",
+            durationSeconds: 182,
+            artworkKey: "alpha-cover.png",
+            relativePath: "alpha.mp3",
+            sourceStatus: "local-only",
+            cacheState: "none",
+            analysisStatus: "pending",
+            indexedAt: "1700000000",
+          },
+        ],
+        nextCursor: null,
+        total: 1,
+        pageSize: 200,
+      })
+      .mockImplementationOnce(
+        () =>
+          new Promise<DeferredLibraryPage>((resolve) => {
+            resolveAlphaSearch = resolve;
+          }),
+      )
+      .mockResolvedValueOnce({
+        items: [
+          {
+            id: "track-2",
+            title: "Bravo",
+            artist: "South",
+            album: "Horizons",
+            durationSeconds: 205,
+            artworkKey: "bravo-cover.png",
+            relativePath: "bravo.mp3",
+            sourceStatus: "local-only",
+            cacheState: "none",
+            analysisStatus: "pending",
+            indexedAt: "1700000100",
+          },
+        ],
+        nextCursor: null,
+        total: 1,
+        pageSize: 200,
+      });
+
+    const { default: App } = await import("./App");
+    render(<App />);
+
+    const searchBox = await screen.findByPlaceholderText("Search title, artist, album");
+
+    fireEvent.change(searchBox, { target: { value: "alpha" } });
+    fireEvent.keyDown(searchBox, { key: "Enter", code: "Enter" });
+
+    fireEvent.change(searchBox, { target: { value: "bravo" } });
+    fireEvent.keyDown(searchBox, { key: "Enter", code: "Enter" });
+
+    await waitFor(() => {
+      expect(screen.getByText("Bravo")).toBeTruthy();
+    });
+
+    const fulfillAlphaSearch = resolveAlphaSearch;
+    if (fulfillAlphaSearch) {
+      fulfillAlphaSearch({
+        items: [
+          {
+            id: "track-1",
+            title: "Alpha",
+            artist: "North",
+            album: "Signals",
+            durationSeconds: 182,
+            artworkKey: "alpha-cover.png",
+            relativePath: "alpha.mp3",
+            sourceStatus: "local-only",
+            cacheState: "none",
+            analysisStatus: "pending",
+            indexedAt: "1700000000",
+          },
+        ],
+        nextCursor: null,
+        total: 1,
+        pageSize: 200,
+      });
+    }
+
+    await waitFor(() => {
+      expect(screen.getByText("Bravo")).toBeTruthy();
+      expect(screen.queryByText("Alpha")).toBeNull();
     });
   });
 });
