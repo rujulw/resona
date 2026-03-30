@@ -18,8 +18,12 @@ export function PlaybackBar({
       <div className="flex min-w-0 items-center gap-3 self-stretch border-r border-white/6 py-4 pl-4">
         <div className="h-12 w-12 rounded-xl border border-white/8 bg-gradient-to-br from-white/12 to-transparent" />
         <div className="grid min-w-0 gap-0.5">
-          <strong className="truncate text-sm font-medium text-[#f2f2f2]">Nothing playing</strong>
-          <span className="text-sm text-[#8f8f8f]">Playback shell ready</span>
+          <strong className="truncate text-sm font-medium text-[#f2f2f2]">
+            {playback.trackTitle ?? "Nothing playing"}
+          </strong>
+          <span className="truncate text-sm text-[#8f8f8f]">
+            {playback.trackArtist ?? "Playback shell ready"}
+          </span>
         </div>
       </div>
 

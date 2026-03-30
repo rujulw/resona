@@ -111,6 +111,23 @@ describe("app shell smoke checks", () => {
     expect(screen.getByText("Nothing playing")).toBeTruthy();
   });
 
+  it("pushes the selected track into the playback shell state", async () => {
+    window.history.replaceState({}, "", "/tracks");
+
+    const { default: App } = await import("./App");
+    render(<App />);
+
+    const trackRow = await screen.findByRole("button", { name: "Select Alpha" });
+    fireEvent.click(trackRow);
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "Select Alpha" }).getAttribute("aria-pressed"),
+      ).toBe("true");
+      expect(screen.getByText("Ready")).toBeTruthy();
+    });
+  });
+
   it("navigates from home to settings without losing the shell", async () => {
     const { default: App } = await import("./App");
     render(<App />);

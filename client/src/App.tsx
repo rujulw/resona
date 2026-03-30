@@ -31,6 +31,7 @@ export default function App() {
       scanState={appShell.scanState}
       onLibraryPathChange={appShell.setLibraryPath}
       onPlaybackAction={appShell.handlePlaybackAction}
+      onTrackSelect={appShell.handleTrackSelection}
       onScan={appShell.handleScan}
     />
   );

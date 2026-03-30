@@ -1,6 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 
-import type { BootstrapPayload } from "../../desktop";
+import type { BootstrapPayload, TrackListItem } from "../../desktop";
 import type { ScanState, ShellState, TracksState } from "../../types/app";
 import { PlaybackBar } from "./PlaybackBar";
 import { Sidebar } from "./Sidebar";
@@ -17,6 +17,7 @@ export function AppShell({
   scanState,
   onLibraryPathChange,
   onPlaybackAction,
+  onTrackSelect,
   onScan,
 }: {
   payload: BootstrapPayload;
@@ -26,6 +27,7 @@ export function AppShell({
   scanState: ScanState;
   onLibraryPathChange: (value: string) => void;
   onPlaybackAction: (action: "previous" | "toggle" | "next") => void;
+  onTrackSelect: (track: TrackListItem) => void;
   onScan: () => void;
 }) {
   return (
@@ -49,7 +51,15 @@ export function AppShell({
                 />
               }
             />
-            <Route path="/tracks" element={<TracksPage tracksState={tracksState} />} />
+            <Route
+              path="/tracks"
+              element={
+                <TracksPage
+                  tracksState={tracksState}
+                  onTrackSelect={onTrackSelect}
+                />
+              }
+            />
             <Route path="/queue" element={<QueuePage />} />
             <Route
               path="/settings"

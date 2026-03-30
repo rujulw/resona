@@ -6,6 +6,7 @@ import {
   playbackAction,
   queryLibrary,
   scanLocalLibrary,
+  type TrackListItem,
 } from "../desktop";
 import type { BootstrapState, ScanState, ShellState, TracksState } from "../types/app";
 
@@ -18,6 +19,7 @@ export function useAppShell() {
     status: "loading",
     items: [],
     total: 0,
+    selectedTrackId: null,
   });
   const [libraryPath, setLibraryPath] = useState("");
   const [scanState, setScanState] = useState<ScanState>({
@@ -44,6 +46,7 @@ export function useAppShell() {
           status: "ready",
           items: libraryPage.items,
           total: libraryPage.total,
+          selectedTrackId: null,
         });
       })
       .catch((error: unknown) => {
@@ -82,6 +85,8 @@ export function useAppShell() {
           status: "ready",
           items: libraryPage.items,
           total: libraryPage.total,
+          selectedTrackId:
+            existingSelectedTrackId(libraryPage.items, tracksState.selectedTrackId),
         });
       })
       .catch((error: unknown) => {
@@ -89,6 +94,7 @@ export function useAppShell() {
           status: "error",
           items: [],
           total: 0,
+          selectedTrackId: null,
           message:
             error instanceof Error ? error.message : "Failed to load track library.",
         });
@@ -104,9 +110,44 @@ export function useAppShell() {
 
         return {
           ...existing,
-          playback,
+          playback: {
+            ...existing.playback,
+            ...playback,
+            trackId: playback.trackId ?? existing.playback.trackId ?? null,
+            trackTitle: playback.trackTitle ?? existing.playback.trackTitle ?? null,
+            trackArtist: playback.trackArtist ?? existing.playback.trackArtist ?? null,
+            trackAlbum: playback.trackAlbum ?? existing.playback.trackAlbum ?? null,
+          },
         };
       });
+    });
+  };
+
+  const handleTrackSelection = (track: TrackListItem) => {
+    setTracksState((existing) => ({
+      ...existing,
+      selectedTrackId: track.id,
+    }));
+
+    setShellState((existing) => {
+      if (!existing) {
+        return existing;
+      }
+
+      return {
+        ...existing,
+        playback: {
+          ...existing.playback,
+          statusLabel: "Selected",
+          transportLabel: "Ready",
+          progressSeconds: 0,
+          durationSeconds: Math.round(track.durationSeconds ?? 0),
+          trackId: track.id,
+          trackTitle: track.title,
+          trackArtist: track.artist,
+          trackAlbum: track.album,
+        },
+      };
     });
   };
 
@@ -151,6 +192,20 @@ export function useAppShell() {
     scanState,
     setLibraryPath,
     handlePlaybackAction,
+    handleTrackSelection,
     handleScan,
   };
+}
+
+function existingSelectedTrackId(
+  items: TrackListItem[],
+  currentSelectedTrackId: string | null,
+): string | null {
+  if (!currentSelectedTrackId) {
+    return null;
+  }
+
+  return items.some((item) => item.id === currentSelectedTrackId)
+    ? currentSelectedTrackId
+    : null;
 }

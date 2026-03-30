@@ -16,9 +16,15 @@ export type ShellState = {
 };
 
 export type TracksState =
-  | { status: "loading"; items: TrackListItem[]; total: number }
-  | { status: "ready"; items: TrackListItem[]; total: number }
-  | { status: "error"; items: TrackListItem[]; total: number; message: string };
+  | { status: "loading"; items: TrackListItem[]; total: number; selectedTrackId: string | null }
+  | { status: "ready"; items: TrackListItem[]; total: number; selectedTrackId: string | null }
+  | {
+      status: "error";
+      items: TrackListItem[];
+      total: number;
+      selectedTrackId: string | null;
+      message: string;
+    };
 
 export type ScanState =
   | { status: "idle"; message: string }
