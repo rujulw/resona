@@ -391,3 +391,96 @@ fn query_library_supports_descending_sort() {
     expected.sort_by(|left, right| right.cmp(left));
     assert_eq!(titles, expected);
 }
+
+#[test]
+fn query_library_searches_album_and_artist_metadata() {
+    let root = unique_temp_dir();
+    write_test_mp3(
+        &root.join("north/alpha.mp3"),
+        Some("Alpha"),
+        Some("Night Drive"),
+        Some("North"),
+        false,
+    );
+    write_test_mp3(
+        &root.join("south/bravo.mp3"),
+        Some("Bravo"),
+        Some("Daylight"),
+        Some("South"),
+        false,
+    );
+    let database_path = root.join("library.sqlite3");
+    let database = AppDatabase::initialize_at(&database_path).expect("db should initialize");
+    let scanner = LocalLibraryScanner::new(database);
+
+    scanner
+        .scan_path(&root, Some("Metadata Library"))
+        .expect("scan should persist");
+
+    let artist_page = scanner
+        .query_library(&LibraryQuery {
+            page_size: 10,
+            cursor: None,
+            search: Some("south".to_owned()),
+            sort_key: TrackSortKey::Title,
+            sort_direction: SortDirection::Asc,
+        })
+        .expect("artist search should succeed");
+    let album_page = scanner
+        .query_library(&LibraryQuery {
+            page_size: 10,
+            cursor: None,
+            search: Some("night".to_owned()),
+            sort_key: TrackSortKey::Title,
+            sort_direction: SortDirection::Asc,
+        })
+        .expect("album search should succeed");
+
+    assert_eq!(artist_page.total, 1);
+    assert_eq!(artist_page.items[0].title, "Bravo");
+    assert_eq!(album_page.total, 1);
+    assert_eq!(album_page.items[0].title, "Alpha");
+}
+
+#[test]
+fn query_library_reflects_rescan_changes_in_results() {
+    let root = create_test_library(&["disc/alpha.mp3", "disc/bravo.mp3"]);
+    let database_path = root.join("library.sqlite3");
+    let database = AppDatabase::initialize_at(&database_path).expect("db should initialize");
+    let scanner = LocalLibraryScanner::new(database);
+
+    scanner
+        .scan_path(&root, Some("Rescan Library"))
+        .expect("first scan should persist");
+
+    fs::remove_file(root.join("disc/alpha.mp3")).expect("alpha should be removed");
+    let mut replacement =
+        fs::File::create(root.join("disc/charlie.mp3")).expect("charlie should be created");
+    replacement
+        .write_all(b"replacement payload")
+        .expect("charlie should be writable");
+
+    scanner
+        .scan_path(&root, Some("Rescan Library"))
+        .expect("second scan should persist");
+
+    let page = scanner
+        .query_library(&LibraryQuery {
+            page_size: 10,
+            cursor: None,
+            search: None,
+            sort_key: TrackSortKey::Title,
+            sort_direction: SortDirection::Asc,
+        })
+        .expect("query should succeed");
+
+    let titles = page
+        .items
+        .iter()
+        .map(|item| item.title.clone())
+        .collect::<Vec<_>>();
+
+    assert_eq!(page.total, 2);
+    assert_eq!(titles, vec!["bravo".to_owned(), "charlie".to_owned()]);
+    assert!(!titles.iter().any(|title| title == "alpha"));
+}

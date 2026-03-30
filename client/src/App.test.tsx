@@ -342,6 +342,116 @@ describe("app shell smoke checks", () => {
     });
   });
 
+  it("cycles album header sort back to the default title order", async () => {
+    window.history.replaceState({}, "", "/tracks");
+    queryLibraryMock.mockReset();
+    queryLibraryMock
+      .mockResolvedValueOnce({
+        items: [
+          {
+            id: "track-1",
+            title: "Alpha",
+            artist: "North",
+            album: "Signals",
+            durationSeconds: 182,
+            artworkKey: "alpha-cover.png",
+            relativePath: "alpha.mp3",
+            sourceStatus: "local-only",
+            cacheState: "none",
+            analysisStatus: "pending",
+            indexedAt: "1700000000",
+          },
+        ],
+        nextCursor: null,
+        total: 2,
+        pageSize: 200,
+      })
+      .mockResolvedValueOnce({
+        items: [
+          {
+            id: "track-1",
+            title: "Alpha",
+            artist: "North",
+            album: "Signals",
+            durationSeconds: 182,
+            artworkKey: "alpha-cover.png",
+            relativePath: "alpha.mp3",
+            sourceStatus: "local-only",
+            cacheState: "none",
+            analysisStatus: "pending",
+            indexedAt: "1700000000",
+          },
+        ],
+        nextCursor: null,
+        total: 2,
+        pageSize: 200,
+      })
+      .mockResolvedValueOnce({
+        items: [
+          {
+            id: "track-1",
+            title: "Alpha",
+            artist: "North",
+            album: "Signals",
+            durationSeconds: 182,
+            artworkKey: "alpha-cover.png",
+            relativePath: "alpha.mp3",
+            sourceStatus: "local-only",
+            cacheState: "none",
+            analysisStatus: "pending",
+            indexedAt: "1700000000",
+          },
+        ],
+        nextCursor: null,
+        total: 2,
+        pageSize: 200,
+      })
+      .mockResolvedValueOnce({
+        items: [
+          {
+            id: "track-1",
+            title: "Alpha",
+            artist: "North",
+            album: "Signals",
+            durationSeconds: 182,
+            artworkKey: "alpha-cover.png",
+            relativePath: "alpha.mp3",
+            sourceStatus: "local-only",
+            cacheState: "none",
+            analysisStatus: "pending",
+            indexedAt: "1700000000",
+          },
+        ],
+        nextCursor: null,
+        total: 2,
+        pageSize: 200,
+      });
+
+    const { default: App } = await import("./App");
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "library table" });
+
+    fireEvent.click(screen.getByRole("button", { name: "album" }));
+    await screen.findByRole("button", { name: "album ↑" });
+
+    fireEvent.click(screen.getByRole("button", { name: "album ↑" }));
+    await screen.findByRole("button", { name: "album ↓" });
+
+    fireEvent.click(screen.getByRole("button", { name: "album ↓" }));
+
+    await waitFor(() => {
+      expect(queryLibraryMock).toHaveBeenLastCalledWith({
+        pageSize: 200,
+        cursor: null,
+        search: null,
+        sortKey: "title",
+        sortDirection: "asc",
+      });
+      expect(screen.getByRole("button", { name: "title ↑" })).toBeTruthy();
+    });
+  });
+
   it("pushes the selected track into the playback shell state", async () => {
     window.history.replaceState({}, "", "/tracks");
 
@@ -553,6 +663,66 @@ describe("app shell smoke checks", () => {
           "The recursive scan completed, but that root did not contain any MP3 files in the selected folder tree.",
         ),
       ).toBeTruthy();
+    });
+  });
+
+  it("refreshes the indexed tracks after a successful import scan", async () => {
+    window.history.replaceState({}, "", "/settings");
+    scanLocalLibraryMock.mockResolvedValue({
+      libraryRootId: "root-2",
+      libraryRootName: "Fresh Root",
+      rootPath: "/Users/rujulw/Fresh Root",
+      discoveredTracks: 2,
+      insertedTracks: 2,
+      updatedTracks: 0,
+      removedTracks: 0,
+    });
+    queryLibraryMock.mockReset();
+    queryLibraryMock
+      .mockResolvedValueOnce({
+        items: [],
+        nextCursor: null,
+        total: 0,
+        pageSize: 200,
+      })
+      .mockResolvedValueOnce({
+        items: [
+          {
+            id: "track-9",
+            title: "Fresh Start",
+            artist: "North",
+            album: "Arrivals",
+            durationSeconds: 201,
+            artworkKey: "fresh-cover.png",
+            relativePath: "fresh-start.mp3",
+            sourceStatus: "local-only",
+            cacheState: "none",
+            analysisStatus: "pending",
+            indexedAt: "1700000900",
+          },
+        ],
+        nextCursor: null,
+        total: 1,
+        pageSize: 200,
+      });
+
+    const { default: App } = await import("./App");
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "choose folder" }));
+    fireEvent.click(await screen.findByRole("button", { name: "scan library" }));
+
+    await waitFor(() => {
+      expect(scanLocalLibraryMock).toHaveBeenCalledWith("/Users/rujulw/Music");
+      expect(queryLibraryMock).toHaveBeenCalledTimes(2);
+      expect(screen.getByText("Indexed 2 track(s) from Fresh Root.")).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole("link", { name: /tracks/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Fresh Start")).toBeTruthy();
+      expect(screen.getByText("Arrivals")).toBeTruthy();
     });
   });
 });
