@@ -2,7 +2,9 @@ mod database;
 mod library;
 
 use database::AppDatabase;
-use library::{LocalLibraryScanner, ScanSummary};
+use library::{
+    LibraryPage, LibraryQuery, LocalLibraryScanner, ScanSummary, SortDirection, TrackSortKey,
+};
 use serde::Serialize;
 use tauri::State;
 
@@ -201,6 +203,55 @@ fn scan_local_library_with_database(
 }
 
 #[tauri::command]
+fn query_library(
+    database_state: State<'_, DatabaseState>,
+    page_size: Option<usize>,
+    cursor: Option<String>,
+    search: Option<String>,
+    sort_key: Option<String>,
+    sort_direction: Option<String>,
+) -> Result<LibraryPage, String> {
+    query_library_with_database(
+        &database_state.app_database,
+        page_size,
+        cursor,
+        search,
+        sort_key,
+        sort_direction,
+    )
+    .map_err(|error| error.to_string())
+}
+
+fn query_library_with_database(
+    app_database: &AppDatabase,
+    page_size: Option<usize>,
+    cursor: Option<String>,
+    search: Option<String>,
+    sort_key: Option<String>,
+    sort_direction: Option<String>,
+) -> Result<LibraryPage, library::ScanError> {
+    let sort_key = match sort_key.as_deref() {
+        Some("artist") => TrackSortKey::Artist,
+        Some("album") => TrackSortKey::Album,
+        Some("indexed_at") => TrackSortKey::IndexedAt,
+        _ => TrackSortKey::Title,
+    };
+    let sort_direction = match sort_direction.as_deref() {
+        Some("desc") => SortDirection::Desc,
+        _ => SortDirection::Asc,
+    };
+
+    LocalLibraryScanner::new(app_database.clone())
+        .query_library(&LibraryQuery {
+            page_size: page_size.unwrap_or(50),
+            cursor,
+            search,
+            sort_key,
+            sort_direction,
+        })
+}
+
+#[tauri::command]
 fn playback_action(action: &str) -> PlaybackShellState {
     match action {
         "previous" => PlaybackShellState {
@@ -234,6 +285,7 @@ pub fn run() {
             bootstrap_app,
             get_shell_state,
             scan_local_library,
+            query_library,
             playback_action
         ])
         .run(tauri::generate_context!())
@@ -245,8 +297,8 @@ mod tests {
     use std::time::{SystemTime, UNIX_EPOCH};
 
     use super::{
-        bootstrap_app, build_shell_state, playback_action, scan_local_library_with_database,
-        DatabaseState,
+        bootstrap_app, build_shell_state, playback_action, query_library_with_database,
+        scan_local_library_with_database, DatabaseState,
     };
     use crate::database::AppDatabase;
 
@@ -327,5 +379,42 @@ mod tests {
         let payload = build_shell_state(&database_state.app_database);
         assert_eq!(payload.persistence.track_count, 2);
         assert_eq!(payload.persistence.library_root_count, 1);
+    }
+
+    #[test]
+    fn query_library_command_returns_paginated_results() {
+        let database_state = test_database_state();
+        let root = std::env::temp_dir().join(format!(
+            "resona-query-library-{}",
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .expect("system time should be after unix epoch")
+                .as_nanos()
+        ));
+
+        std::fs::create_dir_all(&root).expect("directories should be created");
+        std::fs::File::create(root.join("alpha.mp3")).expect("first track should be created");
+        std::fs::File::create(root.join("beta.mp3")).expect("second track should be created");
+
+        scan_local_library_with_database(
+            &database_state.app_database,
+            &root.display().to_string(),
+            Some("portfolio"),
+        )
+        .expect("scan should succeed");
+
+        let page = query_library_with_database(
+            &database_state.app_database,
+            Some(1),
+            None,
+            None,
+            Some("title".to_owned()),
+            Some("asc".to_owned()),
+        )
+        .expect("query should succeed");
+
+        assert_eq!(page.items.len(), 1);
+        assert_eq!(page.total, 2);
+        assert!(page.next_cursor.is_some());
     }
 }

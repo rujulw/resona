@@ -7,7 +7,16 @@ use rusqlite::Connection;
 
 const APP_DIR_NAME: &str = "resona";
 const DATABASE_FILE_NAME: &str = "resona.sqlite3";
-const MIGRATION_ID_INITIAL_SCHEMA: &str = "0001_initial_schema";
+const MIGRATIONS: [Migration; 2] = [
+    Migration {
+        id: "0001_initial_schema",
+        sql: schema::INITIAL_SCHEMA_MIGRATION,
+    },
+    Migration {
+        id: "0002_library_query_indexes",
+        sql: schema::LIBRARY_QUERY_INDEXES_MIGRATION,
+    },
+];
 
 #[derive(Clone, Debug)]
 pub struct AppDatabase {
@@ -54,7 +63,10 @@ impl AppDatabase {
         Ok(MigrationStatus {
             database_path: self.db_path.clone(),
             applied_migrations: migration_count as usize,
-            latest_migration: MIGRATION_ID_INITIAL_SCHEMA,
+            latest_migration: MIGRATIONS
+                .last()
+                .map(|migration| migration.id)
+                .unwrap_or("none"),
         })
     }
 
@@ -70,23 +82,25 @@ impl AppDatabase {
             ",
         )?;
 
-        let already_applied = connection.query_row(
-            "SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE id = ?1)",
-            [MIGRATION_ID_INITIAL_SCHEMA],
-            |row| row.get::<_, i64>(0),
-        )?;
-
-        if already_applied == 0 {
-            let transaction = connection.unchecked_transaction()?;
-            transaction.execute_batch(schema::INITIAL_SCHEMA_MIGRATION)?;
-            transaction.execute(
-                "
-                INSERT INTO schema_migrations (id, applied_at)
-                VALUES (?1, datetime('now'))
-                ",
-                [MIGRATION_ID_INITIAL_SCHEMA],
+        for migration in MIGRATIONS {
+            let already_applied = connection.query_row(
+                "SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE id = ?1)",
+                [migration.id],
+                |row| row.get::<_, i64>(0),
             )?;
-            transaction.commit()?;
+
+            if already_applied == 0 {
+                let transaction = connection.unchecked_transaction()?;
+                transaction.execute_batch(migration.sql)?;
+                transaction.execute(
+                    "
+                    INSERT INTO schema_migrations (id, applied_at)
+                    VALUES (?1, datetime('now'))
+                    ",
+                    [migration.id],
+                )?;
+                transaction.commit()?;
+            }
         }
 
         Ok(())
@@ -98,6 +112,12 @@ pub struct MigrationStatus {
     pub database_path: PathBuf,
     pub applied_migrations: usize,
     pub latest_migration: &'static str,
+}
+
+#[derive(Clone, Copy)]
+struct Migration {
+    id: &'static str,
+    sql: &'static str,
 }
 
 #[derive(Debug)]
@@ -135,7 +155,7 @@ impl From<rusqlite::Error> for DatabaseError {
 mod tests {
     use std::time::{SystemTime, UNIX_EPOCH};
 
-    use super::{AppDatabase, MIGRATION_ID_INITIAL_SCHEMA};
+    use super::{AppDatabase, MIGRATIONS};
 
     fn unique_test_db_path() -> std::path::PathBuf {
         let nanos = SystemTime::now()
@@ -155,8 +175,11 @@ mod tests {
             .migration_status()
             .expect("migration status should load");
 
-        assert_eq!(status.applied_migrations, 1);
-        assert_eq!(status.latest_migration, MIGRATION_ID_INITIAL_SCHEMA);
+        assert_eq!(status.applied_migrations, MIGRATIONS.len());
+        assert_eq!(
+            status.latest_migration,
+            MIGRATIONS.last().expect("migrations should exist").id
+        );
         assert_eq!(status.database_path, db_path);
     }
 
@@ -172,6 +195,6 @@ mod tests {
             .migration_status()
             .expect("migration status should load");
 
-        assert_eq!(status.applied_migrations, 1);
+        assert_eq!(status.applied_migrations, MIGRATIONS.len());
     }
 }
