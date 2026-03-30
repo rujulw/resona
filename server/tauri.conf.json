@@ -4,8 +4,8 @@
   "version": "0.1.0",
   "identifier": "dev.resona.app",
   "build": {
-    "beforeDevCommand": "npm run dev --prefix ../client",
-    "beforeBuildCommand": "npm run build --prefix ../client",
+    "beforeDevCommand": "npm run dev --prefix client",
+    "beforeBuildCommand": "npm run build --prefix client",
     "devUrl": "http://localhost:1420",
     "frontendDist": "../client/dist"
   },
