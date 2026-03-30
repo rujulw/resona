@@ -23,7 +23,7 @@ resona is designed to feel immediate, controlled, and quiet. The interface shoul
 
 ### Library
 
-The default view is a focused track library with search, sort, and pagination. Sidebar navigation should stay small and functional, covering library views, queue access, and settings without secondary content feeds. Import should begin from a clear folder-selection action rather than from a raw path entry field.
+The working library view is a focused tracks table with search, sort, and pagination. Sidebar navigation should stay small and functional, covering home, tracks, queue, and settings without secondary content feeds. Import should begin from a clear folder-selection action in settings rather than from a raw path entry field embedded into the main track view.
 
 ### Playback
 
@@ -43,6 +43,7 @@ Track insights from timbre should appear in secondary detail surfaces such as a 
 - Typography should feel utilitarian and compact
 - Dense information display is preferred over oversized spacing
 - Artwork is present but secondary to library and playback data
+- Persistent shell chrome should feel like a desktop player, with a left navigation rail and a fixed playback bar
 
 ## Interaction Constraints
 
@@ -60,6 +61,7 @@ Track insights from timbre should appear in secondary detail surfaces such as a 
 - V1 uses a Web Audio path for faster delivery, while native Rust playback remains a future upgrade path
 - Playback-critical flows are owned by Rust to reduce frontend complexity
 - The app remains open source even when used with private Atlas-backed media libraries
+- The desktop client should use a persistent routed shell so home, tracks, queue, and settings share the same navigation and playback frame
 
 ## Non-Goals
 

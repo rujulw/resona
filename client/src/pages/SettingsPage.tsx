@@ -43,7 +43,7 @@ export function SettingsPage({
               <input
                 aria-label="Temporary local library path"
                 placeholder="/Users/you/Music"
-                className="min-w-[260px] flex-1 rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3 text-sm text-[#e5e5e5] outline-none placeholder:text-[#8f8f8f]"
+                className="min-w-65 flex-1 rounded-2xl border border-white/8 bg-white/3 px-4 py-3 text-sm text-[#e5e5e5] outline-none placeholder:text-[#8f8f8f]"
                 type="text"
                 value={libraryPath}
                 onChange={(event) => {
@@ -75,7 +75,7 @@ export function SettingsPage({
               {libraryRows.map((row) => (
                 <div
                   key={row.title}
-                  className="rounded-2xl border border-white/6 bg-white/[0.03] px-4 py-3"
+                  className="rounded-2xl border border-white/6 bg-white/3 px-4 py-3"
                 >
                   <div className="flex items-center justify-between gap-3">
                     <span className="text-sm text-[#f2f2f2]">{row.title}</span>

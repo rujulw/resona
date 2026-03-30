@@ -31,6 +31,14 @@ React UI
 
 The desktop UI provides library navigation, search, queue control, playback controls, and lightweight insight views. It should remain table-oriented and intentionally minimal, with pagination and event-driven updates instead of global library hydration.
 
+Current frontend structure:
+
+- `components/layout`: persistent shell elements such as sidebar, top bar, and playback bar
+- `components/ui`: generic state screens and smaller UI-only pieces
+- `pages`: route-owned screens such as home, tracks, queue, and settings
+- `hooks`: app boot and shell state orchestration
+- `types`, `constants`, `utils`: shared client-side contracts and helpers
+
 ### server
 
 The Rust side owns media orchestration, metadata ingestion, source resolution, cache policy, playback state, and background analysis scheduling. Tauri exposes narrow command and event boundaries to the UI.
@@ -99,6 +107,13 @@ The backend is intentionally split so each layer has a clear responsibility boun
 - Database boot and migration logic can evolve independently from library features
 - The structure is closer to production service encapsulation and avoids the early-branch `mod.rs` pileup
 
+### Frontend Shell Ownership
+
+- Route orchestration owns page selection and keeps navigation shallow
+- Layout components own persistent desktop chrome such as sidebar, top bar, and playback bar
+- Page components own route-local content instead of burying the whole client in one top-level file
+- The app-shell hook owns bootstrap, query refresh, and scan-trigger state coordination
+
 ### fused timbre engine
 
 The analysis subsystem is expected to be fused in from the local `~/dev/timbre` project rather than rebuilt from scratch. resona should wrap that code behind a dedicated internal service boundary so upgrades from the upstream timbre codebase stay manageable.
@@ -112,6 +127,9 @@ The analysis subsystem is expected to be fused in from the local `~/dev/timbre` 
 - Reconcile local tracks with Atlas-backed library records
 - Expose paginated queries, sorting, and search
 - Track version, availability, and analysis readiness
+
+Current ingest limitation:
+- The MVP scanner currently reads title, artist, album, and optional duration from ID3 metadata, but it does not yet compute duration from the audio stream itself and does not yet extract embedded artwork. System media tools may therefore show richer data than the current `resona` ingest path.
 
 ### Scan Pipeline Design
 
@@ -232,6 +250,13 @@ This is the right tradeoff for `resona` because SQLite already provides ordered 
 4. Results are returned with a stable next-cursor token for the following page
 5. The client renders only the requested page instead of hydrating the full library
 
+### Frontend Boot Flow
+
+1. The client boots the routed shell and requests bootstrap metadata
+2. Shell state and the first tracks page are loaded in parallel
+3. The persistent sidebar, top bar, and playback bar render once and remain mounted across route changes
+4. Route content swaps between home, tracks, queue, and settings without rebuilding the full desktop shell
+
 ### Playback Resolution
 
 1. Playback request enters the Rust engine
@@ -276,3 +301,5 @@ The current Rust backend now reflects that direction more closely:
 - `database` owns runtime setup, migrations, and schema contracts
 
 That separation is still early and can deepen further with repositories, playback services, and analysis services, but the code is no longer relying on one catch-all module per subsystem.
+
+The frontend now follows the same direction: a routed shell, separated layout components, route-owned pages, and a dedicated hook for boot/query/scan coordination instead of one monolithic client entry file.

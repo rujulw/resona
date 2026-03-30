@@ -83,6 +83,13 @@ Build a private, performance-first music player that feels closer to a system ut
 - Remote storage: Atlas as the primary remote store for the indexed library
 - Analysis engine: fused from the local `timbre` codebase and integrated into the Rust core
 
+## Frontend Foundation
+
+- The desktop client now uses `react-router-dom` for a persistent shell with `home`, `tracks`, `queue`, and `settings` routes
+- The left sidebar and bottom playback bar stay mounted across route changes
+- The top window area is moving toward an app-owned desktop chrome instead of relying fully on the native title text
+- The client code is now split into `components/`, `pages/`, `hooks/`, `types/`, `constants/`, and `utils/` rather than keeping the shell in one `App.tsx`
+
 ## MVP Subsystems
 
 ### Library Engine
@@ -148,3 +155,8 @@ Each implementation slice should include:
 - Updated docs when scope or architecture changes
 - Build, lint, type, and test checks relevant to the slice
 - A short risk summary and the exact verification commands used
+
+Current frontend verification includes:
+
+- `npm test` for client bridge and route/shell smoke checks
+- `npm run build` for Vite production build validation including Tailwind integration

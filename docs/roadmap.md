@@ -27,6 +27,7 @@ resona aims to become a high-performance music system for private libraries, bal
 - Create React + Vite client shell
 - Establish shared command and event contract between client and server
 - Embed the `timbre` integration boundary as a dedicated internal service
+- Split the client into routed pages, reusable layout components, and shell hooks once the first desktop shell stabilizes
 
 ## Milestone 3: Library Foundation
 
@@ -37,6 +38,7 @@ resona aims to become a high-performance music system for private libraries, bal
 - Add metadata normalization and pagination queries
 - Add search and sort capabilities for the main library view with indexed query paths and cursor pagination
 - Split early `mod.rs` implementations into focused Rust modules once the scan and persistence interfaces stabilize
+- Add frontend smoke coverage for route boot, shell render, and production build stability
 
 ## Milestone 4: Playback and Queue
 

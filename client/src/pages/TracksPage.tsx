@@ -43,7 +43,7 @@ export function TracksPage({
           {tracksState.items.map((track) => (
             <div
               key={track.id}
-              className="grid grid-cols-[minmax(280px,2fr)_minmax(180px,1.1fr)_96px] items-center gap-4 border-b border-white/5 px-5 py-3.5 last:border-b-0 hover:bg-white/[0.03]"
+              className="grid grid-cols-[minmax(280px,2fr)_minmax(180px,1.1fr)_96px] items-center gap-4 border-b border-white/5 px-5 py-3.5 last:border-b-0 hover:bg-white/3"
             >
               <div className="grid min-w-0 gap-1">
                 <span className="truncate text-sm text-[#f2f2f2]">{track.title}</span>
