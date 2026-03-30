@@ -57,6 +57,7 @@ pub(crate) fn build_library_query_sql(
           t.artist,
           t.album,
           t.duration_seconds,
+          t.artwork_key,
           t.relative_path,
           ts.source_status,
           ce.cache_state,
@@ -129,11 +130,12 @@ where
             artist: row.get(2)?,
             album: row.get(3)?,
             duration_seconds: row.get(4)?,
-            relative_path: row.get(5)?,
-            source_status: row.get(6)?,
-            cache_state: row.get(7)?,
-            analysis_status: row.get(8)?,
-            indexed_at: row.get(9)?,
+            artwork_key: row.get(5)?,
+            relative_path: row.get(6)?,
+            source_status: row.get(7)?,
+            cache_state: row.get(8)?,
+            analysis_status: row.get(9)?,
+            indexed_at: row.get(10)?,
         })
     })?;
 
@@ -213,6 +215,7 @@ mod tests {
             artist: Some("The Artist".to_owned()),
             album: Some("The Album".to_owned()),
             duration_seconds: Some(180.0),
+            artwork_key: Some("artwork-key.jpg".to_owned()),
             relative_path: "disc/breathe.mp3".to_owned(),
             source_status: "local-only".to_owned(),
             cache_state: "none".to_owned(),

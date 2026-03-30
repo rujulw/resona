@@ -103,6 +103,10 @@ Build a private, performance-first music player that feels closer to a system ut
 
 Indexes local files from a user-selected directory, scans nested folders for MP3 content, syncs Atlas-backed library metadata, normalizes track records, and exposes paginated library queries.
 
+The current ingest baseline now goes beyond tag-only metadata:
+- Track duration falls back to MP3 frame parsing when ID3 duration is missing
+- Embedded album art is extracted during scan and persisted into local app data for later UI use
+
 ## Engineering Notes
 
 The local-library scanner is one of the main systems-oriented pieces in the MVP. It is intentionally designed to show more than basic CRUD work:

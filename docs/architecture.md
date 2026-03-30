@@ -129,8 +129,11 @@ The analysis subsystem is expected to be fused in from the local `~/dev/timbre` 
 - Expose paginated queries, sorting, and search
 - Track version, availability, and analysis readiness
 
-Current ingest limitation:
-- The MVP scanner currently reads title, artist, album, and optional duration from ID3 metadata, but it does not yet compute duration from the audio stream itself and does not yet extract embedded artwork. System media tools may therefore show richer data than the current `resona` ingest path.
+Current ingest baseline:
+- The scanner reads title, artist, album, and other tag metadata from ID3 when present
+- Duration falls back to MP3 frame parsing when the ID3 tag does not provide track length
+- Embedded artwork is extracted from ID3 pictures and persisted into app-local artwork storage
+- System media tools may still show richer metadata over time, but the current `resona` ingest path now closes the biggest duration and artwork gaps from the earlier MVP scanner
 
 ### Scan Pipeline Design
 

@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 use std::fs;
+use std::io::Read;
 use std::path::{Path, PathBuf};
 
 use id3::{Tag, TagLike};
@@ -81,6 +82,13 @@ pub(crate) fn normalize_track(
         .file_stem()
         .and_then(|stem| stem.to_str())
         .unwrap_or("unknown");
+    let duration_seconds = tag
+        .as_ref()
+        .and_then(|value| value.duration())
+        .map(|value| value as f64)
+        .or_else(|| estimate_mp3_duration_seconds(file_path).ok().flatten());
+    let (artwork_key, artwork_bytes) =
+        extract_embedded_artwork(tag.as_ref(), library_root_id, &relative_path);
 
     Ok(NormalizedTrack {
         id: stable_identifier("track", &format!("{library_root_id}:{relative_path}")),
@@ -110,10 +118,9 @@ pub(crate) fn normalize_track(
             .map(normalize_label),
         track_number: tag.as_ref().and_then(|value| value.track()).map(i64::from),
         disc_number: tag.as_ref().and_then(|value| value.disc()).map(i64::from),
-        duration_seconds: tag
-            .as_ref()
-            .and_then(|value| value.duration())
-            .map(|value| value as f64),
+        duration_seconds,
+        artwork_key,
+        artwork_bytes,
         file_size_bytes: metadata.len() as i64,
         content_hash: stable_identifier("content", &file_path.display().to_string()),
         local_path: file_path.display().to_string(),
@@ -137,4 +144,229 @@ fn is_mp3_file(path: &Path) -> bool {
         .and_then(|extension| extension.to_str())
         .map(|extension| extension.eq_ignore_ascii_case("mp3"))
         .unwrap_or(false)
+}
+
+fn extract_embedded_artwork(
+    tag: Option<&Tag>,
+    library_root_id: &str,
+    relative_path: &str,
+) -> (Option<String>, Option<Vec<u8>>) {
+    let Some(tag) = tag else {
+        return (None, None);
+    };
+    let Some(picture) = tag.pictures().next() else {
+        return (None, None);
+    };
+
+    if picture.data.is_empty() {
+        return (None, None);
+    }
+
+    let digest = stable_identifier(
+        "artwork",
+        &format!(
+            "{library_root_id}:{relative_path}:{}",
+            hex_sha256(&picture.data)
+        ),
+    );
+    let extension = picture_extension(&picture.mime_type);
+    let artwork_key = format!("{digest}.{extension}");
+
+    (Some(artwork_key), Some(picture.data.clone()))
+}
+
+fn picture_extension(mime_type: &str) -> &'static str {
+    match mime_type {
+        "image/jpeg" | "image/jpg" => "jpg",
+        "image/png" => "png",
+        "image/gif" => "gif",
+        "image/webp" => "webp",
+        _ => "bin",
+    }
+}
+
+fn hex_sha256(bytes: &[u8]) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(bytes);
+    format!("{:x}", hasher.finalize())
+}
+
+fn estimate_mp3_duration_seconds(file_path: &Path) -> Result<Option<f64>, ScanError> {
+    let mut bytes = Vec::new();
+    fs::File::open(file_path)?.read_to_end(&mut bytes)?;
+
+    if bytes.is_empty() {
+        return Ok(None);
+    }
+
+    let mut offset = skip_id3v2_tag(&bytes);
+    let mut total_samples = 0u64;
+    let mut sample_rate = 0u32;
+
+    while offset + 4 <= bytes.len() {
+        let Some(header) = parse_frame_header(&bytes[offset..offset + 4]) else {
+            offset += 1;
+            continue;
+        };
+
+        if header.frame_length == 0 || offset + header.frame_length > bytes.len() {
+            offset += 1;
+            continue;
+        }
+
+        sample_rate = header.sample_rate;
+        total_samples += u64::from(header.samples_per_frame);
+        offset += header.frame_length;
+    }
+
+    if total_samples == 0 || sample_rate == 0 {
+        return Ok(None);
+    }
+
+    Ok(Some(total_samples as f64 / sample_rate as f64))
+}
+
+fn skip_id3v2_tag(bytes: &[u8]) -> usize {
+    if bytes.len() < 10 || &bytes[0..3] != b"ID3" {
+        return 0;
+    }
+
+    let flags = bytes[5];
+    let tag_size = synchsafe_to_u32(&bytes[6..10]) as usize;
+    let footer_size = if flags & 0x10 != 0 { 10 } else { 0 };
+
+    10 + tag_size + footer_size
+}
+
+fn synchsafe_to_u32(bytes: &[u8]) -> u32 {
+    ((bytes[0] as u32) << 21)
+        | ((bytes[1] as u32) << 14)
+        | ((bytes[2] as u32) << 7)
+        | (bytes[3] as u32)
+}
+
+#[derive(Clone, Copy)]
+struct Mp3FrameHeader {
+    sample_rate: u32,
+    samples_per_frame: u16,
+    frame_length: usize,
+}
+
+fn parse_frame_header(bytes: &[u8]) -> Option<Mp3FrameHeader> {
+    let header = u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]);
+
+    if (header >> 21) & 0x7FF != 0x7FF {
+        return None;
+    }
+
+    let version_bits = ((header >> 19) & 0b11) as u8;
+    let layer_bits = ((header >> 17) & 0b11) as u8;
+    let bitrate_index = ((header >> 12) & 0b1111) as usize;
+    let sample_rate_index = ((header >> 10) & 0b11) as usize;
+    let padding = ((header >> 9) & 0b1) as usize;
+
+    if version_bits == 0b01 || layer_bits == 0b00 || bitrate_index == 0 || bitrate_index == 0b1111 {
+        return None;
+    }
+
+    if sample_rate_index == 0b11 {
+        return None;
+    }
+
+    let version = match version_bits {
+        0b11 => MpegVersion::V1,
+        0b10 => MpegVersion::V2,
+        0b00 => MpegVersion::V25,
+        _ => return None,
+    };
+    let layer = match layer_bits {
+        0b11 => MpegLayer::L1,
+        0b10 => MpegLayer::L2,
+        0b01 => MpegLayer::L3,
+        _ => return None,
+    };
+
+    let bitrate_kbps = bitrate_kbps(version, layer, bitrate_index)?;
+    let sample_rate = sample_rate_hz(version, sample_rate_index)?;
+    let samples_per_frame = samples_per_frame(version, layer);
+    let coefficient = match layer {
+        MpegLayer::L1 => 12,
+        MpegLayer::L2 => 144,
+        MpegLayer::L3 => {
+            if version == MpegVersion::V1 {
+                144
+            } else {
+                72
+            }
+        }
+    };
+    let slot_size = if layer == MpegLayer::L1 { 4 } else { 1 };
+    let frame_length =
+        ((coefficient * bitrate_kbps * 1000) / sample_rate as usize + padding) * slot_size;
+
+    Some(Mp3FrameHeader {
+        sample_rate,
+        samples_per_frame,
+        frame_length,
+    })
+}
+
+#[derive(Clone, Copy, Eq, PartialEq)]
+enum MpegVersion {
+    V1,
+    V2,
+    V25,
+}
+
+#[derive(Clone, Copy, Eq, PartialEq)]
+enum MpegLayer {
+    L1,
+    L2,
+    L3,
+}
+
+fn bitrate_kbps(version: MpegVersion, layer: MpegLayer, index: usize) -> Option<usize> {
+    let table: &[usize; 16] = match (version, layer) {
+        (MpegVersion::V1, MpegLayer::L1) => &[
+            0, 32, 64, 96, 128, 160, 192, 224, 256, 288, 320, 352, 384, 416, 448, 0,
+        ],
+        (MpegVersion::V1, MpegLayer::L2) => &[
+            0, 32, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 384, 0,
+        ],
+        (MpegVersion::V1, MpegLayer::L3) => &[
+            0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 0,
+        ],
+        (_, MpegLayer::L1) => &[
+            0, 32, 48, 56, 64, 80, 96, 112, 128, 144, 160, 176, 192, 224, 256, 0,
+        ],
+        (_, MpegLayer::L2 | MpegLayer::L3) => &[
+            0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160, 0,
+        ],
+    };
+
+    table.get(index).copied().filter(|value| *value > 0)
+}
+
+fn sample_rate_hz(version: MpegVersion, index: usize) -> Option<u32> {
+    let table: &[u32; 3] = match version {
+        MpegVersion::V1 => &[44_100, 48_000, 32_000],
+        MpegVersion::V2 => &[22_050, 24_000, 16_000],
+        MpegVersion::V25 => &[11_025, 12_000, 8_000],
+    };
+
+    table.get(index).copied()
+}
+
+fn samples_per_frame(version: MpegVersion, layer: MpegLayer) -> u16 {
+    match layer {
+        MpegLayer::L1 => 384,
+        MpegLayer::L2 => 1_152,
+        MpegLayer::L3 => {
+            if version == MpegVersion::V1 {
+                1_152
+            } else {
+                576
+            }
+        }
+    }
 }

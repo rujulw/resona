@@ -55,31 +55,34 @@
 - Linked commit/PR: pending
 - Notes: this fix is more about long-term performance posture than visible correctness, but it prevents library browsing from regressing as collection size and page depth increase.
 
-## 2026-03-30 - Known ingest gap for MP3 duration when files omit ID3 duration metadata
-- Status: open
+## 2026-03-30 - Avoided missing MP3 duration values when files omit ID3 duration metadata
+- Status: fixed
 - Severity: medium
 - Symptom: some indexed tracks show `--:--` in the library table even though macOS and other media tools display a valid duration for the same files.
-- Root cause: the current scan pipeline reads duration from `id3::Tag::duration()` only, and many MP3 files do not store track length in the ID3 metadata even when the duration can be computed from the audio stream itself.
-- Fix: pending; upgrade the ingest path to compute duration from actual audio frame data instead of relying only on ID3 duration fields.
-- Verification: local files can display valid duration in system tools while `resona` stores `NULL` for `duration_seconds`; the normalization path currently uses `Tag::read_from_path(...).duration()`.
+- Root cause: the original scan pipeline read duration from `id3::Tag::duration()` only, and many MP3 files do not store track length in the ID3 metadata even when the duration can be computed from the audio stream itself.
+- Fix: added MP3 frame parsing as a fallback duration path so indexed tracks can still store `duration_seconds` when the ID3 tag omits track length.
+- Verification: `cargo test` now covers normalization with fake MP3 frame data, and `cargo check` passes with the upgraded ingest path compiled into the scanner.
 - Files touched:
   - `server/src/library/normalization.rs`
-  - `server/src/pages/TracksPage.tsx`
+  - `server/src/library/tests.rs`
 - Linked commit/PR: pending
-- Notes: this is a metadata fidelity gap rather than a UI bug; the frontend is rendering the missing value honestly.
+- Notes: this keeps duration fidelity closer to what system media tools already show without requiring a heavyweight decoder stack in the first local-ingest release.
 
-## 2026-03-30 - Known ingest gap for embedded artwork extraction during local scan
-- Status: open
+## 2026-03-30 - Avoided missing embedded artwork during local scan
+- Status: fixed
 - Severity: low
 - Symptom: tracks with visible cover art in system media tools still appear without artwork in `resona`.
-- Root cause: the current library ingest pipeline does not extract, persist, or expose embedded artwork from MP3 metadata, and `artwork_key` remains unset during track upsert.
-- Fix: pending; add artwork extraction and persistence so embedded cover images can be surfaced to the client.
-- Verification: the current track write path stores `artwork_key` as `NULL`, and no client route or command currently receives artwork data.
+- Root cause: the original library ingest pipeline did not extract or persist embedded artwork from MP3 metadata, so `artwork_key` stayed unset during track upsert.
+- Fix: added embedded artwork extraction from ID3 picture frames, persisted artwork assets into app-local storage, and carried `artwork_key` through the normalized track write path.
+- Verification: `cargo test` now covers artwork extraction and persisted artwork files, and `cargo check` passes with artwork-sync logic in the scan pipeline.
 - Files touched:
   - `server/src/library/scanner.rs`
   - `server/src/library/normalization.rs`
+  - `server/src/library/models.rs`
+  - `server/src/library/query.rs`
+  - `server/src/library/tests.rs`
 - Linked commit/PR: pending
-- Notes: this is expected at the current stage of the branch, but it is a real ingest completeness gap worth tracking before playback and richer track presentation land.
+- Notes: the client still needs a follow-up slice to render artwork in the tracks and playback UI, but the ingest and persistence side is no longer the blocker.
 
 ## 2026-03-30 - Avoided frontend shell regressions while splitting the client into routed pages and layout modules
 - Status: fixed

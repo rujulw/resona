@@ -37,6 +37,12 @@ impl AppDatabase {
         &self.db_path
     }
 
+    pub fn app_data_dir(&self) -> &Path {
+        self.db_path
+            .parent()
+            .expect("database path should always have a parent directory")
+    }
+
     pub fn connect(&self) -> Result<Connection, DatabaseError> {
         let connection = Connection::open(&self.db_path)?;
         connection.execute_batch("PRAGMA foreign_keys = ON;")?;
