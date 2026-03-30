@@ -1,3 +1,5 @@
+mod database;
+
 use serde::Serialize;
 
 #[derive(Clone, Serialize)]
