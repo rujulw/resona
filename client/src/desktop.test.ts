@@ -4,6 +4,7 @@ const invokeMock = vi.fn();
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: (...args: unknown[]) => invokeMock(...args),
+  convertFileSrc: (filePath: string) => `asset://localhost/${encodeURIComponent(filePath)}`,
 }));
 
 describe("desktop bootstrap bridge", () => {
@@ -50,5 +51,21 @@ describe("desktop bootstrap bridge", () => {
 
     expect(payload.statusLabel).toBe("Nothing playing");
     expect(payload.transportLabel).toBe("Preview only");
+  });
+
+  it("resolves a local playback source into an asset url", async () => {
+    invokeMock.mockResolvedValueOnce({
+      trackId: "track-1",
+      localPath: "/Users/rujulw/Music/alpha.mp3",
+    });
+
+    const { resolveTrackPlaybackSource } = await import("./desktop");
+    const payload = await resolveTrackPlaybackSource("track-1");
+
+    expect(invokeMock).toHaveBeenCalledWith("resolve_track_playback_source", {
+      trackId: "track-1",
+    });
+    expect(payload?.assetUrl).toContain("asset://localhost/");
+    expect(payload?.trackId).toBe("track-1");
   });
 });

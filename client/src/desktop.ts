@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 
 export type BootstrapPayload = {
   appName: string;
@@ -28,6 +28,17 @@ export type PlaybackShellState = {
   transportLabel: string;
   progressSeconds: number;
   durationSeconds: number;
+  isPlaying?: boolean;
+  trackId?: string | null;
+  trackTitle?: string | null;
+  trackArtist?: string | null;
+  trackAlbum?: string | null;
+};
+
+export type PlaybackSource = {
+  trackId: string;
+  localPath: string;
+  assetUrl: string;
 };
 
 export type ShellStatePayload = {
@@ -97,6 +108,11 @@ const browserShellStatePayload: ShellStatePayload = {
     transportLabel: "Idle",
     progressSeconds: 0,
     durationSeconds: 0,
+    isPlaying: false,
+    trackId: null,
+    trackTitle: null,
+    trackArtist: null,
+    trackAlbum: null,
   },
 };
 
@@ -165,5 +181,26 @@ export async function queryLibrary(options?: {
       total: 0,
       pageSize: options?.pageSize ?? 100,
     };
+  }
+}
+
+export async function resolveTrackPlaybackSource(
+  trackId: string,
+): Promise<PlaybackSource | null> {
+  try {
+    const payload = await invoke<{ trackId: string; localPath: string }>(
+      "resolve_track_playback_source",
+      {
+        trackId,
+      },
+    );
+
+    return {
+      trackId: payload.trackId,
+      localPath: payload.localPath,
+      assetUrl: convertFileSrc(payload.localPath),
+    };
+  } catch {
+    return null;
   }
 }

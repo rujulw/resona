@@ -9,7 +9,7 @@ use crate::database::{schema, AppDatabase};
 
 use super::models::{
     LibraryCursor, LibraryPage, LibraryQuery, LibraryRootRecord, NormalizedTrack,
-    PersistedLibrarySummary, ScanError, ScanSummary,
+    PersistedLibrarySummary, PlaybackSource, ScanError, ScanSummary,
 };
 use super::normalization::{build_library_root, discover_mp3_files, normalize_track};
 use super::query::{
@@ -153,6 +153,29 @@ impl LocalLibraryScanner {
             total,
             page_size,
         })
+    }
+
+    pub fn resolve_playback_source(&self, track_id: &str) -> Result<Option<PlaybackSource>, ScanError> {
+        let connection = self.app_database.connect()?;
+        let mut statement = connection.prepare(
+            "
+            SELECT ts.local_path
+            FROM tracks t
+            JOIN track_sources ts ON ts.track_id = t.id
+            WHERE t.id = ?1
+              AND ts.local_path IS NOT NULL
+            LIMIT 1
+            ",
+        )?;
+
+        let local_path = statement
+            .query_row([track_id], |row| row.get::<_, String>(0))
+            .optional()?;
+
+        Ok(local_path.map(|local_path| PlaybackSource {
+            track_id: track_id.to_owned(),
+            local_path,
+        }))
     }
 
     fn persist_scan(

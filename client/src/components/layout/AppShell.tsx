@@ -1,7 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 
-import type { BootstrapPayload } from "../../desktop";
-import type { ScanState, ShellState, TracksState } from "../../types/app";
+import type { BootstrapPayload, TrackListItem } from "../../desktop";
+import type { QueueState, ScanState, ShellState, TracksState } from "../../types/app";
 import { PlaybackBar } from "./PlaybackBar";
 import { Sidebar } from "./Sidebar";
 import { HomePage } from "../../pages/HomePage";
@@ -11,21 +11,25 @@ import { TracksPage } from "../../pages/TracksPage";
 
 export function AppShell({
   payload,
+  queueState,
   shellState,
   tracksState,
   libraryPath,
   scanState,
   onLibraryPathChange,
   onPlaybackAction,
+  onTrackSelect,
   onScan,
 }: {
   payload: BootstrapPayload;
+  queueState: QueueState;
   shellState: ShellState;
   tracksState: TracksState;
   libraryPath: string;
   scanState: ScanState;
   onLibraryPathChange: (value: string) => void;
   onPlaybackAction: (action: "previous" | "toggle" | "next") => void;
+  onTrackSelect: (track: TrackListItem) => void;
   onScan: () => void;
 }) {
   return (
@@ -49,8 +53,16 @@ export function AppShell({
                 />
               }
             />
-            <Route path="/tracks" element={<TracksPage tracksState={tracksState} />} />
-            <Route path="/queue" element={<QueuePage />} />
+            <Route
+              path="/tracks"
+              element={
+                <TracksPage
+                  tracksState={tracksState}
+                  onTrackSelect={onTrackSelect}
+                />
+              }
+            />
+            <Route path="/queue" element={<QueuePage queueState={queueState} />} />
             <Route
               path="/settings"
               element={

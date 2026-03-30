@@ -3,7 +3,8 @@ use tauri::State;
 
 use crate::database::AppDatabase;
 use crate::library::{
-    LibraryPage, LibraryQuery, LocalLibraryScanner, ScanSummary, SortDirection, TrackSortKey,
+    LibraryPage, LibraryQuery, LocalLibraryScanner, PlaybackSource, ScanSummary, SortDirection,
+    TrackSortKey,
 };
 
 pub struct DatabaseState {
@@ -251,6 +252,23 @@ pub fn query_library_with_database(
 }
 
 #[tauri::command]
+pub fn resolve_track_playback_source(
+    database_state: State<'_, DatabaseState>,
+    track_id: String,
+) -> Result<PlaybackSource, String> {
+    resolve_track_playback_source_with_database(&database_state.app_database, &track_id)
+        .map_err(|error| error.to_string())?
+        .ok_or_else(|| format!("No local playback source found for track {track_id}"))
+}
+
+pub fn resolve_track_playback_source_with_database(
+    app_database: &AppDatabase,
+    track_id: &str,
+) -> Result<Option<PlaybackSource>, crate::library::ScanError> {
+    LocalLibraryScanner::new(app_database.clone()).resolve_playback_source(track_id)
+}
+
+#[tauri::command]
 pub fn playback_action(action: &str) -> PlaybackShellState {
     playback_state_for_action(action)
 }
@@ -285,7 +303,8 @@ mod tests {
 
     use super::{
         bootstrap_app, build_shell_state, playback_state_for_action, query_library_with_database,
-        scan_local_library_with_database, DatabaseState,
+        resolve_track_playback_source_with_database, scan_local_library_with_database,
+        DatabaseState,
     };
     use crate::database::AppDatabase;
 
@@ -402,5 +421,42 @@ mod tests {
         assert_eq!(page.items.len(), 1);
         assert_eq!(page.total, 2);
         assert!(page.next_cursor.is_some());
+    }
+
+    #[test]
+    fn playback_source_command_returns_local_path_for_indexed_track() {
+        let database_state = test_database_state();
+        let root = std::env::temp_dir().join(unique_test_suffix("resona-playback-source"));
+
+        std::fs::create_dir_all(root.join("disc")).expect("directories should be created");
+        std::fs::File::create(root.join("disc").join("alpha.mp3"))
+            .expect("track should be created");
+
+        scan_local_library_with_database(
+            &database_state.app_database,
+            &root.display().to_string(),
+            Some("portfolio"),
+        )
+        .expect("scan should succeed");
+
+        let page = query_library_with_database(
+            &database_state.app_database,
+            Some(10),
+            None,
+            None,
+            Some("title".to_owned()),
+            Some("asc".to_owned()),
+        )
+        .expect("query should succeed");
+
+        let source = resolve_track_playback_source_with_database(
+            &database_state.app_database,
+            &page.items[0].id,
+        )
+        .expect("lookup should succeed")
+        .expect("source should exist");
+
+        assert_eq!(source.track_id, page.items[0].id);
+        assert!(source.local_path.ends_with("disc/alpha.mp3"));
     }
 }

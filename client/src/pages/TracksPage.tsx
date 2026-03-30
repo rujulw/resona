@@ -3,8 +3,10 @@ import { formatDuration } from "../utils/format";
 
 export function TracksPage({
   tracksState,
+  onTrackSelect,
 }: {
   tracksState: TracksState;
+  onTrackSelect: (track: TracksState["items"][number]) => void;
 }) {
   return (
     <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-6 overflow-hidden px-6 py-6">
@@ -41,9 +43,20 @@ export function TracksPage({
           ) : null}
 
           {tracksState.items.map((track) => (
-            <div
+            <button
               key={track.id}
-              className="grid grid-cols-[minmax(280px,2fr)_minmax(180px,1.1fr)_96px] items-center gap-4 border-b border-white/5 px-5 py-3.5 last:border-b-0 hover:bg-white/3"
+              className={[
+                "grid w-full grid-cols-[minmax(280px,2fr)_minmax(180px,1.1fr)_96px] items-center gap-4 border-b border-white/5 px-5 py-3.5 text-left last:border-b-0",
+                tracksState.selectedTrackId === track.id
+                  ? "bg-white/8"
+                  : "hover:bg-white/3",
+              ].join(" ")}
+              aria-label={`Select ${track.title}`}
+              aria-pressed={tracksState.selectedTrackId === track.id}
+              type="button"
+              onClick={() => {
+                onTrackSelect(track);
+              }}
             >
               <div className="grid min-w-0 gap-1">
                 <span className="truncate text-sm text-[#f2f2f2]">{track.title}</span>
@@ -59,7 +72,7 @@ export function TracksPage({
                   ? formatDuration(Math.round(track.durationSeconds))
                   : "--:--"}
               </span>
-            </div>
+            </button>
           ))}
         </div>
       </section>

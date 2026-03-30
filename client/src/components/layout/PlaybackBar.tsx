@@ -8,6 +8,7 @@ export function PlaybackBar({
   playback: PlaybackShellState;
   onPlaybackAction: (action: "previous" | "toggle" | "next") => void;
 }) {
+  const hasActiveTrack = Boolean(playback.trackId);
   const progressValue =
     playback.durationSeconds > 0
       ? Math.min(playback.durationSeconds, playback.progressSeconds)
@@ -18,22 +19,32 @@ export function PlaybackBar({
       <div className="flex min-w-0 items-center gap-3 self-stretch border-r border-white/6 py-4 pl-4">
         <div className="h-12 w-12 rounded-xl border border-white/8 bg-gradient-to-br from-white/12 to-transparent" />
         <div className="grid min-w-0 gap-0.5">
-          <strong className="truncate text-sm font-medium text-[#f2f2f2]">Nothing playing</strong>
-          <span className="text-sm text-[#8f8f8f]">Playback shell ready</span>
+          <strong className="truncate text-sm font-medium text-[#f2f2f2]">
+            {playback.trackTitle ?? "Nothing playing"}
+          </strong>
+          <span className="truncate text-sm text-[#8f8f8f]">
+            {playback.trackArtist ?? "Playback shell ready"}
+          </span>
         </div>
       </div>
 
       <div className="grid gap-3 px-4 py-4">
         <div className="flex justify-center gap-2">
           {[
-            { action: "previous" as const, label: "<" },
-            { action: "toggle" as const, label: ">" },
-            { action: "next" as const, label: ">>" },
+            { action: "previous" as const, label: "<", ariaLabel: "Previous track" },
+            {
+              action: "toggle" as const,
+              label: playback.isPlaying ? "||" : ">",
+              ariaLabel: playback.isPlaying ? "Pause playback" : "Play or pause playback",
+            },
+            { action: "next" as const, label: ">>", ariaLabel: "Next track" },
           ].map((item) => (
             <button
               key={item.action}
-              className="h-10 min-w-10 rounded-full border border-white/8 bg-white/[0.03] text-sm text-[#d4d4d4] transition-colors hover:border-white/12 hover:text-[#f2f2f2]"
+              className="h-10 min-w-10 rounded-full border border-white/8 bg-white/[0.03] text-sm text-[#d4d4d4] transition-colors hover:border-white/12 hover:text-[#f2f2f2] disabled:cursor-not-allowed disabled:opacity-45"
+              aria-label={item.ariaLabel}
               type="button"
+              disabled={!hasActiveTrack && item.action !== "toggle"}
               onClick={() => {
                 onPlaybackAction(item.action);
               }}

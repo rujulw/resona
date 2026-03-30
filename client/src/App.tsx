@@ -25,12 +25,14 @@ export default function App() {
   return (
     <AppShell
       payload={appShell.bootstrapState.payload}
+      queueState={appShell.queueState}
       shellState={appShell.shellState}
       tracksState={appShell.tracksState}
       libraryPath={appShell.libraryPath}
       scanState={appShell.scanState}
       onLibraryPathChange={appShell.setLibraryPath}
       onPlaybackAction={appShell.handlePlaybackAction}
+      onTrackSelect={appShell.handleTrackSelection}
       onScan={appShell.handleScan}
     />
   );
