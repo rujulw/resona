@@ -28,6 +28,7 @@ export type PlaybackShellState = {
   transportLabel: string;
   progressSeconds: number;
   durationSeconds: number;
+  isPlaying?: boolean;
   trackId?: string | null;
   trackTitle?: string | null;
   trackArtist?: string | null;
@@ -107,6 +108,7 @@ const browserShellStatePayload: ShellStatePayload = {
     transportLabel: "Idle",
     progressSeconds: 0,
     durationSeconds: 0,
+    isPlaying: false,
     trackId: null,
     trackTitle: null,
     trackArtist: null,

@@ -107,6 +107,7 @@ export function useAppShell() {
         ...existing,
         statusLabel: "Playing",
         transportLabel: "Playing",
+        isPlaying: true,
       }));
     };
 
@@ -119,6 +120,7 @@ export function useAppShell() {
         ...existing,
         statusLabel: existing.trackTitle ? "Paused" : existing.statusLabel,
         transportLabel: existing.trackTitle ? "Paused" : existing.transportLabel,
+        isPlaying: false,
       }));
     };
 
@@ -128,6 +130,7 @@ export function useAppShell() {
         statusLabel: existing.trackTitle ? "Ended" : existing.statusLabel,
         transportLabel: existing.trackTitle ? "Ended" : existing.transportLabel,
         progressSeconds: existing.durationSeconds,
+        isPlaying: false,
       }));
     };
 
@@ -136,6 +139,7 @@ export function useAppShell() {
         ...existing,
         statusLabel: existing.trackTitle ? "Error" : existing.statusLabel,
         transportLabel: "Playback error",
+        isPlaying: false,
       }));
     };
 
@@ -200,8 +204,50 @@ export function useAppShell() {
   };
 
   const handlePlaybackAction = (action: "previous" | "toggle" | "next") => {
+    const audio = audioRef.current;
+
+    if (action === "previous" || action === "next") {
+      const activeTrackId = shellState?.playback.trackId ?? tracksState.selectedTrackId;
+      const activeIndex = activeTrackId
+        ? tracksState.items.findIndex((item) => item.id === activeTrackId)
+        : -1;
+
+      if (action === "previous" && audio && audio.currentTime > 3 && activeIndex >= 0) {
+        audio.currentTime = 0;
+        setShellState((existing) => {
+          if (!existing) {
+            return existing;
+          }
+
+          return {
+            ...existing,
+            playback: {
+              ...existing.playback,
+              progressSeconds: 0,
+              transportLabel: existing.playback.isPlaying ? "Playing" : "Restarted",
+            },
+          };
+        });
+        return;
+      }
+
+      const targetIndex =
+        activeIndex >= 0
+          ? action === "previous"
+            ? activeIndex - 1
+            : activeIndex + 1
+          : action === "next"
+            ? 0
+            : -1;
+      const targetTrack = targetIndex >= 0 ? tracksState.items[targetIndex] : undefined;
+
+      if (targetTrack) {
+        startTrackPlayback(targetTrack, true);
+        return;
+      }
+    }
+
     if (action === "toggle") {
-      const audio = audioRef.current;
       if (audio && shellState?.playback.trackId && audio.src) {
         if (audio.paused) {
           void audio
@@ -218,6 +264,7 @@ export function useAppShell() {
                     ...existing.playback,
                     statusLabel: "Playing",
                     transportLabel: "Playing",
+                    isPlaying: true,
                   },
                 };
               });
@@ -234,6 +281,7 @@ export function useAppShell() {
                     ...existing.playback,
                     statusLabel: "Error",
                     transportLabel: "Playback blocked",
+                    isPlaying: false,
                   },
                 };
               });
@@ -251,11 +299,17 @@ export function useAppShell() {
                 ...existing.playback,
                 statusLabel: "Paused",
                 transportLabel: "Paused",
+                isPlaying: false,
               },
             };
           });
         }
 
+        return;
+      }
+
+      if (!shellState?.playback.trackId && tracksState.items.length > 0) {
+        startTrackPlayback(tracksState.items[0], true);
         return;
       }
     }
@@ -271,6 +325,7 @@ export function useAppShell() {
           playback: {
             ...existing.playback,
             ...playback,
+            isPlaying: playback.isPlaying ?? existing.playback.isPlaying ?? false,
             trackId: playback.trackId ?? existing.playback.trackId ?? null,
             trackTitle: playback.trackTitle ?? existing.playback.trackTitle ?? null,
             trackArtist: playback.trackArtist ?? existing.playback.trackArtist ?? null,
@@ -282,6 +337,10 @@ export function useAppShell() {
   };
 
   const handleTrackSelection = (track: TrackListItem) => {
+    startTrackPlayback(track, true);
+  };
+
+  const startTrackPlayback = (track: TrackListItem, autoplay: boolean) => {
     setTracksState((existing) => ({
       ...existing,
       selectedTrackId: track.id,
@@ -300,6 +359,7 @@ export function useAppShell() {
           transportLabel: "Loading source",
           progressSeconds: 0,
           durationSeconds: Math.round(track.durationSeconds ?? 0),
+          isPlaying: false,
           trackId: track.id,
           trackTitle: track.title,
           trackArtist: track.artist,
@@ -335,6 +395,25 @@ export function useAppShell() {
       audio.src = source.assetUrl;
       audio.currentTime = 0;
 
+      if (!autoplay) {
+        setShellState((existing) => {
+          if (!existing || existing.playback.trackId !== track.id) {
+            return existing;
+          }
+
+          return {
+            ...existing,
+            playback: {
+              ...existing.playback,
+              statusLabel: "Ready",
+              transportLabel: "Ready",
+              isPlaying: false,
+            },
+          };
+        });
+        return;
+      }
+
       void audio
         .play()
         .then(() => {
@@ -349,6 +428,7 @@ export function useAppShell() {
                 ...existing.playback,
                 statusLabel: "Playing",
                 transportLabel: "Playing",
+                isPlaying: true,
               },
             };
           });
@@ -365,6 +445,7 @@ export function useAppShell() {
                 ...existing.playback,
                 statusLabel: "Ready",
                 transportLabel: "Tap play to start",
+                isPlaying: false,
               },
             };
           });

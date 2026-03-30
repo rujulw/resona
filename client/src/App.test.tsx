@@ -76,23 +76,35 @@ describe("app shell smoke checks", () => {
           analysisStatus: "pending",
           indexedAt: "1700000000",
         },
+        {
+          id: "track-2",
+          title: "Bravo",
+          artist: "South",
+          album: "Horizons",
+          durationSeconds: 205,
+          relativePath: "bravo.mp3",
+          sourceStatus: "local-only",
+          cacheState: "none",
+          analysisStatus: "pending",
+          indexedAt: "1700000100",
+        },
       ],
       nextCursor: null,
-      total: 1,
+      total: 2,
       pageSize: 200,
     });
-    resolveTrackPlaybackSourceMock.mockResolvedValue({
-      trackId: "track-1",
-      localPath: "/Users/rujulw/Music/alpha.mp3",
-      assetUrl: "asset://localhost/mock-alpha.mp3",
-    });
+    resolveTrackPlaybackSourceMock.mockImplementation(async (trackId: string) => ({
+      trackId,
+      localPath: `/Users/rujulw/Music/${trackId}.mp3`,
+      assetUrl: `asset://localhost/${trackId}.mp3`,
+    }));
 
     window.history.replaceState({}, "", "/");
   });
 
   afterEach(() => {
-    vi.restoreAllMocks();
     cleanup();
+    vi.restoreAllMocks();
   });
 
   it("boots the routed shell and lands on home", async () => {
@@ -137,6 +149,38 @@ describe("app shell smoke checks", () => {
         screen.getByRole("button", { name: "Select Alpha" }).getAttribute("aria-pressed"),
       ).toBe("true");
       expect(screen.getByText("Playing")).toBeTruthy();
+    });
+  });
+
+  it("moves active-track state with previous and next transport controls", async () => {
+    window.history.replaceState({}, "", "/tracks");
+
+    const { default: App } = await import("./App");
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Select Alpha" }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "Select Alpha" }).getAttribute("aria-pressed"),
+      ).toBe("true");
+      expect(screen.getByText("Playing")).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Next track" }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "Select Bravo" }).getAttribute("aria-pressed"),
+      ).toBe("true");
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Previous track" }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "Select Alpha" }).getAttribute("aria-pressed"),
+      ).toBe("true");
     });
   });
 
