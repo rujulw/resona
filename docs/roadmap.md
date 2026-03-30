@@ -35,7 +35,8 @@ resona aims to become a high-performance music system for private libraries, bal
 - Implement recursive MP3 discovery for selected folders and nested directories
 - Link imported files to Atlas-backed identities where available
 - Add metadata normalization and pagination queries
-- Add search and sort capabilities for the main library view
+- Add search and sort capabilities for the main library view with indexed query paths and cursor pagination
+- Split early `mod.rs` implementations into focused Rust modules once the scan and persistence interfaces stabilize
 
 ## Milestone 4: Playback and Queue
 

@@ -4,6 +4,7 @@ import {
   bootstrapApp,
   getShellState,
   playbackAction,
+  scanLocalLibrary,
   type BootstrapPayload,
   type LibraryRow,
   type NavSection,
@@ -128,6 +129,38 @@ const mutedLabelStyle = {
   fontSize: "0.85rem",
 } as const;
 
+const importControlsStyle = {
+  display: "grid",
+  gap: "0.6rem",
+} as const;
+
+const importRowStyle = {
+  display: "flex",
+  gap: "0.6rem",
+  alignItems: "center",
+  flexWrap: "wrap",
+} as const;
+
+const inputStyle = {
+  flex: "1 1 320px",
+  minWidth: "240px",
+  padding: "0.72rem 0.8rem",
+  borderRadius: "0.7rem",
+  border: "1px solid rgba(255, 255, 255, 0.08)",
+  background: "#1e1e1e",
+  color: "#e5e5e5",
+  font: "inherit",
+} as const;
+
+const actionButtonStyle = {
+  padding: "0.72rem 0.95rem",
+  borderRadius: "0.7rem",
+  border: "1px solid rgba(255, 255, 255, 0.08)",
+  background: "#242424",
+  color: "#ededed",
+  font: "inherit",
+} as const;
+
 const libraryPaneStyle = {
   padding: "1rem 1.5rem 1.5rem",
   minWidth: 0,
@@ -223,6 +256,12 @@ type ShellState = {
   playback: PlaybackShellState;
 };
 
+type ScanState =
+  | { status: "idle"; message: string }
+  | { status: "running"; message: string }
+  | { status: "success"; message: string }
+  | { status: "error"; message: string };
+
 function formatDuration(totalSeconds: number): string {
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
@@ -233,6 +272,11 @@ function formatDuration(totalSeconds: number): string {
 export default function App() {
   const [state, setState] = useState<BootstrapState>({ status: "loading" });
   const [shellState, setShellState] = useState<ShellState | null>(null);
+  const [libraryPath, setLibraryPath] = useState("");
+  const [scanState, setScanState] = useState<ScanState>({
+    status: "idle",
+    message: "Temporary developer path until the folder picker lands.",
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -326,6 +370,49 @@ export default function App() {
     });
   };
 
+  const refreshShellState = () => {
+    void getShellState().then((shellPayload) => {
+      setShellState((existing) => ({
+        activeSectionId: existing?.activeSectionId ?? shellPayload.navSections[0]?.id ?? "tracks",
+        navSections: shellPayload.navSections,
+        libraryRows: shellPayload.libraryRows,
+        playback: existing?.playback ?? shellPayload.playback,
+      }));
+    });
+  };
+
+  const handleScan = () => {
+    const trimmedPath = libraryPath.trim();
+    if (!trimmedPath) {
+      setScanState({
+        status: "error",
+        message: "Enter a local folder path for this temporary scaffold.",
+      });
+      return;
+    }
+
+    setScanState({
+      status: "running",
+      message: "Scanning local library...",
+    });
+
+    void scanLocalLibrary(trimmedPath)
+      .then((summary) => {
+        setScanState({
+          status: "success",
+          message: `Indexed ${summary.discoveredTracks} track(s) from ${summary.libraryRootName}.`,
+        });
+        refreshShellState();
+      })
+      .catch((error: unknown) => {
+        setScanState({
+          status: "error",
+          message:
+            error instanceof Error ? error.message : "Failed to scan local library.",
+        });
+      });
+  };
+
   return (
     <main style={appSurfaceStyle}>
       <aside style={sidebarStyle}>
@@ -391,8 +478,31 @@ export default function App() {
 
       <section style={mainPaneStyle}>
         <header style={paneHeaderStyle}>
-          <div style={headerTextBlockStyle}>
+          <div style={{ ...headerTextBlockStyle, minWidth: 0, flex: "1 1 auto" }}>
             <h2 style={sectionTitleStyle}>Library</h2>
+            <div style={importControlsStyle}>
+              <div style={importRowStyle}>
+                <input
+                  aria-label="Temporary local library path"
+                  placeholder="/Users/you/Music"
+                  style={inputStyle}
+                  type="text"
+                  value={libraryPath}
+                  onChange={(event) => {
+                    setLibraryPath(event.target.value);
+                  }}
+                />
+                <button
+                  style={actionButtonStyle}
+                  type="button"
+                  onClick={handleScan}
+                  disabled={scanState.status === "running"}
+                >
+                  {scanState.status === "running" ? "Scanning..." : "Add library"}
+                </button>
+              </div>
+              <p style={mutedLabelStyle}>{scanState.message}</p>
+            </div>
           </div>
           <p style={mutedLabelStyle}>
             {payload.platform} • v{payload.appVersion}
