@@ -46,6 +46,26 @@ export type ScanSummary = {
   removedTracks: number;
 };
 
+export type TrackListItem = {
+  id: string;
+  title: string;
+  artist: string | null;
+  album: string | null;
+  durationSeconds: number | null;
+  relativePath: string;
+  sourceStatus: string;
+  cacheState: string;
+  analysisStatus: string;
+  indexedAt: string;
+};
+
+export type LibraryPagePayload = {
+  items: TrackListItem[];
+  nextCursor: string | null;
+  total: number;
+  pageSize: number;
+};
+
 const browserBootstrapPayload: BootstrapPayload = {
   appName: "resona",
   appVersion: "0.1.0",
@@ -121,4 +141,29 @@ export async function scanLocalLibrary(
     rootPath,
     displayName: displayName?.trim() ? displayName : null,
   });
+}
+
+export async function queryLibrary(options?: {
+  pageSize?: number;
+  cursor?: string | null;
+  search?: string | null;
+  sortKey?: "title" | "artist" | "album" | "indexed_at";
+  sortDirection?: "asc" | "desc";
+}): Promise<LibraryPagePayload> {
+  try {
+    return await invoke<LibraryPagePayload>("query_library", {
+      pageSize: options?.pageSize ?? 100,
+      cursor: options?.cursor ?? null,
+      search: options?.search ?? null,
+      sortKey: options?.sortKey ?? "title",
+      sortDirection: options?.sortDirection ?? "asc",
+    });
+  } catch {
+    return {
+      items: [],
+      nextCursor: null,
+      total: 0,
+      pageSize: options?.pageSize ?? 100,
+    };
+  }
 }
