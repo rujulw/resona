@@ -23,7 +23,7 @@ resona is designed to feel immediate, controlled, and quiet. The interface shoul
 
 ### Library
 
-The default view is a focused track library with search, sort, and pagination. Sidebar navigation should stay small and functional, covering library views, queue access, and settings without secondary content feeds.
+The default view is a focused track library with search, sort, and pagination. Sidebar navigation should stay small and functional, covering library views, queue access, and settings without secondary content feeds. Import should begin from a clear folder-selection action rather than from a raw path entry field.
 
 ### Playback
 
@@ -56,6 +56,7 @@ Track insights from timbre should appear in secondary detail surfaces such as a 
 - The app name remains lowercase as `resona` across README and docs by repository convention
 - Atlas is the primary remote storage layer for the same user-owned library that can also be played directly from disk
 - The analysis subsystem is fused from the local `~/dev/timbre` project behind an internal service boundary
+- Local library onboarding should use a desktop directory picker and recursive MP3 discovery instead of asking the user to paste filesystem paths
 - V1 uses a Web Audio path for faster delivery, while native Rust playback remains a future upgrade path
 - Playback-critical flows are owned by Rust to reduce frontend complexity
 - The app remains open source even when used with private Atlas-backed media libraries

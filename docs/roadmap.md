@@ -6,7 +6,7 @@ resona aims to become a high-performance music system for private libraries, bal
 
 ## MVP Outcomes
 
-- Local music libraries can be imported and indexed
+- Local music libraries can be imported through a folder picker and indexed recursively
 - Track metadata is persisted and queryable through SQLite
 - Users can search, browse, queue, and play tracks reliably
 - Atlas acts as the primary remote storage layer for the indexed library
@@ -31,7 +31,8 @@ resona aims to become a high-performance music system for private libraries, bal
 ## Milestone 3: Library Foundation
 
 - Define SQLite schema for tracks, sources, cache, and analysis
-- Implement local folder import flow
+- Implement local folder picker flow through Tauri
+- Implement recursive MP3 discovery for selected folders and nested directories
 - Link imported files to Atlas-backed identities where available
 - Add metadata normalization and pagination queries
 - Add search and sort capabilities for the main library view
@@ -73,4 +74,4 @@ resona aims to become a high-performance music system for private libraries, bal
 - Atlas endpoint contracts need to be specified for object identity, metadata sync, streaming, and version validation
 - The local `~/dev/timbre` integration needs a defined module boundary and update workflow
 - Audio output path needs validation for the Web Audio based V1 approach
-- Library import behavior for malformed tags and missing artwork should be documented during implementation
+- Library import behavior for malformed tags, missing artwork, permission failures, and non-MP3 files should be documented during implementation

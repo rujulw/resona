@@ -43,7 +43,8 @@ The analysis subsystem is expected to be fused in from the local `~/dev/timbre` 
 
 ### Library Engine
 
-- Index local folders
+- Open a directory picker through Tauri so users never type raw local paths into the app
+- Index selected local folders recursively for MP3 files
 - Reconcile local tracks with Atlas-backed library records
 - Expose paginated queries, sorting, and search
 - Track version, availability, and analysis readiness
@@ -110,11 +111,12 @@ The analysis subsystem is expected to be fused in from the local `~/dev/timbre` 
 
 ### Local Import
 
-1. User selects a library folder
-2. Rust indexing service scans metadata
-3. Matching Atlas objects are linked or queued for sync metadata refresh
-4. Normalized records are stored in SQLite
-5. UI refreshes paginated views through Tauri
+1. User selects a library folder through a desktop directory picker
+2. Rust indexing service walks the selected directory recursively
+3. MP3 files are discovered in the root and nested subfolders
+4. Metadata is parsed and matching Atlas objects are linked or queued for sync refresh
+5. Normalized records are stored in SQLite
+6. UI refreshes paginated views through Tauri
 
 ### Playback Resolution
 
@@ -146,6 +148,7 @@ The analysis subsystem is expected to be fused in from the local `~/dev/timbre` 
 - Web Audio may not satisfy all long-term latency and transition goals
 - Atlas integration details still need concrete endpoint contracts for object identity, streaming, and version sync
 - The integration surface with `~/dev/timbre` needs a clear boundary to avoid code drift
+- Recursive directory scanning needs careful filtering so non-audio files and permission failures do not degrade import reliability
 - Artwork, metadata edge cases, and corrupted files can complicate indexing behavior
 
 ## Implementation Notes
