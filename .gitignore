@@ -1,0 +1,39 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Env
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+logs/
+
+# JavaScript / TypeScript
+node_modules/
+dist/
+build/
+coverage/
+vite.svg
+*.tsbuildinfo
+
+# Rust / Tauri
+target/
+src-tauri/target/
+Cargo.lock
+
+# Testing
+playwright-report/
+test-results/
+
+# Misc
+.cache/
+tmp/
