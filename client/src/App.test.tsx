@@ -7,6 +7,7 @@ const bootstrapAppMock = vi.fn();
 const getShellStateMock = vi.fn();
 const queryLibraryMock = vi.fn();
 const playbackActionMock = vi.fn();
+const resolveTrackPlaybackSourceMock = vi.fn();
 const scanLocalLibraryMock = vi.fn();
 
 vi.mock("./desktop", () => ({
@@ -14,6 +15,7 @@ vi.mock("./desktop", () => ({
   getShellState: () => getShellStateMock(),
   queryLibrary: () => queryLibraryMock(),
   playbackAction: (...args: unknown[]) => playbackActionMock(...args),
+  resolveTrackPlaybackSource: (...args: unknown[]) => resolveTrackPlaybackSourceMock(...args),
   scanLocalLibrary: (...args: unknown[]) => scanLocalLibraryMock(...args),
 }));
 
@@ -23,7 +25,11 @@ describe("app shell smoke checks", () => {
     getShellStateMock.mockReset();
     queryLibraryMock.mockReset();
     playbackActionMock.mockReset();
+    resolveTrackPlaybackSourceMock.mockReset();
     scanLocalLibraryMock.mockReset();
+
+    vi.spyOn(window.HTMLMediaElement.prototype, "play").mockResolvedValue(undefined);
+    vi.spyOn(window.HTMLMediaElement.prototype, "pause").mockImplementation(() => {});
 
     bootstrapAppMock.mockResolvedValue({
       appName: "resona",
@@ -75,11 +81,17 @@ describe("app shell smoke checks", () => {
       total: 1,
       pageSize: 200,
     });
+    resolveTrackPlaybackSourceMock.mockResolvedValue({
+      trackId: "track-1",
+      localPath: "/Users/rujulw/Music/alpha.mp3",
+      assetUrl: "asset://localhost/mock-alpha.mp3",
+    });
 
     window.history.replaceState({}, "", "/");
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     cleanup();
   });
 
@@ -124,7 +136,7 @@ describe("app shell smoke checks", () => {
       expect(
         screen.getByRole("button", { name: "Select Alpha" }).getAttribute("aria-pressed"),
       ).toBe("true");
-      expect(screen.getByText("Ready")).toBeTruthy();
+      expect(screen.getByText("Playing")).toBeTruthy();
     });
   });
 

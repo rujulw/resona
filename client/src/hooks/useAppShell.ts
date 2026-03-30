@@ -1,16 +1,18 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   bootstrapApp,
   getShellState,
   playbackAction,
   queryLibrary,
+  resolveTrackPlaybackSource,
   scanLocalLibrary,
   type TrackListItem,
 } from "../desktop";
 import type { BootstrapState, ScanState, ShellState, TracksState } from "../types/app";
 
 export function useAppShell() {
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const [bootstrapState, setBootstrapState] = useState<BootstrapState>({
     status: "loading",
   });
@@ -64,6 +66,102 @@ export function useAppShell() {
     };
   }, []);
 
+  useEffect(() => {
+    const audio = new Audio();
+    audio.preload = "metadata";
+    audioRef.current = audio;
+
+    const syncPlayback = (update: (existing: NonNullable<ShellState["playback"]>) => NonNullable<ShellState["playback"]>) => {
+      setShellState((existing) => {
+        if (!existing) {
+          return existing;
+        }
+
+        return {
+          ...existing,
+          playback: update(existing.playback),
+        };
+      });
+    };
+
+    const handleLoadedMetadata = () => {
+      syncPlayback((existing) => ({
+        ...existing,
+        durationSeconds: Number.isFinite(audio.duration) ? Math.round(audio.duration) : existing.durationSeconds,
+      }));
+    };
+
+    const handleTimeUpdate = () => {
+      syncPlayback((existing) => ({
+        ...existing,
+        progressSeconds: Math.round(audio.currentTime),
+        durationSeconds:
+          Number.isFinite(audio.duration) && audio.duration > 0
+            ? Math.round(audio.duration)
+            : existing.durationSeconds,
+      }));
+    };
+
+    const handlePlay = () => {
+      syncPlayback((existing) => ({
+        ...existing,
+        statusLabel: "Playing",
+        transportLabel: "Playing",
+      }));
+    };
+
+    const handlePause = () => {
+      if (audio.ended) {
+        return;
+      }
+
+      syncPlayback((existing) => ({
+        ...existing,
+        statusLabel: existing.trackTitle ? "Paused" : existing.statusLabel,
+        transportLabel: existing.trackTitle ? "Paused" : existing.transportLabel,
+      }));
+    };
+
+    const handleEnded = () => {
+      syncPlayback((existing) => ({
+        ...existing,
+        statusLabel: existing.trackTitle ? "Ended" : existing.statusLabel,
+        transportLabel: existing.trackTitle ? "Ended" : existing.transportLabel,
+        progressSeconds: existing.durationSeconds,
+      }));
+    };
+
+    const handleError = () => {
+      syncPlayback((existing) => ({
+        ...existing,
+        statusLabel: existing.trackTitle ? "Error" : existing.statusLabel,
+        transportLabel: "Playback error",
+      }));
+    };
+
+    audio.addEventListener("loadedmetadata", handleLoadedMetadata);
+    audio.addEventListener("timeupdate", handleTimeUpdate);
+    audio.addEventListener("play", handlePlay);
+    audio.addEventListener("pause", handlePause);
+    audio.addEventListener("ended", handleEnded);
+    audio.addEventListener("error", handleError);
+
+    return () => {
+      try {
+        audio.pause();
+      } catch {
+        // jsdom does not implement media teardown fully, but the browser/webview does.
+      }
+      audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
+      audio.removeEventListener("timeupdate", handleTimeUpdate);
+      audio.removeEventListener("play", handlePlay);
+      audio.removeEventListener("pause", handlePause);
+      audio.removeEventListener("ended", handleEnded);
+      audio.removeEventListener("error", handleError);
+      audioRef.current = null;
+    };
+  }, []);
+
   const refreshShellState = () => {
     void getShellState().then((shellPayload) => {
       setShellState((existing) => ({
@@ -102,6 +200,66 @@ export function useAppShell() {
   };
 
   const handlePlaybackAction = (action: "previous" | "toggle" | "next") => {
+    if (action === "toggle") {
+      const audio = audioRef.current;
+      if (audio && shellState?.playback.trackId && audio.src) {
+        if (audio.paused) {
+          void audio
+            .play()
+            .then(() => {
+              setShellState((existing) => {
+                if (!existing) {
+                  return existing;
+                }
+
+                return {
+                  ...existing,
+                  playback: {
+                    ...existing.playback,
+                    statusLabel: "Playing",
+                    transportLabel: "Playing",
+                  },
+                };
+              });
+            })
+            .catch(() => {
+              setShellState((existing) => {
+                if (!existing) {
+                  return existing;
+                }
+
+                return {
+                  ...existing,
+                  playback: {
+                    ...existing.playback,
+                    statusLabel: "Error",
+                    transportLabel: "Playback blocked",
+                  },
+                };
+              });
+            });
+        } else {
+          audio.pause();
+          setShellState((existing) => {
+            if (!existing) {
+              return existing;
+            }
+
+            return {
+              ...existing,
+              playback: {
+                ...existing.playback,
+                statusLabel: "Paused",
+                transportLabel: "Paused",
+              },
+            };
+          });
+        }
+
+        return;
+      }
+    }
+
     void playbackAction(action).then((playback) => {
       setShellState((existing) => {
         if (!existing) {
@@ -138,8 +296,8 @@ export function useAppShell() {
         ...existing,
         playback: {
           ...existing.playback,
-          statusLabel: "Selected",
-          transportLabel: "Ready",
+          statusLabel: "Loading",
+          transportLabel: "Loading source",
           progressSeconds: 0,
           durationSeconds: Math.round(track.durationSeconds ?? 0),
           trackId: track.id,
@@ -148,6 +306,69 @@ export function useAppShell() {
           trackAlbum: track.album,
         },
       };
+    });
+
+    void resolveTrackPlaybackSource(track.id).then((source) => {
+      if (!source) {
+        setShellState((existing) => {
+          if (!existing || existing.playback.trackId !== track.id) {
+            return existing;
+          }
+
+          return {
+            ...existing,
+            playback: {
+              ...existing.playback,
+              statusLabel: "Unavailable",
+              transportLabel: "Local source unavailable",
+            },
+          };
+        });
+        return;
+      }
+
+      const audio = audioRef.current;
+      if (!audio) {
+        return;
+      }
+
+      audio.src = source.assetUrl;
+      audio.currentTime = 0;
+
+      void audio
+        .play()
+        .then(() => {
+          setShellState((existing) => {
+            if (!existing || existing.playback.trackId !== track.id) {
+              return existing;
+            }
+
+            return {
+              ...existing,
+              playback: {
+                ...existing.playback,
+                statusLabel: "Playing",
+                transportLabel: "Playing",
+              },
+            };
+          });
+        })
+        .catch(() => {
+          setShellState((existing) => {
+            if (!existing || existing.playback.trackId !== track.id) {
+              return existing;
+            }
+
+            return {
+              ...existing,
+              playback: {
+                ...existing.playback,
+                statusLabel: "Ready",
+                transportLabel: "Tap play to start",
+              },
+            };
+          });
+        });
     });
   };
 
