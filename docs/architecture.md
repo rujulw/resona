@@ -49,6 +49,35 @@ The analysis subsystem is expected to be fused in from the local `~/dev/timbre` 
 - Expose paginated queries, sorting, and search
 - Track version, availability, and analysis readiness
 
+### Scan Pipeline Design
+
+The local import path is deliberately structured as a pipeline rather than a single filesystem pass:
+
+1. Traverse the selected root directory with an explicit stack
+2. Filter and collect MP3 files only
+3. Normalize metadata into stable internal records
+4. Diff discovered tracks against persisted tracks by relative path
+5. Upsert changed records and delete stale records in one transaction
+
+That shape matters for both performance and clarity. The traversal is effectively linear in the number of visited filesystem nodes, while the reconciliation step avoids quadratic behavior by using hash-based lookup for existing records.
+
+### Algorithmic Rationale
+
+- Explicit stack + visited-set:
+  avoids duplicate traversal work and gives tight control over recursive directory scanning.
+- Relative-path hash map for persisted tracks:
+  reduces rescan reconciliation from repeated pairwise comparison toward `O(n + m)` lookup behavior, where `n` is discovered files and `m` is persisted files for the root.
+- Deterministic ordering:
+  sorting discovered paths before normalization makes tests, debugging, and persistence behavior stable across runs.
+- Transactional persistence:
+  groups track, source, cache, and analysis-row updates into one write boundary so the database never observes a half-applied scan.
+
+## Growth Characteristics
+
+- Directory traversal grows with the number of visited directories and files rather than with the square of the library size.
+- Reconciliation cost is bounded by one pass over discovered files plus one pass over persisted rows for the selected library root.
+- The chosen schema stores `relative_path` under a library root instead of using raw absolute paths as the primary identity, which keeps comparison keys compact and UI-safe.
+
 ### Source Providers
 
 - `LocalSource` resolves filesystem-backed tracks
@@ -154,3 +183,5 @@ The analysis subsystem is expected to be fused in from the local `~/dev/timbre` 
 ## Implementation Notes
 
 The initial implementation should scaffold clear interfaces between library, cache, playback, and analysis subsystems before feature depth is added. The first key integration decisions are Atlas object linkage and the boundary used to fuse in `timbre` while keeping resona open source and independently buildable.
+
+The current Rust implementation keeps some early branch work concentrated in `mod.rs` files to move quickly while the shape is still changing. That is acceptable for a short-lived scaffold phase, but it is not the intended long-term structure. As the library branch matures, the code should be split into focused modules such as scanning, normalization, repositories, models, and commands, which is closer to the same encapsulation goals often taught in Java package design.

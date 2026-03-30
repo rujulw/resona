@@ -38,7 +38,9 @@ impl AppDatabase {
     }
 
     pub fn connect(&self) -> Result<Connection, DatabaseError> {
-        Ok(Connection::open(&self.db_path)?)
+        let connection = Connection::open(&self.db_path)?;
+        connection.execute_batch("PRAGMA foreign_keys = ON;")?;
+        Ok(connection)
     }
 
     pub fn migration_status(&self) -> Result<MigrationStatus, DatabaseError> {

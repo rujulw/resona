@@ -1,6 +1,8 @@
 mod database;
+mod library;
 
 use database::AppDatabase;
+use library::{LocalLibraryScanner, ScanSummary};
 use serde::Serialize;
 use tauri::State;
 
@@ -61,7 +63,7 @@ struct NavSection {
 #[serde(rename_all = "camelCase")]
 struct LibraryRow {
     title: &'static str,
-    detail: &'static str,
+    detail: String,
     state: &'static str,
 }
 
@@ -74,6 +76,16 @@ struct PlaybackShellState {
     duration_seconds: u32,
 }
 
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct PersistenceState {
+    status_label: &'static str,
+    detail: &'static str,
+    database_path: String,
+    track_count: usize,
+    library_root_count: usize,
+}
+
 #[tauri::command]
 fn get_shell_state(database_state: State<'_, DatabaseState>) -> ShellStatePayload {
     build_shell_state(&database_state.app_database)
@@ -81,6 +93,9 @@ fn get_shell_state(database_state: State<'_, DatabaseState>) -> ShellStatePayloa
 
 fn build_shell_state(app_database: &AppDatabase) -> ShellStatePayload {
     let migration_status = app_database.migration_status().ok();
+    let library_summary = LocalLibraryScanner::new(app_database.clone())
+        .library_summary()
+        .ok();
     let persistence = PersistenceState {
         status_label: if migration_status.is_some() {
             "Ready"
@@ -92,6 +107,20 @@ fn build_shell_state(app_database: &AppDatabase) -> ShellStatePayload {
             .map(|status| status.latest_migration)
             .unwrap_or("migration status unavailable"),
         database_path: app_database.db_path().display().to_string(),
+        track_count: library_summary.as_ref().map(|summary| summary.tracks).unwrap_or(0),
+        library_root_count: library_summary
+            .as_ref()
+            .map(|summary| summary.library_roots)
+            .unwrap_or(0),
+    };
+
+    let library_detail = if persistence.track_count == 0 {
+        "No tracks loaded yet".to_owned()
+    } else {
+        format!(
+            "{} tracks indexed across {} root(s)",
+            persistence.track_count, persistence.library_root_count
+        )
     };
 
     ShellStatePayload {
@@ -124,17 +153,17 @@ fn build_shell_state(app_database: &AppDatabase) -> ShellStatePayload {
         library_rows: vec![
             LibraryRow {
                 title: "Library",
-                detail: "No tracks loaded yet",
+                detail: library_detail,
                 state: persistence.status_label,
             },
             LibraryRow {
                 title: "atlas",
-                detail: "Remote source not connected",
+                detail: "Remote source not connected".to_owned(),
                 state: "Idle",
             },
             LibraryRow {
                 title: "timbre",
-                detail: "Analysis queue unavailable",
+                detail: "Analysis queue unavailable".to_owned(),
                 state: "Idle",
             },
         ],
@@ -146,6 +175,29 @@ fn build_shell_state(app_database: &AppDatabase) -> ShellStatePayload {
         },
         persistence,
     }
+}
+
+#[tauri::command]
+fn scan_local_library(
+    database_state: State<'_, DatabaseState>,
+    root_path: String,
+    display_name: Option<String>,
+) -> Result<ScanSummary, String> {
+    scan_local_library_with_database(
+        &database_state.app_database,
+        &root_path,
+        display_name.as_deref(),
+    )
+    .map_err(|error| error.to_string())
+}
+
+fn scan_local_library_with_database(
+    app_database: &AppDatabase,
+    root_path: &str,
+    display_name: Option<&str>,
+) -> Result<ScanSummary, library::ScanError> {
+    LocalLibraryScanner::new(app_database.clone())
+        .scan_path(root_path, display_name)
 }
 
 #[tauri::command]
@@ -172,14 +224,6 @@ fn playback_action(action: &str) -> PlaybackShellState {
     }
 }
 
-#[derive(Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct PersistenceState {
-    status_label: &'static str,
-    detail: &'static str,
-    database_path: String,
-}
-
 pub fn run() {
     let app_database =
         AppDatabase::initialize_default().expect("failed to initialize resona database");
@@ -189,6 +233,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             bootstrap_app,
             get_shell_state,
+            scan_local_library,
             playback_action
         ])
         .run(tauri::generate_context!())
@@ -199,7 +244,10 @@ pub fn run() {
 mod tests {
     use std::time::{SystemTime, UNIX_EPOCH};
 
-    use super::{bootstrap_app, build_shell_state, playback_action, DatabaseState};
+    use super::{
+        bootstrap_app, build_shell_state, playback_action, scan_local_library_with_database,
+        DatabaseState,
+    };
     use crate::database::AppDatabase;
 
     fn test_database_state() -> DatabaseState {
@@ -235,6 +283,7 @@ mod tests {
         assert_eq!(payload.library_rows.len(), 3);
         assert_eq!(payload.library_rows[1].title, "atlas");
         assert_eq!(payload.persistence.status_label, "Ready");
+        assert_eq!(payload.persistence.track_count, 0);
         assert_eq!(payload.playback.status_label, "Nothing playing");
         assert_eq!(payload.playback.transport_label, "Idle");
     }
@@ -248,5 +297,35 @@ mod tests {
         assert_eq!(previous.transport_label, "Previous unavailable");
         assert_eq!(toggle.transport_label, "Play requested");
         assert_eq!(next.transport_label, "Next unavailable");
+    }
+
+    #[test]
+    fn local_scan_command_persists_mp3_files() {
+        let database_state = test_database_state();
+        let root = std::env::temp_dir().join(format!(
+            "resona-command-scan-{}",
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .expect("system time should be after unix epoch")
+                .as_nanos()
+        ));
+
+        std::fs::create_dir_all(root.join("nested")).expect("directories should be created");
+        std::fs::File::create(root.join("alpha.mp3")).expect("root mp3 should be created");
+        std::fs::File::create(root.join("nested").join("beta.mp3"))
+            .expect("nested mp3 should be created");
+
+        let summary = scan_local_library_with_database(
+            &database_state.app_database,
+            &root.display().to_string(),
+            Some("portfolio"),
+        )
+        .expect("scan should succeed");
+
+        assert_eq!(summary.discovered_tracks, 2);
+
+        let payload = build_shell_state(&database_state.app_database);
+        assert_eq!(payload.persistence.track_count, 2);
+        assert_eq!(payload.persistence.library_root_count, 1);
     }
 }
