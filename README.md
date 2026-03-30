@@ -4,7 +4,7 @@ resona is a lightweight, local-first desktop music system built for fast playbac
 
 ## Product Goal
 
-Build a private, performance-first music player that feels closer to a system utility than a streaming platform. The MVP focuses on dependable local playback, optional Atlas-backed media access, deterministic queueing, and non-blocking timbre analysis for track-level insights.
+Build a private, performance-first music player that feels closer to a system utility than a streaming platform. The MVP focuses on dependable local playback, Atlas-backed storage and sync for the same library, deterministic queueing, and non-blocking timbre analysis for track-level insights.
 
 ## MVP Scope
 
@@ -29,16 +29,17 @@ Build a private, performance-first music player that feels closer to a system ut
 ## User Segments
 
 - Listeners with large local libraries who want a fast desktop player
-- Users storing music in Atlas and needing seamless local caching
+- Users storing their library in Atlas and needing seamless local caching
 - Builders interested in audio analysis without sacrificing playback performance
 
 ## Core Principles
 
-- Local-first, cloud-augmented
+- Local-first, Atlas-backed
 - Predictable performance at 10k+ tracks
 - Minimal React state and rendering overhead
 - Analysis enhances playback and never blocks it
 - Clear, utility-first interface over entertainment-platform patterns
+- Open-source core with private user-controlled media storage
 
 ## Planned Architecture
 
@@ -78,17 +79,18 @@ Build a private, performance-first music player that feels closer to a system ut
 - Core engine: Rust
 - Database: SQLite
 - Audio path: Web Audio in V1, native Rust playback path in V2
-- Remote storage: Atlas private media backend
+- Remote storage: Atlas as the primary remote store for the indexed library
+- Analysis engine: fused from the local `timbre` codebase and integrated into the Rust core
 
 ## MVP Subsystems
 
 ### Library Engine
 
-Indexes local files, syncs Atlas metadata, normalizes track records, and exposes paginated library queries.
+Indexes local files, syncs Atlas-backed library metadata, normalizes track records, and exposes paginated library queries.
 
 ### Source Providers
 
-Supports `LocalSource` for filesystem access and `AtlasSource` for remote private storage retrieval.
+Supports `LocalSource` for filesystem access and `AtlasSource` for the primary remote library store and retrieval path.
 
 ### Cache Manager
 
@@ -104,7 +106,7 @@ Chooses the fastest viable path for playback:
 
 ### Analysis Engine
 
-Runs asynchronous timbre profiling to extract BPM, energy, spectral, tonal, dynamic, and custom flow features while keeping CPU use constrained.
+Runs asynchronous timbre profiling through an integrated `timbre` engine to extract BPM, energy, spectral, tonal, dynamic, and custom flow features while keeping CPU use constrained.
 
 ## Performance Targets
 
@@ -114,9 +116,9 @@ Runs asynchronous timbre profiling to extract BPM, energy, spectral, tonal, dyna
 | Playing local track | Minimal increase | 1-3% |
 | Streaming remote track | Slight increase | 2-5% |
 
-## Current Status
+## Open Source Position
 
-The repository is in project bootstrap mode. Planning artifacts are in `docs/`, and implementation will proceed in reviewable slices after the initial repository scaffold commit.
+resona is intended to remain open source as an application and systems project. Atlas integration is a storage adapter for user-controlled media, not a closed platform dependency, and the embedded `timbre` analysis layer should be integrated in a way that preserves a clear open-source development model.
 
 ## Initial Development Slices
 
