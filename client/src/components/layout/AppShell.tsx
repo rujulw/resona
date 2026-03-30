@@ -1,7 +1,13 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 
 import type { BootstrapPayload, TrackListItem } from "../../desktop";
-import type { QueueState, ScanState, ShellState, TracksState } from "../../types/app";
+import type {
+  QueueState,
+  ScanState,
+  ShellState,
+  TracksQueryState,
+  TracksState,
+} from "../../types/app";
 import { PlaybackBar } from "./PlaybackBar";
 import { Sidebar } from "./Sidebar";
 import { HomePage } from "../../pages/HomePage";
@@ -14,23 +20,33 @@ export function AppShell({
   queueState,
   shellState,
   tracksState,
+  tracksQueryState,
   libraryPath,
   scanState,
-  onLibraryPathChange,
+  onPickLibraryDirectory,
   onPlaybackAction,
   onTrackSelect,
   onScan,
+  onTracksSearchDraftChange,
+  onTracksSearchSubmit,
+  onTracksTitleHeaderSort,
+  onTracksAlbumHeaderSort,
 }: {
   payload: BootstrapPayload;
   queueState: QueueState;
   shellState: ShellState;
   tracksState: TracksState;
+  tracksQueryState: TracksQueryState;
   libraryPath: string;
   scanState: ScanState;
-  onLibraryPathChange: (value: string) => void;
+  onPickLibraryDirectory: () => void;
   onPlaybackAction: (action: "previous" | "toggle" | "next") => void;
   onTrackSelect: (track: TrackListItem) => void;
   onScan: () => void;
+  onTracksSearchDraftChange: (value: string) => void;
+  onTracksSearchSubmit: () => void;
+  onTracksTitleHeaderSort: () => void;
+  onTracksAlbumHeaderSort: () => void;
 }) {
   return (
     <BrowserRouter>
@@ -57,8 +73,15 @@ export function AppShell({
               path="/tracks"
               element={
                 <TracksPage
+                  libraryPath={libraryPath}
+                  scanState={scanState}
+                  tracksQueryState={tracksQueryState}
                   tracksState={tracksState}
                   onTrackSelect={onTrackSelect}
+                  onTracksSearchDraftChange={onTracksSearchDraftChange}
+                  onTracksSearchSubmit={onTracksSearchSubmit}
+                  onTracksTitleHeaderSort={onTracksTitleHeaderSort}
+                  onTracksAlbumHeaderSort={onTracksAlbumHeaderSort}
                 />
               }
             />
@@ -72,7 +95,7 @@ export function AppShell({
                   platformLabel={payload.platform}
                   appVersion={payload.appVersion}
                   scanState={scanState}
-                  onLibraryPathChange={onLibraryPathChange}
+                  onPickLibraryDirectory={onPickLibraryDirectory}
                   onScan={onScan}
                 />
               }
@@ -81,7 +104,11 @@ export function AppShell({
           </Routes>
         </section>
 
-        <PlaybackBar playback={shellState.playback} onPlaybackAction={onPlaybackAction} />
+        <PlaybackBar
+          activeTrack={queueState.activeTrack}
+          playback={shellState.playback}
+          onPlaybackAction={onPlaybackAction}
+        />
       </main>
     </BrowserRouter>
   );

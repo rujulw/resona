@@ -37,12 +37,20 @@ pub struct PlaybackSource {
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct ArtworkSource {
+    pub artwork_key: String,
+    pub local_path: String,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct LibraryTrackItem {
     pub id: String,
     pub title: String,
     pub artist: Option<String>,
     pub album: Option<String>,
     pub duration_seconds: Option<f64>,
+    pub artwork_key: Option<String>,
     pub relative_path: String,
     pub source_status: String,
     pub cache_state: String,
@@ -106,6 +114,8 @@ pub(crate) struct NormalizedTrack {
     pub track_number: Option<i64>,
     pub disc_number: Option<i64>,
     pub duration_seconds: Option<f64>,
+    pub artwork_key: Option<String>,
+    pub artwork_bytes: Option<Vec<u8>>,
     pub file_size_bytes: i64,
     pub content_hash: String,
     pub local_path: String,

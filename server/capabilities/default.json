@@ -1,0 +1,6 @@
+{
+  "identifier": "main-capability",
+  "description": "Allows the main resona window to use core IPC and the dialog open flow.",
+  "windows": ["main"],
+  "permissions": ["core:default", "dialog:allow-open"]
+}

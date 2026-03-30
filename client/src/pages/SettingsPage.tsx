@@ -7,7 +7,7 @@ export function SettingsPage({
   platformLabel,
   appVersion,
   scanState,
-  onLibraryPathChange,
+  onPickLibraryDirectory,
   onScan,
 }: {
   libraryRows: LibraryRow[];
@@ -15,7 +15,7 @@ export function SettingsPage({
   platformLabel: string;
   appVersion: string;
   scanState: ScanState;
-  onLibraryPathChange: (value: string) => void;
+  onPickLibraryDirectory: () => void;
   onScan: () => void;
 }) {
   return (
@@ -39,28 +39,63 @@ export function SettingsPage({
               <p className="m-0 text-[11px] tracking-[0.08em] text-[#8f8f8f]">import</p>
               <h3 className="text-lg font-medium text-[#f2f2f2]">scan local library</h3>
             </div>
+            <div className="rounded-2xl border border-white/8 bg-white/3 px-4 py-4">
+              <p className="m-0 text-[11px] tracking-[0.08em] text-[#8f8f8f]">selected folder</p>
+              <p className="mt-2 text-sm text-[#e5e5e5]">
+                {libraryPath || "No folder selected yet"}
+              </p>
+            </div>
             <div className="flex flex-wrap items-center gap-2">
-              <input
-                aria-label="Temporary local library path"
-                placeholder="/Users/you/Music"
-                className="min-w-65 flex-1 rounded-2xl border border-white/8 bg-white/3 px-4 py-3 text-sm text-[#e5e5e5] outline-none placeholder:text-[#8f8f8f]"
-                type="text"
-                value={libraryPath}
-                onChange={(event) => {
-                  onLibraryPathChange(event.target.value);
-                }}
-              />
+              <button
+                className="rounded-2xl border border-white/8 bg-white/3 px-4 py-3 text-sm text-[#f2f2f2] transition-colors hover:border-white/12"
+                type="button"
+                onClick={onPickLibraryDirectory}
+                disabled={scanState.status === "running"}
+              >
+                choose folder
+              </button>
               <button
                 className="rounded-2xl border border-white/8 bg-[#272727] px-4 py-3 text-sm text-[#f2f2f2] transition-colors hover:border-white/12 disabled:cursor-not-allowed disabled:opacity-60"
                 type="button"
                 onClick={onScan}
-                disabled={scanState.status === "running"}
+                disabled={scanState.status === "running" || !libraryPath}
               >
                 {scanState.status === "running" ? "scanning..." : "scan library"}
               </button>
             </div>
             {scanState.message ? (
               <p className="m-0 text-sm text-[#8f8f8f]">{scanState.message}</p>
+            ) : null}
+            {scanState.lastScan ? (
+              <div className="grid gap-4 rounded-2xl border border-white/8 bg-white/3 px-4 py-4">
+                <div className="grid gap-1">
+                  <p className="m-0 text-[11px] tracking-[0.08em] text-[#8f8f8f]">last import</p>
+                  <p className="m-0 text-base text-[#f2f2f2]">
+                    {scanState.lastScan.libraryRootName}
+                  </p>
+                  <p className="m-0 break-all text-sm text-[#8f8f8f]">
+                    {scanState.lastScan.rootPath}
+                  </p>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                  <StatusCount
+                    label="found"
+                    value={scanState.lastScan.discoveredTracks}
+                  />
+                  <StatusCount
+                    label="new"
+                    value={scanState.lastScan.insertedTracks}
+                  />
+                  <StatusCount
+                    label="updated"
+                    value={scanState.lastScan.updatedTracks}
+                  />
+                  <StatusCount
+                    label="removed"
+                    value={scanState.lastScan.removedTracks}
+                  />
+                </div>
+              </div>
             ) : null}
           </div>
         </div>
@@ -90,6 +125,15 @@ export function SettingsPage({
           </div>
         </div>
       </section>
+    </div>
+  );
+}
+
+function StatusCount({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-2xl border border-white/6 bg-[#171717] px-4 py-3">
+      <p className="m-0 text-[11px] text-[#8f8f8f]">{label}</p>
+      <p className="mt-1 text-2xl font-medium tracking-[-0.04em] text-[#f2f2f2]">{value}</p>
     </div>
   );
 }

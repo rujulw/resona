@@ -1,15 +1,21 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const invokeMock = vi.fn();
+const openMock = vi.fn();
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: (...args: unknown[]) => invokeMock(...args),
   convertFileSrc: (filePath: string) => `asset://localhost/${encodeURIComponent(filePath)}`,
 }));
 
+vi.mock("@tauri-apps/plugin-dialog", () => ({
+  open: (...args: unknown[]) => openMock(...args),
+}));
+
 describe("desktop bootstrap bridge", () => {
   beforeEach(() => {
     invokeMock.mockReset();
+    openMock.mockReset();
   });
 
   it("loads bootstrap metadata from the command bridge", async () => {
@@ -67,5 +73,37 @@ describe("desktop bootstrap bridge", () => {
     });
     expect(payload?.assetUrl).toContain("asset://localhost/");
     expect(payload?.trackId).toBe("track-1");
+  });
+
+  it("resolves an artwork source into an asset url", async () => {
+    invokeMock.mockResolvedValueOnce({
+      artworkKey: "cover.png",
+      localPath: "/Users/rujulw/Library/Application Support/resona/artwork/cover.png",
+    });
+
+    const { resolveArtworkSource } = await import("./desktop");
+    const payload = await resolveArtworkSource("cover.png");
+
+    expect(invokeMock).toHaveBeenCalledWith("resolve_artwork_source", {
+      artworkKey: "cover.png",
+    });
+    expect(payload?.assetUrl).toContain("asset://localhost/");
+    expect(payload?.artworkKey).toBe("cover.png");
+  });
+
+  it("opens a native directory picker for library selection", async () => {
+    openMock.mockResolvedValueOnce("/Users/rujulw/Music");
+
+    const { pickLibraryDirectory } = await import("./desktop");
+    const payload = await pickLibraryDirectory("/Users/rujulw");
+
+    expect(openMock).toHaveBeenCalledWith({
+      title: "Choose music folder",
+      directory: true,
+      multiple: false,
+      recursive: true,
+      defaultPath: "/Users/rujulw",
+    });
+    expect(payload).toBe("/Users/rujulw/Music");
   });
 });

@@ -1,4 +1,5 @@
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
+import { open } from "@tauri-apps/plugin-dialog";
 
 export type BootstrapPayload = {
   appName: string;
@@ -41,6 +42,12 @@ export type PlaybackSource = {
   assetUrl: string;
 };
 
+export type ArtworkSource = {
+  artworkKey: string;
+  localPath: string;
+  assetUrl: string;
+};
+
 export type ShellStatePayload = {
   navSections: NavSection[];
   libraryRows: LibraryRow[];
@@ -63,6 +70,7 @@ export type TrackListItem = {
   artist: string | null;
   album: string | null;
   durationSeconds: number | null;
+  artworkKey: string | null;
   relativePath: string;
   sourceStatus: string;
   cacheState: string;
@@ -203,4 +211,39 @@ export async function resolveTrackPlaybackSource(
   } catch {
     return null;
   }
+}
+
+export async function resolveArtworkSource(
+  artworkKey: string,
+): Promise<ArtworkSource | null> {
+  try {
+    const payload = await invoke<{ artworkKey: string; localPath: string }>(
+      "resolve_artwork_source",
+      {
+        artworkKey,
+      },
+    );
+
+    return {
+      artworkKey: payload.artworkKey,
+      localPath: payload.localPath,
+      assetUrl: convertFileSrc(payload.localPath),
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function pickLibraryDirectory(
+  defaultPath?: string | null,
+): Promise<string | null> {
+  const selected = await open({
+    title: "Choose music folder",
+    directory: true,
+    multiple: false,
+    recursive: true,
+    defaultPath: defaultPath?.trim() ? defaultPath : undefined,
+  });
+
+  return typeof selected === "string" ? selected : null;
 }

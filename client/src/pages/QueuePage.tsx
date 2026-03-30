@@ -1,6 +1,6 @@
 import type { QueueState } from "../types/app";
+import { ArtworkTile } from "../components/ui/ArtworkTile";
 import { formatDuration } from "../utils/format";
-
 export function QueuePage({
   queueState,
 }: {
@@ -22,21 +22,21 @@ export function QueuePage({
         <section className="grid gap-4 xl:grid-cols-[minmax(320px,0.95fr)_minmax(0,1.05fr)]">
           <div className="rounded-3xl border border-white/6 bg-[#1b1b1b] p-5">
             <p className="m-0 text-[11px] tracking-[0.08em] text-[#8f8f8f]">now playing</p>
-            <div className="mt-4 grid gap-2">
-              <h3 className="m-0 text-2xl font-medium tracking-[-0.04em] text-[#f2f2f2]">
-                {queueState.activeTrack.title}
-              </h3>
-              <p className="m-0 text-sm text-[#8f8f8f]">
-                {queueState.activeTrack.artist ?? "unknown artist"}
-              </p>
-              <p className="m-0 text-sm text-[#8f8f8f]">
-                {queueState.activeTrack.album ?? "unknown album"}
-              </p>
-              <p className="m-0 text-sm text-[#8f8f8f]">
-                {queueState.activeTrack.durationSeconds
-                  ? formatDuration(Math.round(queueState.activeTrack.durationSeconds))
-                  : "--:--"}
-              </p>
+            <div className="mt-4 grid justify-items-center gap-4 text-center">
+              <ArtworkTile
+                artworkKey={queueState.activeTrack.artworkKey}
+                title={queueState.activeTrack.title}
+                sizeClassName="aspect-square w-full max-w-[320px]"
+                roundedClassName="rounded-none"
+              />
+              <div className="grid gap-1">
+                <h3 className="m-0 text-2xl font-medium tracking-[-0.04em] text-[#f2f2f2]">
+                  {queueState.activeTrack.title}
+                </h3>
+                <p className="m-0 text-sm text-[#8f8f8f]">
+                  {queueState.activeTrack.artist ?? "unknown artist"}
+                </p>
+              </div>
             </div>
           </div>
 

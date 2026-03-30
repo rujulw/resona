@@ -8,7 +8,7 @@ use rusqlite::{params, OptionalExtension, Transaction};
 use crate::database::{schema, AppDatabase};
 
 use super::models::{
-    LibraryCursor, LibraryPage, LibraryQuery, LibraryRootRecord, NormalizedTrack,
+    ArtworkSource, LibraryCursor, LibraryPage, LibraryQuery, LibraryRootRecord, NormalizedTrack,
     PersistedLibrarySummary, PlaybackSource, ScanError, ScanSummary,
 };
 use super::normalization::{build_library_root, discover_mp3_files, normalize_track};
@@ -155,7 +155,10 @@ impl LocalLibraryScanner {
         })
     }
 
-    pub fn resolve_playback_source(&self, track_id: &str) -> Result<Option<PlaybackSource>, ScanError> {
+    pub fn resolve_playback_source(
+        &self,
+        track_id: &str,
+    ) -> Result<Option<PlaybackSource>, ScanError> {
         let connection = self.app_database.connect()?;
         let mut statement = connection.prepare(
             "
@@ -175,6 +178,22 @@ impl LocalLibraryScanner {
         Ok(local_path.map(|local_path| PlaybackSource {
             track_id: track_id.to_owned(),
             local_path,
+        }))
+    }
+
+    pub fn resolve_artwork_source(
+        &self,
+        artwork_key: &str,
+    ) -> Result<Option<ArtworkSource>, ScanError> {
+        let artwork_path = self.app_database.app_data_dir().join("artwork").join(artwork_key);
+
+        if !artwork_path.exists() {
+            return Ok(None);
+        }
+
+        Ok(Some(ArtworkSource {
+            artwork_key: artwork_key.to_owned(),
+            local_path: artwork_path.display().to_string(),
         }))
     }
 
@@ -219,6 +238,7 @@ impl LocalLibraryScanner {
             let is_insert = existing_id.is_none();
             let track_id = existing_id.unwrap_or_else(|| track.id.clone());
 
+            sync_track_artwork(&self.app_database, &transaction, &track_id, track)?;
             upsert_track(&transaction, &track_id, library_root, track, &now)?;
             upsert_track_source(&transaction, &track_id, track, &now)?;
             ensure_cache_entry(&transaction, &track_id, &now)?;
@@ -233,6 +253,7 @@ impl LocalLibraryScanner {
 
         let stale_tracks = existing_tracks.into_values().collect::<Vec<_>>();
         for track_id in &stale_tracks {
+            remove_track_artwork(&self.app_database, &transaction, track_id)?;
             transaction.execute("DELETE FROM tracks WHERE id = ?1", [track_id])?;
         }
 
@@ -315,7 +336,7 @@ fn upsert_track(
           album_artist, genre, track_number, disc_number, duration_seconds, file_size_bytes,
           artwork_key, content_hash, imported_at, indexed_at, updated_at
         )
-        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, NULL, ?15, ?16, ?17, ?17)
+        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?18)
         ON CONFLICT(id) DO UPDATE SET
           library_root_id = excluded.library_root_id,
           relative_path = excluded.relative_path,
@@ -330,6 +351,7 @@ fn upsert_track(
           disc_number = excluded.disc_number,
           duration_seconds = excluded.duration_seconds,
           file_size_bytes = excluded.file_size_bytes,
+          artwork_key = excluded.artwork_key,
           content_hash = excluded.content_hash,
           indexed_at = excluded.indexed_at,
           updated_at = excluded.updated_at
@@ -349,6 +371,7 @@ fn upsert_track(
             track.disc_number,
             track.duration_seconds,
             track.file_size_bytes,
+            track.artwork_key,
             track.content_hash,
             imported_at,
             now,
@@ -425,6 +448,65 @@ fn ensure_analysis_entry(
         ",
         params![track_id, schema::AnalysisStatus::Pending.as_str(), now],
     )?;
+
+    Ok(())
+}
+
+fn sync_track_artwork(
+    app_database: &AppDatabase,
+    transaction: &Transaction<'_>,
+    track_id: &str,
+    track: &NormalizedTrack,
+) -> Result<(), ScanError> {
+    let existing_artwork_key = transaction
+        .query_row(
+            "SELECT artwork_key FROM tracks WHERE id = ?1",
+            [track_id],
+            |row| row.get::<_, Option<String>>(0),
+        )
+        .optional()?
+        .flatten();
+
+    let artwork_dir = app_database.app_data_dir().join("artwork");
+
+    if let Some(existing_key) = existing_artwork_key.as_ref() {
+        if track.artwork_key.as_ref() != Some(existing_key) {
+            let _ = fs::remove_file(artwork_dir.join(existing_key));
+        }
+    }
+
+    if let (Some(artwork_key), Some(artwork_bytes)) =
+        (track.artwork_key.as_ref(), track.artwork_bytes.as_ref())
+    {
+        fs::create_dir_all(&artwork_dir)?;
+        fs::write(artwork_dir.join(artwork_key), artwork_bytes)?;
+    }
+
+    Ok(())
+}
+
+fn remove_track_artwork(
+    app_database: &AppDatabase,
+    transaction: &Transaction<'_>,
+    track_id: &str,
+) -> Result<(), ScanError> {
+    let artwork_key = transaction
+        .query_row(
+            "SELECT artwork_key FROM tracks WHERE id = ?1",
+            [track_id],
+            |row| row.get::<_, Option<String>>(0),
+        )
+        .optional()?
+        .flatten();
+
+    if let Some(artwork_key) = artwork_key {
+        let _ = fs::remove_file(
+            app_database
+                .app_data_dir()
+                .join("artwork")
+                .join(artwork_key),
+        );
+    }
 
     Ok(())
 }

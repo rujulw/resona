@@ -3,8 +3,8 @@ use tauri::State;
 
 use crate::database::AppDatabase;
 use crate::library::{
-    LibraryPage, LibraryQuery, LocalLibraryScanner, PlaybackSource, ScanSummary, SortDirection,
-    TrackSortKey,
+    ArtworkSource, LibraryPage, LibraryQuery, LocalLibraryScanner, PlaybackSource, ScanSummary,
+    SortDirection, TrackSortKey,
 };
 
 pub struct DatabaseState {
@@ -266,6 +266,23 @@ pub fn resolve_track_playback_source_with_database(
     track_id: &str,
 ) -> Result<Option<PlaybackSource>, crate::library::ScanError> {
     LocalLibraryScanner::new(app_database.clone()).resolve_playback_source(track_id)
+}
+
+#[tauri::command]
+pub fn resolve_artwork_source(
+    database_state: State<'_, DatabaseState>,
+    artwork_key: String,
+) -> Result<ArtworkSource, String> {
+    resolve_artwork_source_with_database(&database_state.app_database, &artwork_key)
+        .map_err(|error| error.to_string())?
+        .ok_or_else(|| format!("No artwork source found for artwork {artwork_key}"))
+}
+
+pub fn resolve_artwork_source_with_database(
+    app_database: &AppDatabase,
+    artwork_key: &str,
+) -> Result<Option<ArtworkSource>, crate::library::ScanError> {
+    LocalLibraryScanner::new(app_database.clone()).resolve_artwork_source(artwork_key)
 }
 
 #[tauri::command]

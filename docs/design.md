@@ -23,7 +23,7 @@ resona is designed to feel immediate, controlled, and quiet. The interface shoul
 
 ### Library
 
-The working library view is a focused tracks table with search, sort, and pagination. Sidebar navigation should stay small and functional, covering home, tracks, queue, and settings without secondary content feeds. Import should begin from a clear folder-selection action in settings rather than from a raw path entry field embedded into the main track view.
+The working library view is a focused tracks table with an inline search field, header-driven sorting, compact artwork tiles, and a continuous scrollable body. Sidebar navigation should stay small and functional, covering home, tracks, queue, and settings without secondary content feeds. Import should begin from a clear folder-selection action in settings rather than from a raw path entry field embedded into the main track view. When tags are sparse, the library should still feel polished through filename-cleanup fallbacks, album-artist fallback, parent-folder album fallback, and duration estimates that avoid unnecessary blank rows.
 
 ### Playback
 
@@ -31,7 +31,7 @@ Playback controls live in a persistent bottom bar with clear transport actions, 
 
 ### Queue
 
-Queue management should be explicit and deterministic. Users should always understand what plays next and why. The current baseline derives next-up behavior directly from the active local selection and visible library order, which keeps queue behavior legible before richer queue editing lands.
+Queue management should be explicit and deterministic. Users should always understand what plays next and why. The current baseline derives next-up behavior directly from the active local selection and visible library order, which keeps queue behavior legible before richer queue editing lands. The active queue view should also give the current track enough visual weight to feel like a player, including larger artwork for the now-playing item.
 
 ### Insights
 
@@ -47,7 +47,7 @@ Track insights from timbre should appear in secondary detail surfaces such as a 
 
 ## Interaction Constraints
 
-- No infinite-scroll feed patterns
+- No feed-style infinite-scroll patterns
 - No animated backgrounds or persistent decorative motion
 - No large global state containers for the full library dataset
 - No blocking UI during indexing, remote fetch, or analysis
@@ -59,10 +59,11 @@ Track insights from timbre should appear in secondary detail surfaces such as a 
 - The analysis subsystem is fused from the local `~/dev/timbre` project behind an internal service boundary
 - Local library onboarding should use a desktop directory picker and recursive MP3 discovery instead of asking the user to paste filesystem paths
 - V1 uses a Web Audio path for faster delivery, while native Rust playback remains a future upgrade path
-- Playback-critical flows are owned by Rust to reduce frontend complexity
+- Playback-critical source resolution and library persistence flows are owned by Rust to reduce frontend complexity
 - The app remains open source even when used with private Atlas-backed media libraries
 - The desktop client should use a persistent routed shell so home, tracks, queue, and settings share the same navigation and playback frame
 - The playback bar and queue route should both read from the same active-track state so transport and next-up behavior cannot drift apart
+- The tracks route should feel like one uninterrupted library surface, even if the backend continues to use paged query primitives under the hood
 
 ## Non-Goals
 
