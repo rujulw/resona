@@ -9,7 +9,13 @@ import {
   scanLocalLibrary,
   type TrackListItem,
 } from "../desktop";
-import type { BootstrapState, ScanState, ShellState, TracksState } from "../types/app";
+import type {
+  BootstrapState,
+  QueueState,
+  ScanState,
+  ShellState,
+  TracksState,
+} from "../types/app";
 
 export function useAppShell() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -486,8 +492,14 @@ export function useAppShell() {
       });
   };
 
+  const queueState = deriveQueueState(
+    tracksState.items,
+    shellState?.playback.trackId ?? tracksState.selectedTrackId,
+  );
+
   return {
     bootstrapState,
+    queueState,
     shellState,
     tracksState,
     libraryPath,
@@ -510,4 +522,32 @@ function existingSelectedTrackId(
   return items.some((item) => item.id === currentSelectedTrackId)
     ? currentSelectedTrackId
     : null;
+}
+
+function deriveQueueState(
+  items: TrackListItem[],
+  activeTrackId: string | null | undefined,
+): QueueState {
+  if (!activeTrackId) {
+    return {
+      activeTrack: null,
+      upcomingTracks: [],
+      totalTracks: 0,
+    };
+  }
+
+  const activeIndex = items.findIndex((item) => item.id === activeTrackId);
+  if (activeIndex < 0) {
+    return {
+      activeTrack: null,
+      upcomingTracks: [],
+      totalTracks: 0,
+    };
+  }
+
+  return {
+    activeTrack: items[activeIndex],
+    upcomingTracks: items.slice(activeIndex + 1),
+    totalTracks: items.length - activeIndex,
+  };
 }

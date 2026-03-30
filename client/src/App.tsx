@@ -25,6 +25,7 @@ export default function App() {
   return (
     <AppShell
       payload={appShell.bootstrapState.payload}
+      queueState={appShell.queueState}
       shellState={appShell.shellState}
       tracksState={appShell.tracksState}
       libraryPath={appShell.libraryPath}

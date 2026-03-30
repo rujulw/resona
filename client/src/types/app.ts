@@ -31,3 +31,9 @@ export type ScanState =
   | { status: "running"; message: string }
   | { status: "success"; message: string }
   | { status: "error"; message: string };
+
+export type QueueState = {
+  activeTrack: TrackListItem | null;
+  upcomingTracks: TrackListItem[];
+  totalTracks: number;
+};

@@ -184,6 +184,35 @@ describe("app shell smoke checks", () => {
     });
   });
 
+  it("derives queue state from the current selection and next-up order", async () => {
+    window.history.replaceState({}, "", "/tracks");
+
+    const { default: App } = await import("./App");
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Select Alpha" }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "Select Alpha" }).getAttribute("aria-pressed"),
+      ).toBe("true");
+    });
+
+    fireEvent.click(screen.getByRole("link", { name: /queue/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText("now playing")).toBeTruthy();
+      expect(screen.getByText("derived from the current local selection")).toBeTruthy();
+      expect(
+        screen.queryByText("No additional indexed tracks are queued after the current selection."),
+      ).toBeNull();
+    });
+
+    expect(screen.getAllByText("Alpha").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Bravo").length).toBeGreaterThan(0);
+    expect(screen.getByText("01")).toBeTruthy();
+  });
+
   it("navigates from home to settings without losing the shell", async () => {
     const { default: App } = await import("./App");
     render(<App />);

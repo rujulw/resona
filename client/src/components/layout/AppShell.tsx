@@ -1,7 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 
 import type { BootstrapPayload, TrackListItem } from "../../desktop";
-import type { ScanState, ShellState, TracksState } from "../../types/app";
+import type { QueueState, ScanState, ShellState, TracksState } from "../../types/app";
 import { PlaybackBar } from "./PlaybackBar";
 import { Sidebar } from "./Sidebar";
 import { HomePage } from "../../pages/HomePage";
@@ -11,6 +11,7 @@ import { TracksPage } from "../../pages/TracksPage";
 
 export function AppShell({
   payload,
+  queueState,
   shellState,
   tracksState,
   libraryPath,
@@ -21,6 +22,7 @@ export function AppShell({
   onScan,
 }: {
   payload: BootstrapPayload;
+  queueState: QueueState;
   shellState: ShellState;
   tracksState: TracksState;
   libraryPath: string;
@@ -60,7 +62,7 @@ export function AppShell({
                 />
               }
             />
-            <Route path="/queue" element={<QueuePage />} />
+            <Route path="/queue" element={<QueuePage queueState={queueState} />} />
             <Route
               path="/settings"
               element={
