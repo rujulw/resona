@@ -1,7 +1,7 @@
 [package]
 name = "resona"
 version = "0.1.0"
-description = "Tauri shell and Rust core for resona"
+description = "Local-first desktop music utility for private libraries"
 authors = ["resona"]
 edition = "2021"
 
