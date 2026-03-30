@@ -9,6 +9,7 @@ const queryLibraryMock = vi.fn();
 const playbackActionMock = vi.fn();
 const resolveTrackPlaybackSourceMock = vi.fn();
 const scanLocalLibraryMock = vi.fn();
+const mockAudioInstances: MockAudio[] = [];
 
 vi.mock("./desktop", () => ({
   bootstrapApp: () => bootstrapAppMock(),
@@ -19,6 +20,40 @@ vi.mock("./desktop", () => ({
   scanLocalLibrary: (...args: unknown[]) => scanLocalLibraryMock(...args),
 }));
 
+class MockAudio extends EventTarget {
+  src = "";
+  preload = "";
+  currentTime = 0;
+  duration = 0;
+  paused = true;
+  ended = false;
+
+  play = vi.fn(async () => {
+    this.paused = false;
+    this.ended = false;
+    this.dispatchEvent(new Event("play"));
+  });
+
+  pause = vi.fn(() => {
+    this.paused = true;
+    this.dispatchEvent(new Event("pause"));
+  });
+
+  emitLoadedMetadata(duration?: number) {
+    if (typeof duration === "number") {
+      this.duration = duration;
+    }
+
+    this.dispatchEvent(new Event("loadedmetadata"));
+  }
+
+  emitTimeUpdate(currentTime: number, duration = this.duration) {
+    this.currentTime = currentTime;
+    this.duration = duration;
+    this.dispatchEvent(new Event("timeupdate"));
+  }
+}
+
 describe("app shell smoke checks", () => {
   beforeEach(() => {
     bootstrapAppMock.mockReset();
@@ -27,9 +62,15 @@ describe("app shell smoke checks", () => {
     playbackActionMock.mockReset();
     resolveTrackPlaybackSourceMock.mockReset();
     scanLocalLibraryMock.mockReset();
-
-    vi.spyOn(window.HTMLMediaElement.prototype, "play").mockResolvedValue(undefined);
-    vi.spyOn(window.HTMLMediaElement.prototype, "pause").mockImplementation(() => {});
+    mockAudioInstances.length = 0;
+    vi.stubGlobal(
+      "Audio",
+      vi.fn(() => {
+        const instance = new MockAudio();
+        mockAudioInstances.push(instance);
+        return instance;
+      }),
+    );
 
     bootstrapAppMock.mockResolvedValue({
       appName: "resona",
@@ -104,6 +145,7 @@ describe("app shell smoke checks", () => {
 
   afterEach(() => {
     cleanup();
+    vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
 
@@ -211,6 +253,66 @@ describe("app shell smoke checks", () => {
     expect(screen.getAllByText("Alpha").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Bravo").length).toBeGreaterThan(0);
     expect(screen.getByText("01")).toBeTruthy();
+  });
+
+  it("syncs progress labels from the active audio element", async () => {
+    window.history.replaceState({}, "", "/tracks");
+
+    const { default: App } = await import("./App");
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Select Alpha" }));
+
+    await waitFor(() => {
+      expect(mockAudioInstances.length).toBeGreaterThan(0);
+      expect(
+        screen.getByRole("button", { name: "Select Alpha" }).getAttribute("aria-pressed"),
+      ).toBe("true");
+    });
+
+    const audio = mockAudioInstances.at(-1);
+    if (!audio) {
+      throw new Error("Expected a mock audio instance");
+    }
+
+    audio.emitLoadedMetadata(182);
+    audio.emitTimeUpdate(41, 182);
+
+    await waitFor(() => {
+      expect(screen.getByText("0:41")).toBeTruthy();
+      expect(screen.getAllByText("3:02").length).toBeGreaterThan(0);
+    });
+  });
+
+  it("restarts the current track when previous is pressed after progress has advanced", async () => {
+    window.history.replaceState({}, "", "/tracks");
+
+    const { default: App } = await import("./App");
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Select Alpha" }));
+
+    await waitFor(() => {
+      expect(mockAudioInstances.length).toBeGreaterThan(0);
+    });
+
+    const audio = mockAudioInstances.at(-1);
+    if (!audio) {
+      throw new Error("Expected a mock audio instance");
+    }
+
+    audio.emitLoadedMetadata(182);
+    audio.emitTimeUpdate(12, 182);
+
+    fireEvent.click(screen.getByRole("button", { name: "Previous track" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("0:00")).toBeTruthy();
+      expect(audio.currentTime).toBe(0);
+      expect(
+        screen.getByRole("button", { name: "Select Alpha" }).getAttribute("aria-pressed"),
+      ).toBe("true");
+    });
   });
 
   it("navigates from home to settings without losing the shell", async () => {
