@@ -1,6 +1,7 @@
 use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::database::AppDatabase;
@@ -8,12 +9,15 @@ use crate::database::AppDatabase;
 use super::normalization::{discover_mp3_files, normalize_track};
 use super::{LibraryQuery, LocalLibraryScanner, SortDirection, TrackSortKey};
 
+static TEST_COUNTER: AtomicU64 = AtomicU64::new(0);
+
 fn unique_temp_dir() -> PathBuf {
     let nanos = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .expect("system time should be after unix epoch")
         .as_nanos();
-    std::env::temp_dir().join(format!("resona-scan-test-{nanos}"))
+    let counter = TEST_COUNTER.fetch_add(1, Ordering::Relaxed);
+    std::env::temp_dir().join(format!("resona-scan-test-{nanos}-{counter}"))
 }
 
 fn create_test_library(paths: &[&str]) -> PathBuf {

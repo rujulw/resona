@@ -94,18 +94,22 @@ impl From<rusqlite::Error> for DatabaseError {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::atomic::{AtomicU64, Ordering};
     use std::time::{SystemTime, UNIX_EPOCH};
 
     use super::AppDatabase;
     use crate::database::migration::MIGRATIONS;
+
+    static TEST_COUNTER: AtomicU64 = AtomicU64::new(0);
 
     fn unique_test_db_path() -> std::path::PathBuf {
         let nanos = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("system time should be after unix epoch")
             .as_nanos();
+        let counter = TEST_COUNTER.fetch_add(1, Ordering::Relaxed);
 
-        std::env::temp_dir().join(format!("resona-schema-test-{nanos}.sqlite3"))
+        std::env::temp_dir().join(format!("resona-schema-test-{nanos}-{counter}.sqlite3"))
     }
 
     #[test]

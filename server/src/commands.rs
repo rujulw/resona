@@ -280,6 +280,7 @@ pub fn playback_state_for_action(action: &str) -> PlaybackShellState {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::atomic::{AtomicU64, Ordering};
     use std::time::{SystemTime, UNIX_EPOCH};
 
     use super::{
@@ -288,12 +289,23 @@ mod tests {
     };
     use crate::database::AppDatabase;
 
-    fn test_database_state() -> DatabaseState {
+    static TEST_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+    fn unique_test_suffix(prefix: &str) -> String {
         let nanos = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("system time should be after unix epoch")
             .as_nanos();
-        let db_path = std::env::temp_dir().join(format!("resona-shell-state-{nanos}.sqlite3"));
+        let counter = TEST_COUNTER.fetch_add(1, Ordering::Relaxed);
+
+        format!("{prefix}-{nanos}-{counter}")
+    }
+
+    fn test_database_state() -> DatabaseState {
+        let db_path = std::env::temp_dir().join(format!(
+            "{}.sqlite3",
+            unique_test_suffix("resona-shell-state")
+        ));
 
         DatabaseState {
             app_database: AppDatabase::initialize_at(db_path)
@@ -340,13 +352,7 @@ mod tests {
     #[test]
     fn local_scan_command_persists_mp3_files() {
         let database_state = test_database_state();
-        let root = std::env::temp_dir().join(format!(
-            "resona-command-scan-{}",
-            SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .expect("system time should be after unix epoch")
-                .as_nanos()
-        ));
+        let root = std::env::temp_dir().join(unique_test_suffix("resona-command-scan"));
 
         std::fs::create_dir_all(root.join("nested")).expect("directories should be created");
         std::fs::File::create(root.join("alpha.mp3")).expect("root mp3 should be created");
@@ -370,13 +376,7 @@ mod tests {
     #[test]
     fn query_library_command_returns_paginated_results() {
         let database_state = test_database_state();
-        let root = std::env::temp_dir().join(format!(
-            "resona-query-library-{}",
-            SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .expect("system time should be after unix epoch")
-                .as_nanos()
-        ));
+        let root = std::env::temp_dir().join(unique_test_suffix("resona-query-library"));
 
         std::fs::create_dir_all(&root).expect("directories should be created");
         std::fs::File::create(root.join("alpha.mp3")).expect("first track should be created");

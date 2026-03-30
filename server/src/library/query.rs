@@ -197,3 +197,100 @@ impl LibraryCursor {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        build_library_query_sql, count_matching_tracks, sort_value_for_item, LibraryCursor,
+    };
+    use crate::library::models::LibraryTrackItem;
+    use crate::library::{SortDirection, TrackSortKey};
+
+    fn sample_item() -> LibraryTrackItem {
+        LibraryTrackItem {
+            id: "track-1".to_owned(),
+            title: "Breathe".to_owned(),
+            artist: Some("The Artist".to_owned()),
+            album: Some("The Album".to_owned()),
+            duration_seconds: Some(180.0),
+            relative_path: "disc/breathe.mp3".to_owned(),
+            source_status: "local-only".to_owned(),
+            cache_state: "none".to_owned(),
+            analysis_status: "pending".to_owned(),
+            indexed_at: "1700000000".to_owned(),
+        }
+    }
+
+    #[test]
+    fn cursor_round_trip_preserves_sort_metadata() {
+        let cursor = LibraryCursor {
+            sort_key: TrackSortKey::Artist,
+            sort_direction: SortDirection::Desc,
+            sort_value: "artist|name".to_owned(),
+            track_id: "track|42".to_owned(),
+        };
+
+        let encoded = cursor.encode();
+        let decoded = LibraryCursor::decode(&encoded).expect("cursor should decode");
+
+        assert_eq!(decoded.sort_key, TrackSortKey::Artist);
+        assert_eq!(decoded.sort_direction, SortDirection::Desc);
+        assert_eq!(decoded.sort_value, "artist|name");
+        assert_eq!(decoded.track_id, "track|42");
+    }
+
+    #[test]
+    fn sort_value_tracks_the_active_sort_key() {
+        let item = sample_item();
+
+        assert_eq!(sort_value_for_item(&item, TrackSortKey::Title), "breathe");
+        assert_eq!(
+            sort_value_for_item(&item, TrackSortKey::Artist),
+            "the artist"
+        );
+        assert_eq!(sort_value_for_item(&item, TrackSortKey::Album), "the album");
+        assert_eq!(
+            sort_value_for_item(&item, TrackSortKey::IndexedAt),
+            "1700000000"
+        );
+    }
+
+    #[test]
+    fn query_sql_adds_search_cursor_and_stable_ordering_clauses() {
+        let sql = build_library_query_sql(true, true, TrackSortKey::Title, SortDirection::Asc);
+
+        assert!(sql.contains("lower(t.title) LIKE ?1"));
+        assert!(sql.contains("lower(COALESCE(t.title, '')) > ?4"));
+        assert!(sql.contains("AND t.id > ?6"));
+        assert!(sql.contains("ORDER BY lower(COALESCE(t.title, '')) ASC, t.id ASC"));
+        assert!(sql.contains("LIMIT ?7"));
+    }
+
+    #[test]
+    fn count_matching_tracks_uses_search_scope_when_present() {
+        let connection = rusqlite::Connection::open_in_memory().expect("db should open");
+        connection
+            .execute_batch(
+                "
+                CREATE TABLE tracks (
+                  id TEXT PRIMARY KEY,
+                  title TEXT NOT NULL,
+                  artist TEXT,
+                  album TEXT
+                );
+                INSERT INTO tracks (id, title, artist, album) VALUES
+                  ('1', 'Alpha Drift', 'North', 'Signals'),
+                  ('2', 'Bravo Mist', 'South', 'Signals'),
+                  ('3', 'Charlie Bloom', 'West', 'Fields');
+                ",
+            )
+            .expect("tracks should seed");
+
+        let total = count_matching_tracks(&connection, None).expect("total should count");
+        let filtered =
+            count_matching_tracks(&connection, Some("signals")).expect("search should count");
+
+        assert_eq!(total, 3);
+        assert_eq!(filtered, 2);
+    }
+}

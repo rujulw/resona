@@ -62,3 +62,39 @@ pub(crate) fn run_migrations(connection: &mut rusqlite::Connection) -> Result<()
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{run_migrations, MIGRATIONS};
+
+    #[test]
+    fn run_migrations_applies_every_declared_migration() {
+        let mut connection = rusqlite::Connection::open_in_memory().expect("db should open");
+
+        run_migrations(&mut connection).expect("migrations should apply");
+
+        let applied_count: i64 = connection
+            .query_row("SELECT COUNT(*) FROM schema_migrations", [], |row| {
+                row.get(0)
+            })
+            .expect("migration count should load");
+
+        assert_eq!(applied_count as usize, MIGRATIONS.len());
+    }
+
+    #[test]
+    fn run_migrations_is_idempotent_for_existing_schema() {
+        let mut connection = rusqlite::Connection::open_in_memory().expect("db should open");
+
+        run_migrations(&mut connection).expect("first run should succeed");
+        run_migrations(&mut connection).expect("second run should succeed");
+
+        let applied_count: i64 = connection
+            .query_row("SELECT COUNT(*) FROM schema_migrations", [], |row| {
+                row.get(0)
+            })
+            .expect("migration count should load");
+
+        assert_eq!(applied_count as usize, MIGRATIONS.len());
+    }
+}
