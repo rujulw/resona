@@ -82,10 +82,35 @@ pub(crate) fn normalize_track(
         .file_stem()
         .and_then(|stem| stem.to_str())
         .unwrap_or("unknown");
+    let cleaned_file_title = clean_file_stem(file_stem);
+    let normalized_title = preferred_label(
+        tag.as_ref().and_then(|value| value.title()),
+        Some(cleaned_file_title.as_str()),
+    )
+    .unwrap_or_else(|| "Unknown Track".to_owned());
+    let normalized_album_artist = preferred_label(
+        tag.as_ref().and_then(|value| value.album_artist()),
+        None,
+    );
+    let normalized_artist = preferred_label(
+        tag.as_ref().and_then(|value| value.artist()),
+        normalized_album_artist.as_deref(),
+    );
+    let parent_folder_label = file_path
+        .parent()
+        .and_then(|parent| parent.strip_prefix(root_path).ok())
+        .and_then(|relative_parent| relative_parent.file_name())
+        .and_then(|folder| folder.to_str())
+        .and_then(|folder| preferred_label(Some(folder), None));
+    let normalized_album = preferred_label(
+        tag.as_ref().and_then(|value| value.album()),
+        parent_folder_label.as_deref(),
+    );
     let duration_seconds = tag
         .as_ref()
         .and_then(|value| value.duration())
         .map(|value| value as f64)
+        .filter(|value| *value > 0.0)
         .or_else(|| estimate_mp3_duration_seconds(file_path).ok().flatten());
     let (artwork_key, artwork_bytes) =
         extract_embedded_artwork(tag.as_ref(), library_root_id, &relative_path);
@@ -95,27 +120,14 @@ pub(crate) fn normalize_track(
         relative_path,
         file_name,
         extension: "mp3".to_owned(),
-        title: normalize_label(
-            tag.as_ref()
-                .and_then(|value| value.title())
-                .unwrap_or(file_stem),
-        ),
-        artist: tag
-            .as_ref()
-            .and_then(|value| value.artist())
-            .map(normalize_label),
-        album: tag
-            .as_ref()
-            .and_then(|value| value.album())
-            .map(normalize_label),
-        album_artist: tag
-            .as_ref()
-            .and_then(|value| value.album_artist())
-            .map(normalize_label),
+        title: normalized_title,
+        artist: normalized_artist,
+        album: normalized_album,
+        album_artist: normalized_album_artist,
         genre: tag
             .as_ref()
             .and_then(|value| value.genre())
-            .map(normalize_label),
+            .and_then(|value| preferred_label(Some(value), None)),
         track_number: tag.as_ref().and_then(|value| value.track()).map(i64::from),
         disc_number: tag.as_ref().and_then(|value| value.disc()).map(i64::from),
         duration_seconds,
@@ -129,6 +141,39 @@ pub(crate) fn normalize_track(
 
 pub(crate) fn normalize_label(value: &str) -> String {
     value.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+fn preferred_label(primary: Option<&str>, fallback: Option<&str>) -> Option<String> {
+    primary
+        .and_then(normalize_optional_label)
+        .or_else(|| fallback.and_then(normalize_optional_label))
+}
+
+fn normalize_optional_label(value: &str) -> Option<String> {
+    let normalized = normalize_label(value);
+    if normalized.is_empty() {
+        None
+    } else {
+        Some(normalized)
+    }
+}
+
+fn clean_file_stem(file_stem: &str) -> String {
+    let mut cleaned = file_stem.replace('_', " ");
+    cleaned = cleaned
+        .trim_start_matches(|character: char| character.is_ascii_whitespace())
+        .to_owned();
+
+    let without_track_prefix = cleaned
+        .trim_start_matches(|character: char| character.is_ascii_digit())
+        .trim_start_matches([' ', '-', '.', '_', ')', '(']);
+
+    let collapsed = normalize_label(without_track_prefix);
+    if collapsed.is_empty() {
+        normalize_label(file_stem)
+    } else {
+        collapsed
+    }
 }
 
 pub(crate) fn stable_identifier(namespace: &str, value: &str) -> String {
@@ -202,12 +247,18 @@ fn estimate_mp3_duration_seconds(file_path: &Path) -> Result<Option<f64>, ScanEr
     let mut offset = skip_id3v2_tag(&bytes);
     let mut total_samples = 0u64;
     let mut sample_rate = 0u32;
+    let mut first_bitrate_bps = None;
+    let audio_bytes = bytes.len().saturating_sub(offset);
 
     while offset + 4 <= bytes.len() {
         let Some(header) = parse_frame_header(&bytes[offset..offset + 4]) else {
             offset += 1;
             continue;
         };
+
+        if first_bitrate_bps.is_none() {
+            first_bitrate_bps = Some(header.bitrate_bps);
+        }
 
         if header.frame_length == 0 || offset + header.frame_length > bytes.len() {
             offset += 1;
@@ -220,7 +271,16 @@ fn estimate_mp3_duration_seconds(file_path: &Path) -> Result<Option<f64>, ScanEr
     }
 
     if total_samples == 0 || sample_rate == 0 {
-        return Ok(None);
+        return Ok(first_bitrate_bps
+            .filter(|value| *value > 0)
+            .and_then(|bitrate_bps| {
+                if audio_bytes == 0 {
+                    None
+                } else {
+                    Some((audio_bytes as f64 * 8.0) / bitrate_bps as f64)
+                }
+            })
+            .filter(|value| value.is_finite() && *value > 0.0));
     }
 
     Ok(Some(total_samples as f64 / sample_rate as f64))
@@ -250,6 +310,7 @@ struct Mp3FrameHeader {
     sample_rate: u32,
     samples_per_frame: u16,
     frame_length: usize,
+    bitrate_bps: usize,
 }
 
 fn parse_frame_header(bytes: &[u8]) -> Option<Mp3FrameHeader> {
@@ -308,6 +369,7 @@ fn parse_frame_header(bytes: &[u8]) -> Option<Mp3FrameHeader> {
         sample_rate,
         samples_per_frame,
         frame_length,
+        bitrate_bps: bitrate_kbps * 1000,
     })
 }
 

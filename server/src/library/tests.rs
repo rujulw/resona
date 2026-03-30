@@ -96,6 +96,12 @@ fn build_fake_mp3_frames(count: usize) -> Vec<u8> {
     bytes
 }
 
+fn build_partial_mp3_bytes() -> Vec<u8> {
+    let mut bytes = vec![0xFF, 0xFB, 0x90, 0x64];
+    bytes.extend(std::iter::repeat_n(0u8, 160));
+    bytes
+}
+
 #[test]
 fn discovers_nested_mp3_files_only() {
     let root = unique_temp_dir();
@@ -152,6 +158,44 @@ fn normalizes_track_with_audio_duration_fallback_and_embedded_artwork() {
         .artwork_bytes
         .as_ref()
         .is_some_and(|bytes| !bytes.is_empty()));
+}
+
+#[test]
+fn normalizes_track_with_clean_filename_and_metadata_fallbacks() {
+    let root = unique_temp_dir();
+    let file_path = root.join("Compilations/01__Late   Night.mp3");
+    if let Some(parent) = file_path.parent() {
+        fs::create_dir_all(parent).expect("parent directory should exist");
+    }
+
+    fs::File::create(&file_path).expect("mp3 file should be created");
+
+    let mut tag = Tag::new();
+    tag.set_album_artist("Various Artists");
+    tag.write_to_path(&file_path, Version::Id3v24)
+        .expect("id3 tag should write");
+
+    let track = normalize_track(&root, &file_path, "library-root").expect("track should normalize");
+
+    assert_eq!(track.title, "Late Night");
+    assert_eq!(track.artist.as_deref(), Some("Various Artists"));
+    assert_eq!(track.album.as_deref(), Some("Compilations"));
+    assert_eq!(track.album_artist.as_deref(), Some("Various Artists"));
+}
+
+#[test]
+fn normalizes_track_with_bitrate_based_duration_fallback() {
+    let root = unique_temp_dir();
+    fs::create_dir_all(&root).expect("root should be created");
+    let file_path = root.join("Rough Cut.mp3");
+    let mut file = fs::File::create(&file_path).expect("mp3 file should be created");
+    file.write_all(&build_partial_mp3_bytes())
+        .expect("partial mp3 bytes should write");
+
+    let track = normalize_track(&root, &file_path, "library-root").expect("track should normalize");
+
+    assert!(track.duration_seconds.is_some());
+    assert!(track.duration_seconds.expect("duration should exist") > 0.0);
 }
 
 #[test]

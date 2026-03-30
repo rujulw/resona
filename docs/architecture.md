@@ -133,7 +133,9 @@ The analysis subsystem is expected to be fused in from the local `~/dev/timbre` 
 Current ingest baseline:
 - The scanner reads title, artist, album, and other tag metadata from ID3 when present
 - Duration falls back to MP3 frame parsing when the ID3 tag does not provide track length
+- If frame timing is incomplete, duration can still fall back to bitrate-and-file-size estimation so rows are less likely to show empty timing
 - Embedded artwork is extracted from ID3 pictures and persisted into app-local artwork storage
+- Sparse tags fall back more gracefully through cleaned filename titles, album-artist fallback, and parent-folder album fallback
 - System media tools may still show richer metadata over time, but the current `resona` ingest path now closes the biggest duration and artwork gaps from the earlier MVP scanner
 
 ### Scan Pipeline Design
