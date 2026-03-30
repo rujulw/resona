@@ -154,3 +154,41 @@ pub fn run() {
         .run(tauri::generate_context!())
         .expect("failed to run resona tauri application");
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{bootstrap_app, get_shell_state, playback_action};
+
+    #[test]
+    fn bootstrap_payload_exposes_shell_runtime() {
+        let payload = bootstrap_app();
+
+        assert_eq!(payload.app_name, "resona");
+        assert_eq!(payload.window_title, "resona");
+        assert_eq!(payload.runtime.desktop_shell, "tauri");
+        assert_eq!(payload.runtime.frontend, "react-vite");
+        assert_eq!(payload.runtime.core, "rust");
+    }
+
+    #[test]
+    fn shell_state_returns_nav_rows_and_playback_defaults() {
+        let payload = get_shell_state();
+
+        assert_eq!(payload.nav_sections.len(), 6);
+        assert_eq!(payload.library_rows.len(), 3);
+        assert_eq!(payload.library_rows[1].title, "atlas");
+        assert_eq!(payload.playback.status_label, "Nothing playing");
+        assert_eq!(payload.playback.transport_label, "Idle");
+    }
+
+    #[test]
+    fn playback_action_returns_expected_transport_messages() {
+        let previous = playback_action("previous");
+        let toggle = playback_action("toggle");
+        let next = playback_action("next");
+
+        assert_eq!(previous.transport_label, "Previous unavailable");
+        assert_eq!(toggle.transport_label, "Play requested");
+        assert_eq!(next.transport_label, "Next unavailable");
+    }
+}
