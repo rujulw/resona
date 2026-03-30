@@ -66,6 +66,37 @@ export function SettingsPage({
             {scanState.message ? (
               <p className="m-0 text-sm text-[#8f8f8f]">{scanState.message}</p>
             ) : null}
+            {scanState.lastScan ? (
+              <div className="grid gap-4 rounded-2xl border border-white/8 bg-white/3 px-4 py-4">
+                <div className="grid gap-1">
+                  <p className="m-0 text-[11px] tracking-[0.08em] text-[#8f8f8f]">last import</p>
+                  <p className="m-0 text-base text-[#f2f2f2]">
+                    {scanState.lastScan.libraryRootName}
+                  </p>
+                  <p className="m-0 break-all text-sm text-[#8f8f8f]">
+                    {scanState.lastScan.rootPath}
+                  </p>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                  <StatusCount
+                    label="found"
+                    value={scanState.lastScan.discoveredTracks}
+                  />
+                  <StatusCount
+                    label="new"
+                    value={scanState.lastScan.insertedTracks}
+                  />
+                  <StatusCount
+                    label="updated"
+                    value={scanState.lastScan.updatedTracks}
+                  />
+                  <StatusCount
+                    label="removed"
+                    value={scanState.lastScan.removedTracks}
+                  />
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
 
@@ -94,6 +125,15 @@ export function SettingsPage({
           </div>
         </div>
       </section>
+    </div>
+  );
+}
+
+function StatusCount({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-2xl border border-white/6 bg-[#171717] px-4 py-3">
+      <p className="m-0 text-[11px] text-[#8f8f8f]">{label}</p>
+      <p className="mt-1 text-2xl font-medium tracking-[-0.04em] text-[#f2f2f2]">{value}</p>
     </div>
   );
 }

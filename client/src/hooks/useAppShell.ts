@@ -12,6 +12,7 @@ import {
 } from "../desktop";
 import type {
   BootstrapState,
+  ImportSummary,
   QueueState,
   ScanState,
   ShellState,
@@ -34,6 +35,7 @@ export function useAppShell() {
   const [scanState, setScanState] = useState<ScanState>({
     status: "idle",
     message: "",
+    lastScan: null,
   });
 
   useEffect(() => {
@@ -466,6 +468,7 @@ export function useAppShell() {
       setScanState({
         status: "error",
         message: "Enter a local folder path for this temporary scaffold.",
+        lastScan: scanState.lastScan,
       });
       return;
     }
@@ -473,13 +476,19 @@ export function useAppShell() {
     setScanState({
       status: "running",
       message: "Scanning local library...",
+      lastScan: scanState.lastScan,
     });
 
     void scanLocalLibrary(trimmedPath)
       .then((summary) => {
+        const lastScan = toImportSummary(summary);
         setScanState({
           status: "success",
-          message: `Indexed ${summary.discoveredTracks} track(s) from ${summary.libraryRootName}.`,
+          message:
+            summary.discoveredTracks > 0
+              ? `Indexed ${summary.discoveredTracks} track(s) from ${summary.libraryRootName}.`
+              : `Scan finished for ${summary.libraryRootName}, but no MP3 files were found.`,
+          lastScan,
         });
         refreshShellState();
         refreshTracks();
@@ -489,6 +498,7 @@ export function useAppShell() {
           status: "error",
           message:
             error instanceof Error ? error.message : "Failed to scan local library.",
+          lastScan: scanState.lastScan,
         });
       });
   };
@@ -504,6 +514,7 @@ export function useAppShell() {
         setScanState({
           status: "idle",
           message: `Selected ${selectedPath}.`,
+          lastScan: scanState.lastScan,
         });
       })
       .catch((error: unknown) => {
@@ -513,6 +524,7 @@ export function useAppShell() {
             error instanceof Error
               ? error.message
               : "Failed to open folder picker.",
+          lastScan: scanState.lastScan,
         });
       });
   };
@@ -534,6 +546,26 @@ export function useAppShell() {
     handlePlaybackAction,
     handleTrackSelection,
     handleScan,
+  };
+}
+
+function toImportSummary(summary: {
+  libraryRootId: string;
+  libraryRootName: string;
+  rootPath: string;
+  discoveredTracks: number;
+  insertedTracks: number;
+  updatedTracks: number;
+  removedTracks: number;
+}): ImportSummary {
+  return {
+    libraryRootId: summary.libraryRootId,
+    libraryRootName: summary.libraryRootName,
+    rootPath: summary.rootPath,
+    discoveredTracks: summary.discoveredTracks,
+    insertedTracks: summary.insertedTracks,
+    updatedTracks: summary.updatedTracks,
+    removedTracks: summary.removedTracks,
   };
 }
 

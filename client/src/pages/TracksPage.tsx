@@ -1,13 +1,19 @@
-import type { TracksState } from "../types/app";
+import type { ScanState, TracksState } from "../types/app";
 import { formatDuration } from "../utils/format";
 
 export function TracksPage({
+  libraryPath,
+  scanState,
   tracksState,
   onTrackSelect,
 }: {
+  libraryPath: string;
+  scanState: ScanState;
   tracksState: TracksState;
   onTrackSelect: (track: TracksState["items"][number]) => void;
 }) {
+  const emptyState = getEmptyState(libraryPath, scanState);
+
   return (
     <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-6 overflow-hidden px-6 py-6">
       <header className="flex flex-wrap items-start justify-between gap-4">
@@ -37,8 +43,9 @@ export function TracksPage({
           ) : null}
 
           {tracksState.status !== "loading" && tracksState.items.length === 0 ? (
-            <div className="px-5 py-8 text-sm text-[#8f8f8f]">
-              No tracks indexed yet. Add a library path in settings and scan a folder.
+            <div className="grid gap-2 px-5 py-8">
+              <p className="m-0 text-sm text-[#e5e5e5]">{emptyState.title}</p>
+              <p className="m-0 text-sm text-[#8f8f8f]">{emptyState.detail}</p>
             </div>
           ) : null}
 
@@ -78,4 +85,26 @@ export function TracksPage({
       </section>
     </div>
   );
+}
+
+function getEmptyState(libraryPath: string, scanState: ScanState) {
+  if (!libraryPath.trim() && !scanState.lastScan) {
+    return {
+      title: "No local library selected yet.",
+      detail: "Choose a folder in settings to start the first recursive MP3 scan.",
+    };
+  }
+
+  if (scanState.lastScan && scanState.lastScan.discoveredTracks === 0) {
+    return {
+      title: `No MP3 files found in ${scanState.lastScan.libraryRootName}.`,
+      detail:
+        "The recursive scan completed, but that root did not contain any MP3 files in the selected folder tree.",
+    };
+  }
+
+  return {
+    title: "No tracks indexed yet.",
+    detail: "Scan the selected folder in settings to populate the tracks table.",
+  };
 }

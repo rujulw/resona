@@ -57,6 +57,8 @@ export function AppShell({
               path="/tracks"
               element={
                 <TracksPage
+                  libraryPath={libraryPath}
+                  scanState={scanState}
                   tracksState={tracksState}
                   onTrackSelect={onTrackSelect}
                 />

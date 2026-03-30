@@ -26,11 +26,21 @@ export type TracksState =
       message: string;
     };
 
+export type ImportSummary = {
+  libraryRootId: string;
+  libraryRootName: string;
+  rootPath: string;
+  discoveredTracks: number;
+  insertedTracks: number;
+  updatedTracks: number;
+  removedTracks: number;
+};
+
 export type ScanState =
-  | { status: "idle"; message: string }
-  | { status: "running"; message: string }
-  | { status: "success"; message: string }
-  | { status: "error"; message: string };
+  | { status: "idle"; message: string; lastScan: ImportSummary | null }
+  | { status: "running"; message: string; lastScan: ImportSummary | null }
+  | { status: "success"; message: string; lastScan: ImportSummary | null }
+  | { status: "error"; message: string; lastScan: ImportSummary | null };
 
 export type QueueState = {
   activeTrack: TrackListItem | null;

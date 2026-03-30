@@ -349,4 +349,48 @@ describe("app shell smoke checks", () => {
       expect(screen.getByRole("button", { name: "scan library" })).toBeTruthy();
     });
   });
+
+  it("shows recursive import feedback and empty-state guidance after a zero-result scan", async () => {
+    window.history.replaceState({}, "", "/settings");
+    scanLocalLibraryMock.mockResolvedValue({
+      libraryRootId: "root-1",
+      libraryRootName: "Empty Root",
+      rootPath: "/Users/rujulw/Empty Root",
+      discoveredTracks: 0,
+      insertedTracks: 0,
+      updatedTracks: 0,
+      removedTracks: 0,
+    });
+    queryLibraryMock.mockResolvedValue({
+      items: [],
+      nextCursor: null,
+      total: 0,
+      pageSize: 200,
+    });
+
+    const { default: App } = await import("./App");
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "choose folder" }));
+    fireEvent.click(await screen.findByRole("button", { name: "scan library" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Empty Root")).toBeTruthy();
+      expect(screen.getByText("/Users/rujulw/Empty Root")).toBeTruthy();
+      expect(screen.getByText("Scan finished for Empty Root, but no MP3 files were found.")).toBeTruthy();
+      expect(screen.getByText("found")).toBeTruthy();
+      expect(screen.getAllByText("0").length).toBeGreaterThan(0);
+    });
+
+    fireEvent.click(screen.getByRole("link", { name: /tracks/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText("No MP3 files found in Empty Root.")).toBeTruthy();
+      expect(
+        screen.getByText(
+          "The recursive scan completed, but that root did not contain any MP3 files in the selected folder tree.",
+        ),
+      ).toBeTruthy();
+    });
+  });
 });
