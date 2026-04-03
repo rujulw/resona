@@ -59,6 +59,7 @@ Current milestone progress:
 - The queue route now reflects stable next-up behavior from playback order rather than from the filtered tracks table
 - Embedded artwork now renders in the tracks view, queue view, and playback bar
 - Release-hardening fixes now guard against stale playback-source and overlapping library-query races
+- The `v1.1.0` playback migration now has an explicit Rust-side command and event contract defined before runtime implementation begins
 
 ## Milestone 5: Cache and Remote Media
 
@@ -93,6 +94,7 @@ Current milestone progress:
 - Library import behavior for malformed tags, missing artwork, permission failures, and non-MP3 files should be documented during implementation
 - Atlas sync and timbre analysis should stay explicitly deferred until the public v1 local-first release is stable
 - Rust-owned playback should be scoped as the first post-v1 follow-up once the public local-first release is tagged
+- Tagged macOS release builds still need an explicit artifact-upload step so DMG output is downloadable from GitHub Actions
 
 ## Release Gate
 

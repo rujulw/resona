@@ -28,6 +28,8 @@ The working library view is a focused tracks table with an inline search field, 
 
 Playback controls live in a persistent bottom bar with clear transport actions, current track identity, progress, and source or cache status. Core actions should be available with minimal pointer movement, and the selected track in the library should immediately become the active shell track.
 
+The current v1 shell still renders playback from a frontend-owned audio path, but the `v1.1.0` direction is now explicit: Rust should own the transport truth and the shell should react to backend playback snapshots rather than inventing a parallel client-only playback model.
+
 ### Queue
 
 Queue management should be explicit and deterministic. Users should always understand what plays next and why. The current baseline derives next-up behavior from the playback-order snapshot created when playback starts, so searching or filtering the tracks view does not silently redefine the queue. The active queue view should also give the current track enough visual weight to feel like a player, including larger artwork for the now-playing item.
@@ -63,6 +65,7 @@ Track insights from timbre should appear in secondary detail surfaces such as a 
 - The app remains open source even when used with private Atlas-backed media libraries
 - The desktop client should use a persistent routed shell so home, tracks, queue, and settings share the same navigation and playback frame
 - The playback bar and queue route should both read from the same active-track state so transport and next-up behavior cannot drift apart
+- The `v1.1.0` playback migration should move command authority to Rust through a narrow Tauri contract and push playback snapshots back to the shell through named events
 - The tracks route should feel like one uninterrupted library surface, even if the backend continues to use paged query primitives under the hood
 - Public v1 release readiness should be enforced by automated frontend and backend CI rather than manual spot checks alone
 

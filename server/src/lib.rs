@@ -1,10 +1,11 @@
 mod commands;
 mod database;
 mod library;
+mod playback;
 
 use commands::{
-    bootstrap_app, get_shell_state, playback_action, query_library, resolve_artwork_source,
-    resolve_track_playback_source, scan_local_library, DatabaseState,
+    bootstrap_app, describe_playback_contract, get_shell_state, playback_action, query_library,
+    resolve_artwork_source, resolve_track_playback_source, scan_local_library, DatabaseState,
 };
 use database::AppDatabase;
 
@@ -17,6 +18,7 @@ pub fn run() {
         .manage(DatabaseState { app_database })
         .invoke_handler(tauri::generate_handler![
             bootstrap_app,
+            describe_playback_contract,
             get_shell_state,
             scan_local_library,
             query_library,

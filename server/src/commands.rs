@@ -6,6 +6,7 @@ use crate::library::{
     ArtworkSource, LibraryPage, LibraryQuery, LocalLibraryScanner, PlaybackSource, ScanSummary,
     SortDirection, TrackSortKey,
 };
+use crate::playback::{playback_contract, PlaybackContract};
 
 pub struct DatabaseState {
     pub app_database: AppDatabase,
@@ -90,6 +91,11 @@ pub fn bootstrap_app() -> BootstrapPayload {
 #[tauri::command]
 pub fn get_shell_state(database_state: State<'_, DatabaseState>) -> ShellStatePayload {
     build_shell_state(&database_state.app_database)
+}
+
+#[tauri::command]
+pub fn describe_playback_contract() -> PlaybackContract {
+    playback_contract()
 }
 
 pub fn build_shell_state(app_database: &AppDatabase) -> ShellStatePayload {
@@ -319,7 +325,8 @@ mod tests {
     use std::time::{SystemTime, UNIX_EPOCH};
 
     use super::{
-        bootstrap_app, build_shell_state, playback_state_for_action, query_library_with_database,
+        bootstrap_app, build_shell_state, describe_playback_contract, playback_state_for_action,
+        query_library_with_database,
         resolve_track_playback_source_with_database, scan_local_library_with_database,
         DatabaseState,
     };
@@ -383,6 +390,20 @@ mod tests {
         assert_eq!(previous.transport_label, "Previous unavailable");
         assert_eq!(toggle.transport_label, "Play requested");
         assert_eq!(next.transport_label, "Next unavailable");
+    }
+
+    #[test]
+    fn playback_contract_exposes_v1_1_runtime_boundary() {
+        let payload = describe_playback_contract();
+
+        assert_eq!(
+            payload.runtime_boundary,
+            "tauri commands mutate playback runtime and tauri events broadcast playback snapshots"
+        );
+        assert_eq!(payload.commands.len(), 5);
+        assert_eq!(payload.events.len(), 2);
+        assert_eq!(payload.commands[0].name, "load_playback_track");
+        assert_eq!(payload.events[0].name, "playback://state-changed");
     }
 
     #[test]

@@ -59,6 +59,41 @@ describe("desktop bootstrap bridge", () => {
     expect(payload.transportLabel).toBe("Preview only");
   });
 
+  it("describes the rust playback migration contract through the command bridge", async () => {
+    invokeMock.mockResolvedValueOnce({
+      currentOwner: "frontend-audio-element during v1 baseline",
+      migrationTarget: "rust playback runtime owns transport queue progress and source state",
+      runtimeBoundary:
+        "tauri commands mutate playback runtime and tauri events broadcast playback snapshots",
+      sourceResolutionOrder: ["local", "cache", "remote"],
+      commands: [
+        {
+          name: "load_playback_track",
+          summary: "load active playback item",
+          requestShape: "{ trackId }",
+          responseShape: "PlaybackSnapshot",
+          authority: "rust playback runtime",
+        },
+      ],
+      events: [
+        {
+          name: "playback://state-changed",
+          summary: "state sync",
+          payloadShape: "PlaybackSnapshot",
+          delivery: "emit to listeners",
+        },
+      ],
+      guarantees: ["queue order remains stable"],
+    });
+
+    const { describePlaybackContract } = await import("./desktop");
+    const payload = await describePlaybackContract();
+
+    expect(invokeMock).toHaveBeenCalledWith("describe_playback_contract");
+    expect(payload.commands[0].name).toBe("load_playback_track");
+    expect(payload.events[0].name).toBe("playback://state-changed");
+  });
+
   it("resolves a local playback source into an asset url", async () => {
     invokeMock.mockResolvedValueOnce({
       trackId: "track-1",

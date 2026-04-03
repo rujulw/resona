@@ -36,6 +36,31 @@ export type PlaybackShellState = {
   trackAlbum?: string | null;
 };
 
+export type PlaybackCommandContract = {
+  name: string;
+  summary: string;
+  requestShape: string;
+  responseShape: string;
+  authority: string;
+};
+
+export type PlaybackEventContract = {
+  name: string;
+  summary: string;
+  payloadShape: string;
+  delivery: string;
+};
+
+export type PlaybackContractPayload = {
+  currentOwner: string;
+  migrationTarget: string;
+  runtimeBoundary: string;
+  sourceResolutionOrder: string[];
+  commands: PlaybackCommandContract[];
+  events: PlaybackEventContract[];
+  guarantees: string[];
+};
+
 export type PlaybackSource = {
   trackId: string;
   localPath: string;
@@ -124,6 +149,51 @@ const browserShellStatePayload: ShellStatePayload = {
   },
 };
 
+const browserPlaybackContractPayload: PlaybackContractPayload = {
+  currentOwner: "frontend-audio-element during v1 baseline",
+  migrationTarget: "rust playback runtime owns transport queue progress and source state",
+  runtimeBoundary:
+    "tauri commands mutate playback runtime and tauri events broadcast playback snapshots",
+  sourceResolutionOrder: ["local", "cache", "remote"],
+  commands: [
+    {
+      name: "load_playback_track",
+      summary: "Resolve a track and replace the active playback item without forcing autoplay.",
+      requestShape: "{ trackId, queueTrackIds?, startPositionSeconds? }",
+      responseShape: "PlaybackSnapshot",
+      authority: "rust playback runtime",
+    },
+    {
+      name: "playback_action",
+      summary: "Apply a transport action such as play pause previous next stop or toggle.",
+      requestShape: "{ action }",
+      responseShape: "PlaybackSnapshot",
+      authority: "rust playback runtime",
+    },
+  ],
+  events: [
+    {
+      name: "playback://state-changed",
+      summary:
+        "Broadcasts the latest backend playback snapshot after transport or source changes.",
+      payloadShape: "PlaybackSnapshot",
+      delivery: "emit to all frontend listeners after each committed playback state change",
+    },
+    {
+      name: "playback://queue-changed",
+      summary:
+        "Broadcasts queue ownership changes when the backend replaces or advances the queue.",
+      payloadShape: "PlaybackQueueSnapshot",
+      delivery: "emit to all frontend listeners when queue order or active index changes",
+    },
+  ],
+  guarantees: [
+    "queue order remains stable even when the visible tracks table is filtered or resorted",
+    "playback state snapshots include track identity transport status timing and source authority",
+    "frontend shell renders playback state and dispatches commands but does not own transport truth after migration",
+  ],
+};
+
 export async function bootstrapApp(): Promise<BootstrapPayload> {
   try {
     return await invoke<BootstrapPayload>("bootstrap_app");
@@ -137,6 +207,14 @@ export async function getShellState(): Promise<ShellStatePayload> {
     return await invoke<ShellStatePayload>("get_shell_state");
   } catch {
     return browserShellStatePayload;
+  }
+}
+
+export async function describePlaybackContract(): Promise<PlaybackContractPayload> {
+  try {
+    return await invoke<PlaybackContractPayload>("describe_playback_contract");
+  } catch {
+    return browserPlaybackContractPayload;
   }
 }
 
