@@ -27,7 +27,7 @@ describe("desktop bootstrap bridge", () => {
   it("loads bootstrap metadata from the command bridge", async () => {
     invokeMock.mockResolvedValueOnce({
       appName: "resona",
-      appVersion: "1.0.1",
+      appVersion: "1.1.0",
       windowTitle: "resona",
       platform: "macos",
       runtime: {

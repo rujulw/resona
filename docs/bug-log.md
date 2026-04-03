@@ -1,5 +1,19 @@
 # Bug Log
 
+## 2026-04-03 - Added smoke coverage for backend-owned playback sync after the Rust playback migration
+- Status: fixed
+- Severity: medium
+- Symptom: after shifting playback authority into Rust, the repo still lacked a tight smoke-check layer proving the backend timing/seek/completion/error path and the frontend playback-bar rendering path stayed aligned.
+- Root cause: the migration had implementation coverage for individual pieces, but not enough end-to-end smoke coverage around the new backend-owned playback synchronization contract.
+- Fix: added backend runtime and command smoke tests for timing, seek, completion, and error transitions, plus frontend shell smoke coverage that verifies backend-owned pause and ended snapshots drive the playback UI.
+- Verification: `cargo test` passes with 37 backend tests and `npm test` passes with 32 frontend tests.
+- Files touched:
+  - `server/src/commands.rs`
+  - `server/src/playback/mod.rs`
+  - `client/src/App.test.tsx`
+- Linked commit/PR: pending
+- Notes: this closes a release-readiness gap for `v1.1.0` by checking the current hybrid playback model at both the Rust and shell layers.
+
 ## 2026-04-03 - Avoided split playback authority between React and the backend runtime
 - Status: fixed
 - Severity: high

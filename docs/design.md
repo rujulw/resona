@@ -64,7 +64,7 @@ Track insights from timbre should appear in secondary detail surfaces such as a 
 - Atlas integration is deferred until a later release and should not distort the public v1 local-first UX
 - The analysis subsystem is planned to be fused from the local `~/dev/timbre` project behind an internal service boundary after v1 ships
 - Local library onboarding should use a desktop directory picker and recursive MP3 discovery instead of asking the user to paste filesystem paths
-- Public `v1.0.0` uses a Web Audio path for faster delivery, while native Rust playback is the planned `v1.1.0` upgrade path
+- Public `v1.0.0` used a Web Audio path for faster delivery, while `v1.1.0` now moves playback authority into Rust and leaves native output depth as a follow-up decision
 - Playback-critical source resolution and library persistence flows are owned by Rust to reduce frontend complexity
 - The app remains open source even when used with private Atlas-backed media libraries
 - The desktop client should use a persistent routed shell so home, tracks, queue, and settings share the same navigation and playback frame
