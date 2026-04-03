@@ -32,6 +32,8 @@ The current v1 shell still renders playback from a frontend-owned audio path, bu
 
 The first implementation slice of that change is now in place: track loading and play/pause state can already come from the backend runtime, while the current audio element still handles output and timing until the next playback migration slice lands.
 
+The next implementation step is event-driven shell sync. Once the backend mutates playback state, the shell should hear about it through named Tauri playback events instead of assuming that local promise timing is the same thing as playback truth.
+
 ### Queue
 
 Queue management should be explicit and deterministic. Users should always understand what plays next and why. The current baseline derives next-up behavior from the playback-order snapshot created when playback starts, so searching or filtering the tracks view does not silently redefine the queue. The active queue view should also give the current track enough visual weight to feel like a player, including larger artwork for the now-playing item.
@@ -68,6 +70,7 @@ Track insights from timbre should appear in secondary detail surfaces such as a 
 - The desktop client should use a persistent routed shell so home, tracks, queue, and settings share the same navigation and playback frame
 - The playback bar and queue route should both read from the same active-track state so transport and next-up behavior cannot drift apart
 - The `v1.1.0` playback migration should move command authority to Rust through a narrow Tauri contract and push playback snapshots back to the shell through named events
+- The shell should consume backend playback snapshots through `playback://state-changed` rather than inventing separate client-only transport truth
 - The tracks route should feel like one uninterrupted library surface, even if the backend continues to use paged query primitives under the hood
 - Public v1 release readiness should be enforced by automated frontend and backend CI rather than manual spot checks alone
 

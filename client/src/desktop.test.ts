@@ -2,10 +2,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const invokeMock = vi.fn();
 const openMock = vi.fn();
+const listenMock = vi.fn();
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: (...args: unknown[]) => invokeMock(...args),
   convertFileSrc: (filePath: string) => `asset://localhost/${encodeURIComponent(filePath)}`,
+}));
+
+vi.mock("@tauri-apps/api/event", () => ({
+  listen: (...args: unknown[]) => listenMock(...args),
 }));
 
 vi.mock("@tauri-apps/plugin-dialog", () => ({
@@ -16,6 +21,7 @@ describe("desktop bootstrap bridge", () => {
   beforeEach(() => {
     invokeMock.mockReset();
     openMock.mockReset();
+    listenMock.mockReset();
   });
 
   it("loads bootstrap metadata from the command bridge", async () => {
@@ -119,6 +125,57 @@ describe("desktop bootstrap bridge", () => {
     expect(invokeMock).toHaveBeenCalledWith("describe_playback_contract");
     expect(payload.commands[0].name).toBe("load_playback_track");
     expect(payload.events[0].name).toBe("playback://state-changed");
+  });
+
+  it("subscribes to backend playback state events", async () => {
+    const unlisten = vi.fn();
+    let handler:
+      | ((event: { payload: {
+          statusLabel: string;
+          transportLabel: string;
+          progressSeconds: number;
+          durationSeconds: number;
+        } }) => void)
+      | undefined;
+
+    listenMock.mockImplementationOnce(
+      async (
+        eventName: string,
+        callback: (event: {
+          payload: {
+            statusLabel: string;
+            transportLabel: string;
+            progressSeconds: number;
+            durationSeconds: number;
+          };
+        }) => void,
+      ) => {
+        expect(eventName).toBe("playback://state-changed");
+        handler = callback;
+        return unlisten;
+      },
+    );
+
+    const onPlayback = vi.fn();
+    const { subscribePlaybackState } = await import("./desktop");
+    const detach = await subscribePlaybackState(onPlayback);
+
+    handler?.({
+      payload: {
+        statusLabel: "Playing",
+        transportLabel: "Playing",
+        progressSeconds: 0,
+        durationSeconds: 182,
+      },
+    });
+
+    expect(onPlayback).toHaveBeenCalledWith({
+      statusLabel: "Playing",
+      transportLabel: "Playing",
+      progressSeconds: 0,
+      durationSeconds: 182,
+    });
+    expect(detach).toBe(unlisten);
   });
 
   it("resolves a local playback source into an asset url", async () => {

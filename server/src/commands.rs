@@ -1,5 +1,5 @@
 use serde::Serialize;
-use tauri::State;
+use tauri::{AppHandle, State};
 
 use crate::database::AppDatabase;
 use crate::library::{
@@ -7,8 +7,8 @@ use crate::library::{
     SortDirection, TrackSortKey,
 };
 use crate::playback::{
-    playback_contract, LoadedPlaybackTrackPayload, PlaybackContract, PlaybackRuntimeState,
-    PlaybackSnapshot,
+    emit_playback_state, playback_contract, LoadedPlaybackTrackPayload, PlaybackContract,
+    PlaybackRuntimeState, PlaybackSnapshot,
 };
 
 pub struct DatabaseState {
@@ -296,16 +296,21 @@ pub fn resolve_artwork_source_with_database(
 
 #[tauri::command]
 pub fn load_playback_track(
+    app_handle: AppHandle,
     database_state: State<'_, DatabaseState>,
     playback_runtime_state: State<'_, PlaybackRuntimeState>,
     track_id: String,
 ) -> Result<LoadedPlaybackTrackPayload, String> {
-    load_playback_track_with_database(
+    let payload = load_playback_track_with_database(
         &database_state.app_database,
         &playback_runtime_state,
         &track_id,
     )
-    .map_err(|error| error.to_string())
+    .map_err(|error| error.to_string())?;
+
+    emit_playback_state(&app_handle, &payload.playback).map_err(|error| error.to_string())?;
+
+    Ok(payload)
 }
 
 pub fn load_playback_track_with_database(
@@ -326,10 +331,13 @@ pub fn load_playback_track_with_database(
 
 #[tauri::command]
 pub fn playback_action(
+    app_handle: AppHandle,
     playback_runtime_state: State<'_, PlaybackRuntimeState>,
     action: &str,
-) -> PlaybackSnapshot {
-    playback_action_with_runtime(&playback_runtime_state, action)
+) -> Result<PlaybackSnapshot, String> {
+    let snapshot = playback_action_with_runtime(&playback_runtime_state, action);
+    emit_playback_state(&app_handle, &snapshot).map_err(|error| error.to_string())?;
+    Ok(snapshot)
 }
 
 pub fn playback_action_with_runtime(

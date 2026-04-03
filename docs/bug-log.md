@@ -1,5 +1,23 @@
 # Bug Log
 
+## 2026-04-03 - Avoided shell playback drift by emitting backend playback snapshots through Tauri events
+- Status: fixed
+- Severity: high
+- Symptom: after playback ownership started moving into Rust, the shell still risked drifting because track-load and transport UI updates depended on local promise timing and ad hoc frontend state merges rather than on one backend-owned playback stream.
+- Root cause: the backend runtime could load tracks and flip play/pause state, but it did not yet broadcast committed playback snapshots back to the client, so React still had to infer state transitions from command responses and local audio behavior.
+- Fix: emit `playback://state-changed` from Tauri whenever backend playback state changes and subscribe to that event in the client shell so backend-owned playback snapshots can flow into React state directly.
+- Verification: `cargo test` passes with the playback runtime and command layer changes, and `npm test` passes with desktop bridge and shell coverage for backend playback event subscription.
+- Files touched:
+  - `server/src/playback/mod.rs`
+  - `server/src/commands.rs`
+  - `client/src/desktop.ts`
+  - `client/src/desktop.test.ts`
+  - `client/src/hooks/useAppShell.ts`
+  - `client/src/App.test.tsx`
+  - `docs/design.md`
+- Linked commit/PR: pending
+- Notes: the frontend still owns actual audio output and progress timing for now, but loaded-track and play/pause truth now have an event-driven backend sync path instead of relying on local UI timing alone.
+
 ## 2026-03-29 - Avoided invalid Tauri frontend path during desktop boot
 - Status: fixed
 - Severity: high

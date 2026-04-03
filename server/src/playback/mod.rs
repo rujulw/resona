@@ -1,5 +1,6 @@
 use serde::Serialize;
 use std::sync::Mutex;
+use tauri::{AppHandle, Emitter};
 
 use crate::library::ResolvedPlaybackTrack;
 
@@ -202,6 +203,13 @@ impl PlaybackRuntimeState {
             .expect("playback runtime lock should not be poisoned");
         runtime.apply_action(action)
     }
+}
+
+pub fn emit_playback_state(
+    app_handle: &AppHandle,
+    snapshot: &PlaybackSnapshot,
+) -> Result<(), tauri::Error> {
+    app_handle.emit(PLAYBACK_STATE_CHANGED_EVENT, snapshot.clone())
 }
 
 impl PlaybackRuntime {

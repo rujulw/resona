@@ -1,4 +1,5 @@
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
 
 export type BootstrapPayload = {
@@ -71,6 +72,8 @@ export type LoadedPlaybackTrackPayload = {
   playback: PlaybackShellState;
   source: PlaybackSource;
 };
+
+export type UnlistenPlaybackState = () => void;
 
 export type ArtworkSource = {
   artworkKey: string;
@@ -255,6 +258,18 @@ export async function describePlaybackContract(): Promise<PlaybackContractPayloa
     return await invoke<PlaybackContractPayload>("describe_playback_contract");
   } catch {
     return browserPlaybackContractPayload;
+  }
+}
+
+export async function subscribePlaybackState(
+  onPlayback: (playback: PlaybackShellState) => void,
+): Promise<UnlistenPlaybackState> {
+  try {
+    return await listen<PlaybackShellState>("playback://state-changed", (event) => {
+      onPlayback(event.payload);
+    });
+  } catch {
+    return () => undefined;
   }
 }
 

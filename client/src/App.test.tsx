@@ -9,6 +9,7 @@ const loadPlaybackTrackMock = vi.fn();
 const queryLibraryMock = vi.fn();
 const pickLibraryDirectoryMock = vi.fn();
 const playbackActionMock = vi.fn();
+const subscribePlaybackStateMock = vi.fn();
 const resolveArtworkSourceMock = vi.fn();
 const resolveTrackPlaybackSourceMock = vi.fn();
 const scanLocalLibraryMock = vi.fn();
@@ -21,6 +22,7 @@ vi.mock("./desktop", () => ({
   pickLibraryDirectory: (...args: unknown[]) => pickLibraryDirectoryMock(...args),
   queryLibrary: (...args: unknown[]) => queryLibraryMock(...args),
   playbackAction: (...args: unknown[]) => playbackActionMock(...args),
+  subscribePlaybackState: (...args: unknown[]) => subscribePlaybackStateMock(...args),
   resolveArtworkSource: (...args: unknown[]) => resolveArtworkSourceMock(...args),
   resolveTrackPlaybackSource: (...args: unknown[]) => resolveTrackPlaybackSourceMock(...args),
   scanLocalLibrary: (...args: unknown[]) => scanLocalLibraryMock(...args),
@@ -97,6 +99,19 @@ describe("app shell smoke checks", () => {
     trackArtist: string | null;
     trackAlbum: string | null;
   };
+  let playbackStateListener:
+    | ((playback: {
+        statusLabel: string;
+        transportLabel: string;
+        progressSeconds: number;
+        durationSeconds: number;
+        isPlaying: boolean;
+        trackId: string | null;
+        trackTitle: string | null;
+        trackArtist: string | null;
+        trackAlbum: string | null;
+      }) => void)
+    | undefined;
 
   beforeEach(() => {
     bootstrapAppMock.mockReset();
@@ -105,6 +120,7 @@ describe("app shell smoke checks", () => {
     queryLibraryMock.mockReset();
     pickLibraryDirectoryMock.mockReset();
     playbackActionMock.mockReset();
+    subscribePlaybackStateMock.mockReset();
     resolveArtworkSourceMock.mockReset();
     resolveTrackPlaybackSourceMock.mockReset();
     scanLocalLibraryMock.mockReset();
@@ -120,6 +136,7 @@ describe("app shell smoke checks", () => {
       trackArtist: null,
       trackAlbum: null,
     };
+    playbackStateListener = undefined;
     vi.stubGlobal(
       "Audio",
       vi.fn(() => {
@@ -159,6 +176,12 @@ describe("app shell smoke checks", () => {
         progressSeconds: 0,
         durationSeconds: 0,
       },
+    });
+    subscribePlaybackStateMock.mockImplementation(async (callback) => {
+      playbackStateListener = callback;
+      return () => {
+        playbackStateListener = undefined;
+      };
     });
     queryLibraryMock.mockResolvedValue({
       items: [
@@ -211,6 +234,7 @@ describe("app shell smoke checks", () => {
           trackArtist: trackId === "track-1" ? "North" : "South",
           trackAlbum: trackId === "track-1" ? "Signals" : "Horizons",
         };
+        playbackStateListener?.(mockBackendPlayback);
         return mockBackendPlayback;
       })(),
       source: {
@@ -226,6 +250,7 @@ describe("app shell smoke checks", () => {
             ...mockBackendPlayback,
             transportLabel: "Play requested",
           };
+          playbackStateListener?.(mockBackendPlayback);
           return mockBackendPlayback;
         }
 
@@ -235,6 +260,7 @@ describe("app shell smoke checks", () => {
           statusLabel: !mockBackendPlayback.isPlaying ? "Playing" : "Ready",
           transportLabel: !mockBackendPlayback.isPlaying ? "Playing" : "Paused",
         };
+        playbackStateListener?.(mockBackendPlayback);
         return mockBackendPlayback;
       }
 
@@ -242,6 +268,7 @@ describe("app shell smoke checks", () => {
         ...mockBackendPlayback,
         transportLabel: action === "previous" ? "Previous unavailable" : "Next unavailable",
       };
+      playbackStateListener?.(mockBackendPlayback);
       return mockBackendPlayback;
     });
     resolveArtworkSourceMock.mockImplementation(async (artworkKey: string) => ({
@@ -953,38 +980,44 @@ describe("app shell smoke checks", () => {
         new Promise<{ playback: Record<string, unknown>; source: DeferredPlaybackSource }>((resolve) => {
           if (trackId === "track-1") {
             resolveAlpha = (value) =>
-              resolve({
-                playback: {
-                  ...(mockBackendPlayback = {
-                    statusLabel: "Ready",
-                    transportLabel: "Ready",
-                    progressSeconds: 0,
-                    durationSeconds: 182,
-                    isPlaying: false,
-                    trackId: "track-1",
-                    trackTitle: "Alpha",
-                    trackArtist: "North",
-                    trackAlbum: "Signals",
-                  }),
-                },
-                source: value,
-              });
+              {
+                mockBackendPlayback = {
+                  statusLabel: "Ready",
+                  transportLabel: "Ready",
+                  progressSeconds: 0,
+                  durationSeconds: 182,
+                  isPlaying: false,
+                  trackId: "track-1",
+                  trackTitle: "Alpha",
+                  trackArtist: "North",
+                  trackAlbum: "Signals",
+                };
+                playbackStateListener?.(mockBackendPlayback);
+                resolve({
+                  playback: {
+                    ...mockBackendPlayback,
+                  },
+                  source: value,
+                });
+              };
             return;
           }
 
+          mockBackendPlayback = {
+            statusLabel: "Ready",
+            transportLabel: "Ready",
+            progressSeconds: 0,
+            durationSeconds: 205,
+            isPlaying: false,
+            trackId,
+            trackTitle: "Bravo",
+            trackArtist: "South",
+            trackAlbum: "Horizons",
+          };
+          playbackStateListener?.(mockBackendPlayback);
           resolve({
             playback: {
-              ...(mockBackendPlayback = {
-                statusLabel: "Ready",
-                transportLabel: "Ready",
-                progressSeconds: 0,
-                durationSeconds: 205,
-                isPlaying: false,
-                trackId,
-                trackTitle: "Bravo",
-                trackArtist: "South",
-                trackAlbum: "Horizons",
-              }),
+              ...mockBackendPlayback,
             },
             source: {
               trackId,
