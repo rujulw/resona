@@ -50,6 +50,14 @@ The current Rust structure is organized around service ownership rather than aro
 - Translates UI-facing inputs into calls on library and database-backed services
 - Keeps desktop-shell state shaping separate from persistence and indexing logic
 
+### `playback`
+
+- Owns the Rust-side playback contract for the `v1.1.0` migration
+- Defines the command surface that will mutate backend playback state
+- Defines the event surface that will broadcast playback and queue snapshots back to the frontend shell
+- Keeps playback ownership decisions explicit before the runtime implementation lands
+- Now also owns the first in-memory playback runtime for loaded-track and play/pause authority
+
 ### `library`
 
 - Owns local filesystem scan orchestration and normalized track ingestion
@@ -110,8 +118,22 @@ The backend is intentionally split so each layer has a clear responsibility boun
 - Layout components own persistent desktop chrome such as sidebar, top bar, and playback bar
 - Page components own route-local content instead of burying the whole client in one top-level file
 - The app-shell hook owns bootstrap, query refresh, and scan-trigger state coordination
-- The app-shell hook also owns active-track playback state, derived queue state, and audio progress synchronization
+- The app-shell hook owns derived queue state, bridge subscriptions, and audio-element control flow, but no longer owns playback truth
 - The tracks page owns a full-width search field and a scrollable table, while the hook stitches backend query pages into one continuous client view
+
+### Playback Ownership Shift
+
+- The shell still hosts the `Audio` element for output in the current `v1.1.0` slice
+- The `playback` Rust module is now the source of truth for loaded-track identity, play/pause state, timing updates, completion state, and playback errors
+- The frontend dispatches user intent and renders backend snapshots through Tauri commands and `playback://state-changed`
+- Queue state is still shell-derived today, but the ownership boundary is now narrow enough to move queue authority into Rust without changing the visible client contract
+
+Current implemented boundary:
+
+- Rust owns loaded-track state and play/pause authority through `load_playback_track` and `playback_action`
+- Rust also owns timing sync, seek state, completion, and playback-error snapshots through `sync_playback_timing`, `seek_playback`, `complete_playback`, and `report_playback_error`
+- The frontend still hosts the webview audio element, but it now behaves as a renderer/controller that reports media lifecycle facts upward instead of inventing local playback truth
+- The shell reflects backend snapshots for active track identity, transport mode, timing, completion, and error state through the playback event stream
 
 ### future timbre engine
 
@@ -182,7 +204,25 @@ That shape matters for both performance and clarity. The traversal is effectivel
 
 - Today resolves the local indexed playback path, with room to expand to cached and remote sources later
 - Owns queue state, transport controls, buffering state, and transitions
-- Starts with a Web Audio-based path in public `v1.0.0` and leaves room for a native Rust-owned path in `v1.1.0`
+- Started with a Web Audio-based path in public `v1.0.0` and now uses a hybrid `v1.1.0` model where Rust owns playback state while the shell still renders output
+
+Current `v1.1.0` contract:
+
+- Commands:
+  `load_playback_track`, `playback_action`, `seek_playback`, `sync_playback_timing`, `complete_playback`, `report_playback_error`, `replace_playback_queue`, and `get_playback_snapshot`
+- Events:
+  `playback://state-changed` and `playback://queue-changed`
+- Playback authority:
+  the Rust runtime becomes the system of record for active track identity, queue order, timing, and source selection
+- Frontend role:
+  render snapshots, submit user intent, and avoid duplicating backend transport truth in local audio state once the migration is complete
+
+Current implementation slice:
+
+- `load_playback_track` resolves a local indexed track, updates backend playback runtime state, and returns the source path needed by the current frontend audio element
+- `playback_action` now flips backend play/pause state for an already loaded track instead of returning a static placeholder payload
+- `sync_playback_timing`, `seek_playback`, `complete_playback`, and `report_playback_error` let the frontend audio element report media lifecycle facts back to the backend runtime without reclaiming playback authority
+- `playback://state-changed` now keeps the shell aligned to backend-owned playback snapshots instead of relying on local promise timing
 
 Current frontend playback baseline:
 
@@ -276,6 +316,15 @@ The current `tracks` route now exposes that contract directly through client-sid
 4. The shell playback bar and queue route both read from the same active-track state
 5. Previous and next transport actions derive their behavior from the currently loaded local track order
 
+### Planned Rust Playback Flow
+
+1. The frontend requests `load_playback_track` with the active track and queue snapshot
+2. Rust resolves the source, updates playback ownership, and returns a `PlaybackSnapshot`
+3. The frontend renders the returned state immediately and subscribes to playback events
+4. Rust emits `playback://state-changed` on transport, timing, or source transitions
+5. Rust emits `playback://queue-changed` whenever queue order or active index changes
+6. The queue page and playback bar render the same backend-owned snapshots instead of deriving authority from a local audio element
+
 ### Playback Resolution
 
 1. The user selects a track in the library table
@@ -316,9 +365,10 @@ The current Rust backend now reflects that direction more closely:
 - `commands` owns the Tauri-facing application boundary
 - `library` owns scan, normalization, and query services
 - `database` owns runtime setup, migrations, and schema contracts
+- `playback` now defines the backend playback command and event contract for the `v1.1.0` migration
 
 That separation is still early and can deepen further with repositories, playback services, and analysis services, but the code is no longer relying on one catch-all module per subsystem.
 
 The frontend now follows the same direction: a routed shell, separated layout components, route-owned pages, and a dedicated hook for boot/query/scan coordination instead of one monolithic client entry file.
 
-The playback-core branch extends that pattern by keeping active-track selection, transport actions, queue derivation, and audio progress updates behind the same client-side shell boundary instead of scattering those responsibilities across unrelated pages.
+The playback-core branch established a working frontend-owned playback baseline. The current `v1.1.0` implementation now moves loaded-track, play/pause, timing, completion, and error authority behind a backend runtime while keeping the same shell surface. The next step is to move queue progression and final audio output deeper into that same backend boundary without regressing the current shell contract.

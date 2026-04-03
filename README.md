@@ -98,6 +98,23 @@ Build a private, performance-first music player that feels closer to a system ut
 - Transport controls now handle play, pause, previous, next, restart-on-previous, and live progress updates
 - The queue route reflects a stable next-up flow derived from playback order rather than the currently filtered tracks table
 
+## v1.1.0 Playback Contract
+
+The first post-v1 architecture slice is now defined in code as a Rust playback contract rather than only as a roadmap note.
+
+- The current baseline still uses a frontend-owned `Audio` element for active playback
+- The `v1.1.0` migration target is a Rust runtime that owns transport, queue order, progress, and source state
+- The planned command surface centers on `load_playback_track`, `playback_action`, `seek_playback`, `replace_playback_queue`, and `get_playback_snapshot`
+- The planned event surface centers on `playback://state-changed` and `playback://queue-changed`
+- The frontend shell is expected to become a renderer/controller for playback state rather than the system of record
+
+Current implementation status:
+
+- Rust now owns the in-memory playback runtime for loading a local track and tracking play/pause state
+- `get_shell_state` now reflects backend playback snapshots instead of only hard-coded idle defaults
+- The frontend still provides the active audio output path and progress/time updates for now
+- Queue advancement and progress broadcasting remain follow-up `v1.1.0` slices
+
 ## MVP Subsystems
 
 ### Library Engine
@@ -140,6 +157,18 @@ Current v1 playback chooses the local indexed file path. Later branches can exte
 3. Remote fetch to temporary buffer, then playback
 
 The current implementation baseline already supports direct local playback for indexed MP3 files through the desktop client, with the next-up queue derived from the currently active library selection.
+
+The `v1.1.0` contract now narrows the migration boundary further:
+
+- Rust becomes the owner of transport, queue progression, progress snapshots, and source authority
+- Tauri commands mutate playback state while Tauri events broadcast committed playback snapshots back to the shell
+- The source order stays `local -> cache -> remote`, so future cache and Atlas work can reuse the same command/event boundary
+
+The first implementation slice of that contract is now live:
+
+- `load_playback_track` resolves an indexed local track into backend playback state and returns the local source path to the shell
+- `playback_action` now toggles backend play/pause state instead of returning a fixed placeholder message
+- The frontend still mirrors that backend decision onto the existing `Audio` element until the later event-driven playback slices land
 
 ### Analysis Engine
 

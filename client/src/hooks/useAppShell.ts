@@ -2,12 +2,17 @@ import { useEffect, useRef, useState } from "react";
 
 import {
   bootstrapApp,
+  completePlayback,
   getShellState,
+  loadPlaybackTrack,
   pickLibraryDirectory,
   playbackAction,
   queryLibrary,
-  resolveTrackPlaybackSource,
+  reportPlaybackError,
   scanLocalLibrary,
+  seekPlayback,
+  subscribePlaybackState,
+  syncPlaybackTiming,
   type TrackListItem,
 } from "../desktop";
 import type {
@@ -106,11 +111,14 @@ export function useAppShell() {
   }, []);
 
   useEffect(() => {
-    const audio = new Audio();
-    audio.preload = "metadata";
-    audioRef.current = audio;
+    let detached = false;
+    let unlisten: (() => void) | undefined;
 
-    const syncPlayback = (update: (existing: NonNullable<ShellState["playback"]>) => NonNullable<ShellState["playback"]>) => {
+    void subscribePlaybackState((playback) => {
+      if (detached) {
+        return;
+      }
+
       setShellState((existing) => {
         if (!existing) {
           return existing;
@@ -118,49 +126,51 @@ export function useAppShell() {
 
         return {
           ...existing,
-          playback: update(existing.playback),
+          playback: {
+            ...existing.playback,
+            ...playback,
+            isPlaying: playback.isPlaying ?? existing.playback.isPlaying ?? false,
+            trackId: playback.trackId ?? existing.playback.trackId ?? null,
+            trackTitle: playback.trackTitle ?? existing.playback.trackTitle ?? null,
+            trackArtist: playback.trackArtist ?? existing.playback.trackArtist ?? null,
+            trackAlbum: playback.trackAlbum ?? existing.playback.trackAlbum ?? null,
+          },
         };
       });
-    };
-
-    const handleLoadedMetadata = () => {
-      syncPlayback((existing) => ({
-        ...existing,
-        durationSeconds: Number.isFinite(audio.duration) ? Math.round(audio.duration) : existing.durationSeconds,
-      }));
-    };
-
-    const handleTimeUpdate = () => {
-      syncPlayback((existing) => ({
-        ...existing,
-        progressSeconds: Math.round(audio.currentTime),
-        durationSeconds:
-          Number.isFinite(audio.duration) && audio.duration > 0
-            ? Math.round(audio.duration)
-            : existing.durationSeconds,
-      }));
-    };
-
-    const handlePlay = () => {
-      syncPlayback((existing) => ({
-        ...existing,
-        statusLabel: "Playing",
-        transportLabel: "Playing",
-        isPlaying: true,
-      }));
-    };
-
-    const handlePause = () => {
-      if (audio.ended) {
+    }).then((dispose) => {
+      if (detached) {
+        dispose();
         return;
       }
 
-      syncPlayback((existing) => ({
-        ...existing,
-        statusLabel: existing.trackTitle ? "Paused" : existing.statusLabel,
-        transportLabel: existing.trackTitle ? "Paused" : existing.transportLabel,
-        isPlaying: false,
-      }));
+      unlisten = dispose;
+    });
+
+    return () => {
+      detached = true;
+      unlisten?.();
+    };
+  }, []);
+
+  useEffect(() => {
+    const audio = new Audio();
+    audio.preload = "metadata";
+    audioRef.current = audio;
+
+    const handleLoadedMetadata = () => {
+      void syncPlaybackTiming(
+        undefined,
+        Number.isFinite(audio.duration) ? Math.round(audio.duration) : undefined,
+      );
+    };
+
+    const handleTimeUpdate = () => {
+      void syncPlaybackTiming(
+        Math.round(audio.currentTime),
+        Number.isFinite(audio.duration) && audio.duration > 0
+          ? Math.round(audio.duration)
+          : undefined,
+      );
     };
 
     const handleEnded = () => {
@@ -177,32 +187,19 @@ export function useAppShell() {
         : undefined;
 
       if (nextTrack) {
-        startTrackPlayback(nextTrack, true);
+        void startTrackPlayback(nextTrack, true);
         return;
       }
 
-      syncPlayback((existing) => ({
-        ...existing,
-        statusLabel: existing.trackTitle ? "Ended" : existing.statusLabel,
-        transportLabel: existing.trackTitle ? "Ended" : existing.transportLabel,
-        progressSeconds: existing.durationSeconds,
-        isPlaying: false,
-      }));
+      void completePlayback();
     };
 
     const handleError = () => {
-      syncPlayback((existing) => ({
-        ...existing,
-        statusLabel: existing.trackTitle ? "Error" : existing.statusLabel,
-        transportLabel: "Playback error",
-        isPlaying: false,
-      }));
+      void reportPlaybackError();
     };
 
     audio.addEventListener("loadedmetadata", handleLoadedMetadata);
     audio.addEventListener("timeupdate", handleTimeUpdate);
-    audio.addEventListener("play", handlePlay);
-    audio.addEventListener("pause", handlePause);
     audio.addEventListener("ended", handleEnded);
     audio.addEventListener("error", handleError);
 
@@ -214,13 +211,35 @@ export function useAppShell() {
       }
       audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
       audio.removeEventListener("timeupdate", handleTimeUpdate);
-      audio.removeEventListener("play", handlePlay);
-      audio.removeEventListener("pause", handlePause);
       audio.removeEventListener("ended", handleEnded);
       audio.removeEventListener("error", handleError);
       audioRef.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio || !shellState?.playback.trackId || !audio.src) {
+      return;
+    }
+
+    if (shellState.playback.isPlaying) {
+      if (!audio.paused) {
+        return;
+      }
+
+      void audio.play().catch(() => {
+        void playbackAction("toggle").then(() => {
+          void reportPlaybackError("Playback blocked");
+        });
+      });
+      return;
+    }
+
+    if (!audio.paused) {
+      audio.pause();
+    }
+  }, [shellState?.playback.isPlaying, shellState?.playback.trackId]);
 
   const refreshShellState = () => {
     void getShellState().then((shellPayload) => {
@@ -298,20 +317,7 @@ export function useAppShell() {
 
       if (action === "previous" && audio && audio.currentTime > 3 && activeIndex >= 0) {
         audio.currentTime = 0;
-        setShellState((existing) => {
-          if (!existing) {
-            return existing;
-          }
-
-          return {
-            ...existing,
-            playback: {
-              ...existing.playback,
-              progressSeconds: 0,
-              transportLabel: existing.playback.isPlaying ? "Playing" : "Restarted",
-            },
-          };
-        });
+        void seekPlayback(0);
         return;
       }
 
@@ -330,105 +336,31 @@ export function useAppShell() {
         : undefined;
 
       if (targetTrack) {
-        startTrackPlayback(targetTrack, true);
+        void startTrackPlayback(targetTrack, true);
         return;
       }
     }
 
     if (action === "toggle") {
       if (audio && shellState?.playback.trackId && audio.src) {
-        if (audio.paused) {
-          void audio
-            .play()
-            .then(() => {
-              setShellState((existing) => {
-                if (!existing) {
-                  return existing;
-                }
-
-                return {
-                  ...existing,
-                  playback: {
-                    ...existing.playback,
-                    statusLabel: "Playing",
-                    transportLabel: "Playing",
-                    isPlaying: true,
-                  },
-                };
-              });
-            })
-            .catch(() => {
-              setShellState((existing) => {
-                if (!existing) {
-                  return existing;
-                }
-
-                return {
-                  ...existing,
-                  playback: {
-                    ...existing.playback,
-                    statusLabel: "Error",
-                    transportLabel: "Playback blocked",
-                    isPlaying: false,
-                  },
-                };
-              });
-            });
-        } else {
-          audio.pause();
-          setShellState((existing) => {
-            if (!existing) {
-              return existing;
-            }
-
-            return {
-              ...existing,
-              playback: {
-                ...existing.playback,
-                statusLabel: "Paused",
-                transportLabel: "Paused",
-                isPlaying: false,
-              },
-            };
-          });
-        }
-
+        void playbackAction("toggle");
         return;
       }
 
       if (!shellState?.playback.trackId && tracksState.items.length > 0) {
-        startTrackPlayback(tracksState.items[0], true);
+        void startTrackPlayback(tracksState.items[0], true);
         return;
       }
     }
 
-    void playbackAction(action).then((playback) => {
-      setShellState((existing) => {
-        if (!existing) {
-          return existing;
-        }
-
-        return {
-          ...existing,
-          playback: {
-            ...existing.playback,
-            ...playback,
-            isPlaying: playback.isPlaying ?? existing.playback.isPlaying ?? false,
-            trackId: playback.trackId ?? existing.playback.trackId ?? null,
-            trackTitle: playback.trackTitle ?? existing.playback.trackTitle ?? null,
-            trackArtist: playback.trackArtist ?? existing.playback.trackArtist ?? null,
-            trackAlbum: playback.trackAlbum ?? existing.playback.trackAlbum ?? null,
-          },
-        };
-      });
-    });
+    void playbackAction(action);
   };
 
   const handleTrackSelection = (track: TrackListItem) => {
     startTrackPlayback(track, true);
   };
 
-  const startTrackPlayback = (track: TrackListItem, autoplay: boolean) => {
+  const startTrackPlayback = async (track: TrackListItem, autoplay: boolean) => {
     const requestId = playbackRequestIdRef.current + 1;
     playbackRequestIdRef.current = requestId;
     setPlaybackQueueTrackIds((existing) => {
@@ -449,125 +381,30 @@ export function useAppShell() {
       ...existing,
       selectedTrackId: track.id,
     }));
+    const payload = await loadPlaybackTrack(track.id);
+    if (playbackRequestIdRef.current != requestId) {
+      return;
+    }
 
-    setShellState((existing) => {
-      if (!existing) {
-        return existing;
-      }
+    if (!payload) {
+      void reportPlaybackError("Local source unavailable");
+      return;
+    }
 
-      return {
-        ...existing,
-        playback: {
-          ...existing.playback,
-          statusLabel: "Loading",
-          transportLabel: "Loading source",
-          progressSeconds: 0,
-          durationSeconds: Math.round(track.durationSeconds ?? 0),
-          isPlaying: false,
-          trackId: track.id,
-          trackTitle: track.title,
-          trackArtist: track.artist,
-          trackAlbum: track.album,
-        },
-      };
-    });
+    const audio = audioRef.current;
+    if (!audio) {
+      return;
+    }
 
-    void resolveTrackPlaybackSource(track.id).then((source) => {
-      if (playbackRequestIdRef.current != requestId) {
-        return;
-      }
+    audio.pause();
+    audio.src = payload.source.assetUrl;
+    audio.currentTime = 0;
 
-      if (!source) {
-        setShellState((existing) => {
-          if (!existing || existing.playback.trackId !== track.id) {
-            return existing;
-          }
+    if (!autoplay) {
+      return;
+    }
 
-          return {
-            ...existing,
-            playback: {
-              ...existing.playback,
-              statusLabel: "Unavailable",
-              transportLabel: "Local source unavailable",
-            },
-          };
-        });
-        return;
-      }
-
-      const audio = audioRef.current;
-      if (!audio) {
-        return;
-      }
-
-      audio.pause();
-      audio.src = source.assetUrl;
-      audio.currentTime = 0;
-
-      if (!autoplay) {
-        setShellState((existing) => {
-          if (!existing || existing.playback.trackId !== track.id) {
-            return existing;
-          }
-
-          return {
-            ...existing,
-            playback: {
-              ...existing.playback,
-              statusLabel: "Ready",
-              transportLabel: "Ready",
-              isPlaying: false,
-            },
-          };
-        });
-        return;
-      }
-
-      void audio
-        .play()
-        .then(() => {
-          if (playbackRequestIdRef.current != requestId) {
-            return;
-          }
-
-          setShellState((existing) => {
-            if (!existing || existing.playback.trackId !== track.id) {
-              return existing;
-            }
-
-            return {
-              ...existing,
-              playback: {
-                ...existing.playback,
-                statusLabel: "Playing",
-                transportLabel: "Playing",
-                isPlaying: true,
-              },
-            };
-          });
-        })
-        .catch(() => {
-          if (playbackRequestIdRef.current != requestId) {
-            return;
-          }
-
-          setShellState((existing) => {
-            if (!existing || existing.playback.trackId !== track.id) {
-              return existing;
-            }
-
-            return {
-              ...existing,
-              playback: {
-                ...existing.playback,
-                statusLabel: "Ready",
-                transportLabel: "Tap play to start",
-                isPlaying: false,
-              },
-            };
-          });
-        });
-    });
+    void playbackAction("toggle");
   };
 
   const handleScan = () => {

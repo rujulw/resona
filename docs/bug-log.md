@@ -1,5 +1,55 @@
 # Bug Log
 
+## 2026-04-03 - Added smoke coverage for backend-owned playback sync after the Rust playback migration
+- Status: fixed
+- Severity: medium
+- Symptom: after shifting playback authority into Rust, the repo still lacked a tight smoke-check layer proving the backend timing/seek/completion/error path and the frontend playback-bar rendering path stayed aligned.
+- Root cause: the migration had implementation coverage for individual pieces, but not enough end-to-end smoke coverage around the new backend-owned playback synchronization contract.
+- Fix: added backend runtime and command smoke tests for timing, seek, completion, and error transitions, plus frontend shell smoke coverage that verifies backend-owned pause and ended snapshots drive the playback UI.
+- Verification: `cargo test` passes with 37 backend tests and `npm test` passes with 32 frontend tests.
+- Files touched:
+  - `server/src/commands.rs`
+  - `server/src/playback/mod.rs`
+  - `client/src/App.test.tsx`
+- Linked commit/PR: pending
+- Notes: this closes a release-readiness gap for `v1.1.0` by checking the current hybrid playback model at both the Rust and shell layers.
+
+## 2026-04-03 - Avoided split playback authority between React and the backend runtime
+- Status: fixed
+- Severity: high
+- Symptom: after backend track loading and play/pause landed, the shell still directly owned progress, ended, restart, and playback-error state, which meant UI state could diverge from the Rust runtime during real audio lifecycle events.
+- Root cause: the frontend hook still mutated playback status locally from audio callbacks and transport handlers, so the backend event stream was only part of the playback truth instead of the single authority.
+- Fix: route timing sync, seeks, completion, and playback errors through backend commands, keep `playback://state-changed` as the only playback snapshot ingress into the shell, and reduce the audio element to a renderer/controller that follows backend state.
+- Verification: `cargo test` passes with the expanded playback command surface, and `npm test` passes with bridge and shell coverage for timing sync, restart seeking, and backend-owned playback updates.
+- Files touched:
+  - `server/src/commands.rs`
+  - `server/src/lib.rs`
+  - `client/src/desktop.ts`
+  - `client/src/desktop.test.ts`
+  - `client/src/hooks/useAppShell.ts`
+  - `client/src/App.test.tsx`
+  - `docs/design.md`
+- Linked commit/PR: pending
+- Notes: the shell still hosts the actual webview audio output in this slice, but React no longer decides playback truth on its own.
+
+## 2026-04-03 - Avoided shell playback drift by emitting backend playback snapshots through Tauri events
+- Status: fixed
+- Severity: high
+- Symptom: after playback ownership started moving into Rust, the shell still risked drifting because track-load and transport UI updates depended on local promise timing and ad hoc frontend state merges rather than on one backend-owned playback stream.
+- Root cause: the backend runtime could load tracks and flip play/pause state, but it did not yet broadcast committed playback snapshots back to the client, so React still had to infer state transitions from command responses and local audio behavior.
+- Fix: emit `playback://state-changed` from Tauri whenever backend playback state changes and subscribe to that event in the client shell so backend-owned playback snapshots can flow into React state directly.
+- Verification: `cargo test` passes with the playback runtime and command layer changes, and `npm test` passes with desktop bridge and shell coverage for backend playback event subscription.
+- Files touched:
+  - `server/src/playback/mod.rs`
+  - `server/src/commands.rs`
+  - `client/src/desktop.ts`
+  - `client/src/desktop.test.ts`
+  - `client/src/hooks/useAppShell.ts`
+  - `client/src/App.test.tsx`
+  - `docs/design.md`
+- Linked commit/PR: pending
+- Notes: the frontend still owns actual audio output and progress timing for now, but loaded-track and play/pause truth now have an event-driven backend sync path instead of relying on local UI timing alone.
+
 ## 2026-03-29 - Avoided invalid Tauri frontend path during desktop boot
 - Status: fixed
 - Severity: high

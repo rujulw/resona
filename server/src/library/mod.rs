@@ -6,7 +6,8 @@ mod scanner;
 mod tests;
 
 pub use models::{
-    ArtworkSource, LibraryPage, LibraryQuery, PlaybackSource, ScanError, ScanSummary,
+    ArtworkSource, LibraryPage, LibraryQuery, PlaybackSource, ResolvedPlaybackTrack, ScanError,
+    ScanSummary,
     SortDirection, TrackSortKey,
 };
 pub use scanner::LocalLibraryScanner;

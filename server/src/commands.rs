@@ -1,10 +1,14 @@
 use serde::Serialize;
-use tauri::State;
+use tauri::{AppHandle, State};
 
 use crate::database::AppDatabase;
 use crate::library::{
     ArtworkSource, LibraryPage, LibraryQuery, LocalLibraryScanner, PlaybackSource, ScanSummary,
     SortDirection, TrackSortKey,
+};
+use crate::playback::{
+    emit_playback_state, playback_contract, LoadedPlaybackTrackPayload, PlaybackContract,
+    PlaybackRuntimeState, PlaybackSnapshot,
 };
 
 pub struct DatabaseState {
@@ -34,7 +38,7 @@ pub struct RuntimeInfo {
 pub struct ShellStatePayload {
     pub nav_sections: Vec<NavSection>,
     pub library_rows: Vec<LibraryRow>,
-    pub playback: PlaybackShellState,
+    pub playback: PlaybackSnapshot,
     pub persistence: PersistenceState,
 }
 
@@ -51,15 +55,6 @@ pub struct LibraryRow {
     pub title: &'static str,
     pub detail: String,
     pub state: &'static str,
-}
-
-#[derive(Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct PlaybackShellState {
-    pub status_label: &'static str,
-    pub transport_label: &'static str,
-    pub progress_seconds: u32,
-    pub duration_seconds: u32,
 }
 
 #[derive(Clone, Serialize)]
@@ -88,11 +83,30 @@ pub fn bootstrap_app() -> BootstrapPayload {
 }
 
 #[tauri::command]
-pub fn get_shell_state(database_state: State<'_, DatabaseState>) -> ShellStatePayload {
-    build_shell_state(&database_state.app_database)
+pub fn get_shell_state(
+    database_state: State<'_, DatabaseState>,
+    playback_runtime_state: State<'_, PlaybackRuntimeState>,
+) -> ShellStatePayload {
+    build_shell_state_with_playback(
+        &database_state.app_database,
+        playback_runtime_state.snapshot(),
+    )
 }
 
+#[tauri::command]
+pub fn describe_playback_contract() -> PlaybackContract {
+    playback_contract()
+}
+
+#[cfg(test)]
 pub fn build_shell_state(app_database: &AppDatabase) -> ShellStatePayload {
+    build_shell_state_with_playback(app_database, PlaybackRuntimeState::default().snapshot())
+}
+
+pub fn build_shell_state_with_playback(
+    app_database: &AppDatabase,
+    playback: PlaybackSnapshot,
+) -> ShellStatePayload {
     let migration_status = app_database.migration_status().ok();
     let library_summary = LocalLibraryScanner::new(app_database.clone())
         .library_summary()
@@ -171,12 +185,7 @@ pub fn build_shell_state(app_database: &AppDatabase) -> ShellStatePayload {
                 state: "Idle",
             },
         ],
-        playback: PlaybackShellState {
-            status_label: "Nothing playing",
-            transport_label: "Idle",
-            progress_seconds: 0,
-            duration_seconds: 0,
-        },
+        playback,
         persistence,
     }
 }
@@ -286,31 +295,139 @@ pub fn resolve_artwork_source_with_database(
 }
 
 #[tauri::command]
-pub fn playback_action(action: &str) -> PlaybackShellState {
-    playback_state_for_action(action)
+pub fn load_playback_track(
+    app_handle: AppHandle,
+    database_state: State<'_, DatabaseState>,
+    playback_runtime_state: State<'_, PlaybackRuntimeState>,
+    track_id: String,
+) -> Result<LoadedPlaybackTrackPayload, String> {
+    let payload = load_playback_track_with_database(
+        &database_state.app_database,
+        &playback_runtime_state,
+        &track_id,
+    )
+    .map_err(|error| error.to_string())?;
+
+    emit_playback_state(&app_handle, &payload.playback).map_err(|error| error.to_string())?;
+
+    Ok(payload)
 }
 
-pub fn playback_state_for_action(action: &str) -> PlaybackShellState {
-    match action {
-        "previous" => PlaybackShellState {
-            status_label: "Nothing playing",
-            transport_label: "Previous unavailable",
-            progress_seconds: 0,
-            duration_seconds: 0,
-        },
-        "next" => PlaybackShellState {
-            status_label: "Nothing playing",
-            transport_label: "Next unavailable",
-            progress_seconds: 0,
-            duration_seconds: 0,
-        },
-        _ => PlaybackShellState {
-            status_label: "Nothing playing",
-            transport_label: "Play requested",
-            progress_seconds: 0,
-            duration_seconds: 0,
-        },
-    }
+pub fn load_playback_track_with_database(
+    app_database: &AppDatabase,
+    playback_runtime_state: &PlaybackRuntimeState,
+    track_id: &str,
+) -> Result<LoadedPlaybackTrackPayload, crate::library::ScanError> {
+    let track = LocalLibraryScanner::new(app_database.clone())
+        .resolve_playback_track(track_id)?
+        .ok_or_else(|| {
+            crate::library::ScanError::InvalidRoot(format!(
+                "No local playback track found for track {track_id}"
+            ))
+        })?;
+
+    Ok(playback_runtime_state.load_track(track))
+}
+
+#[tauri::command]
+pub fn playback_action(
+    app_handle: AppHandle,
+    playback_runtime_state: State<'_, PlaybackRuntimeState>,
+    action: &str,
+) -> Result<PlaybackSnapshot, String> {
+    let snapshot = playback_action_with_runtime(&playback_runtime_state, action);
+    emit_playback_state(&app_handle, &snapshot).map_err(|error| error.to_string())?;
+    Ok(snapshot)
+}
+
+pub fn playback_action_with_runtime(
+    playback_runtime_state: &PlaybackRuntimeState,
+    action: &str,
+) -> PlaybackSnapshot {
+    playback_runtime_state.apply_action(action)
+}
+
+#[cfg(test)]
+pub fn sync_playback_timing_with_runtime(
+    playback_runtime_state: &PlaybackRuntimeState,
+    progress_seconds: Option<u32>,
+    duration_seconds: Option<u32>,
+) -> PlaybackSnapshot {
+    playback_runtime_state.sync_timing(progress_seconds, duration_seconds)
+}
+
+#[cfg(test)]
+pub fn seek_playback_with_runtime(
+    playback_runtime_state: &PlaybackRuntimeState,
+    position_seconds: u32,
+) -> PlaybackSnapshot {
+    playback_runtime_state.seek(position_seconds)
+}
+
+#[cfg(test)]
+pub fn complete_playback_with_runtime(
+    playback_runtime_state: &PlaybackRuntimeState,
+) -> PlaybackSnapshot {
+    playback_runtime_state.complete()
+}
+
+#[cfg(test)]
+pub fn report_playback_error_with_runtime(
+    playback_runtime_state: &PlaybackRuntimeState,
+    transport_label: Option<&str>,
+) -> PlaybackSnapshot {
+    playback_runtime_state.report_error(transport_label)
+}
+
+#[tauri::command]
+pub fn sync_playback_timing(
+    app_handle: AppHandle,
+    playback_runtime_state: State<'_, PlaybackRuntimeState>,
+    progress_seconds: Option<u32>,
+    duration_seconds: Option<u32>,
+) -> Result<PlaybackSnapshot, String> {
+    let snapshot =
+        playback_runtime_state.sync_timing(progress_seconds, duration_seconds);
+    emit_playback_state(&app_handle, &snapshot).map_err(|error| error.to_string())?;
+    Ok(snapshot)
+}
+
+#[tauri::command]
+pub fn seek_playback(
+    app_handle: AppHandle,
+    playback_runtime_state: State<'_, PlaybackRuntimeState>,
+    position_seconds: u32,
+) -> Result<PlaybackSnapshot, String> {
+    let snapshot = playback_runtime_state.seek(position_seconds);
+    emit_playback_state(&app_handle, &snapshot).map_err(|error| error.to_string())?;
+    Ok(snapshot)
+}
+
+#[tauri::command]
+pub fn complete_playback(
+    app_handle: AppHandle,
+    playback_runtime_state: State<'_, PlaybackRuntimeState>,
+) -> Result<PlaybackSnapshot, String> {
+    let snapshot = playback_runtime_state.complete();
+    emit_playback_state(&app_handle, &snapshot).map_err(|error| error.to_string())?;
+    Ok(snapshot)
+}
+
+#[tauri::command]
+pub fn report_playback_error(
+    app_handle: AppHandle,
+    playback_runtime_state: State<'_, PlaybackRuntimeState>,
+    transport_label: Option<String>,
+) -> Result<PlaybackSnapshot, String> {
+    let snapshot = playback_runtime_state.report_error(transport_label.as_deref());
+    emit_playback_state(&app_handle, &snapshot).map_err(|error| error.to_string())?;
+    Ok(snapshot)
+}
+
+#[cfg(test)]
+pub fn playback_state_for_action(action: &str) -> PlaybackSnapshot {
+    let runtime = PlaybackRuntimeState::default();
+    runtime.apply_action(action)
 }
 
 #[cfg(test)]
@@ -319,11 +436,16 @@ mod tests {
     use std::time::{SystemTime, UNIX_EPOCH};
 
     use super::{
-        bootstrap_app, build_shell_state, playback_state_for_action, query_library_with_database,
-        resolve_track_playback_source_with_database, scan_local_library_with_database,
-        DatabaseState,
+        bootstrap_app, build_shell_state, build_shell_state_with_playback,
+        complete_playback_with_runtime, describe_playback_contract,
+        load_playback_track_with_database, playback_action_with_runtime,
+        playback_state_for_action, query_library_with_database,
+        report_playback_error_with_runtime, seek_playback_with_runtime,
+        resolve_track_playback_source_with_database, scan_local_library_with_database, DatabaseState,
+        sync_playback_timing_with_runtime,
     };
     use crate::database::AppDatabase;
+    use crate::playback::PlaybackRuntimeState;
 
     static TEST_COUNTER: AtomicU64 = AtomicU64::new(0);
 
@@ -375,6 +497,15 @@ mod tests {
     }
 
     #[test]
+    fn shell_state_can_embed_runtime_playback_snapshot() {
+        let database_state = test_database_state();
+        let playback = playback_state_for_action("toggle");
+        let payload = build_shell_state_with_playback(&database_state.app_database, playback);
+
+        assert_eq!(payload.playback.transport_label, "Play requested");
+    }
+
+    #[test]
     fn playback_action_returns_expected_transport_messages() {
         let previous = playback_state_for_action("previous");
         let toggle = playback_state_for_action("toggle");
@@ -383,6 +514,21 @@ mod tests {
         assert_eq!(previous.transport_label, "Previous unavailable");
         assert_eq!(toggle.transport_label, "Play requested");
         assert_eq!(next.transport_label, "Next unavailable");
+    }
+
+    #[test]
+    fn playback_contract_exposes_v1_1_runtime_boundary() {
+        let payload = describe_playback_contract();
+
+        assert_eq!(
+            payload.runtime_boundary,
+            "tauri commands mutate playback runtime and tauri events broadcast playback snapshots"
+        );
+        assert_eq!(payload.commands.len(), 8);
+        assert_eq!(payload.events.len(), 2);
+        assert_eq!(payload.commands[0].name, "load_playback_track");
+        assert_eq!(payload.commands[3].name, "sync_playback_timing");
+        assert_eq!(payload.events[0].name, "playback://state-changed");
     }
 
     #[test]
@@ -475,5 +621,102 @@ mod tests {
 
         assert_eq!(source.track_id, page.items[0].id);
         assert!(source.local_path.ends_with("disc/alpha.mp3"));
+    }
+
+    #[test]
+    fn load_playback_track_populates_runtime_snapshot() {
+        let database_state = test_database_state();
+        let playback_runtime_state = PlaybackRuntimeState::default();
+        let root = std::env::temp_dir().join(unique_test_suffix("resona-load-playback"));
+
+        std::fs::create_dir_all(root.join("disc")).expect("directories should be created");
+        std::fs::File::create(root.join("disc").join("alpha.mp3"))
+            .expect("track should be created");
+
+        scan_local_library_with_database(
+            &database_state.app_database,
+            &root.display().to_string(),
+            Some("portfolio"),
+        )
+        .expect("scan should succeed");
+
+        let page = query_library_with_database(
+            &database_state.app_database,
+            Some(10),
+            None,
+            None,
+            Some("title".to_owned()),
+            Some("asc".to_owned()),
+        )
+        .expect("query should succeed");
+
+        let payload = load_playback_track_with_database(
+            &database_state.app_database,
+            &playback_runtime_state,
+            &page.items[0].id,
+        )
+        .expect("load should succeed");
+
+        assert_eq!(payload.playback.status_label, "Ready");
+        assert_eq!(payload.playback.track_id.as_deref(), Some(page.items[0].id.as_str()));
+        assert!(payload.source.local_path.ends_with("disc/alpha.mp3"));
+
+        let toggled = playback_action_with_runtime(&playback_runtime_state, "toggle");
+        assert!(toggled.is_playing);
+        assert_eq!(toggled.status_label, "Playing");
+    }
+
+    #[test]
+    fn playback_runtime_commands_cover_backend_owned_state_sync() {
+        let database_state = test_database_state();
+        let playback_runtime_state = PlaybackRuntimeState::default();
+        let root = std::env::temp_dir().join(unique_test_suffix("resona-playback-sync"));
+
+        std::fs::create_dir_all(root.join("disc")).expect("directories should be created");
+        std::fs::File::create(root.join("disc").join("alpha.mp3"))
+            .expect("track should be created");
+
+        scan_local_library_with_database(
+            &database_state.app_database,
+            &root.display().to_string(),
+            Some("portfolio"),
+        )
+        .expect("scan should succeed");
+
+        let page = query_library_with_database(
+            &database_state.app_database,
+            Some(10),
+            None,
+            None,
+            Some("title".to_owned()),
+            Some("asc".to_owned()),
+        )
+        .expect("query should succeed");
+
+        load_playback_track_with_database(
+            &database_state.app_database,
+            &playback_runtime_state,
+            &page.items[0].id,
+        )
+        .expect("load should succeed");
+
+        let timed = sync_playback_timing_with_runtime(&playback_runtime_state, Some(33), Some(182));
+        assert_eq!(timed.progress_seconds, 33);
+        assert_eq!(timed.duration_seconds, 182);
+
+        let seeked = seek_playback_with_runtime(&playback_runtime_state, 12);
+        assert_eq!(seeked.progress_seconds, 12);
+        assert_eq!(seeked.transport_label, "Paused");
+
+        let failed = report_playback_error_with_runtime(
+            &playback_runtime_state,
+            Some("Playback blocked"),
+        );
+        assert_eq!(failed.status_label, "Error");
+        assert_eq!(failed.transport_label, "Playback blocked");
+
+        let completed = complete_playback_with_runtime(&playback_runtime_state);
+        assert_eq!(completed.status_label, "Ended");
+        assert_eq!(completed.progress_seconds, 182);
     }
 }
