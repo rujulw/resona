@@ -183,6 +183,7 @@ Current release CI includes:
 
 - GitHub Actions frontend checks on Ubuntu for `npm test` and `npm run build`
 - GitHub Actions backend checks on macOS for `cargo test` and `cargo check`
+- GitHub Actions tag builds for unsigned macOS `.dmg` artifacts via `.github/workflows/release-macos-dmg.yml`
 
 Current packaging baseline includes:
 

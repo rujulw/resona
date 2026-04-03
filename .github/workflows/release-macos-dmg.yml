@@ -1,0 +1,46 @@
+name: release-macos-dmg
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build-macos-dmg:
+    name: build unsigned macOS dmg
+    runs-on: macos-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: server -> target
+
+      - name: Install client dependencies
+        working-directory: client
+        run: npm ci
+
+      - name: Build unsigned DMG bundle
+        uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: server
+          args: --bundles dmg
+          uploadWorkflowArtifacts: true
+          workflowArtifactNamePattern: resona-[version]-[platform]-[arch]-[bundle]
