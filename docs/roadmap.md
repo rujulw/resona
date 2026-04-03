@@ -60,6 +60,7 @@ Current milestone progress:
 - Embedded artwork now renders in the tracks view, queue view, and playback bar
 - Release-hardening fixes now guard against stale playback-source and overlapping library-query races
 - The `v1.1.0` playback migration now has an explicit Rust-side command and event contract defined before runtime implementation begins
+- The first `v1.1.0` runtime slice now lets Rust load indexed local tracks and own play/pause state while the frontend still handles actual audio output and timing updates
 
 ## Milestone 5: Cache and Remote Media
 

@@ -59,6 +59,33 @@ describe("desktop bootstrap bridge", () => {
     expect(payload.transportLabel).toBe("Preview only");
   });
 
+  it("loads a playback track through the backend runtime contract", async () => {
+    invokeMock.mockResolvedValueOnce({
+      playback: {
+        statusLabel: "Ready",
+        transportLabel: "Ready",
+        progressSeconds: 0,
+        durationSeconds: 182,
+        isPlaying: false,
+        trackId: "track-1",
+        trackTitle: "Alpha",
+        trackArtist: "North",
+        trackAlbum: "Signals",
+      },
+      source: {
+        trackId: "track-1",
+        localPath: "/Users/rujulw/Music/alpha.mp3",
+      },
+    });
+
+    const { loadPlaybackTrack } = await import("./desktop");
+    const payload = await loadPlaybackTrack("track-1");
+
+    expect(invokeMock).toHaveBeenCalledWith("load_playback_track", { trackId: "track-1" });
+    expect(payload?.source.assetUrl).toContain("asset://localhost/");
+    expect(payload?.playback.trackTitle).toBe("Alpha");
+  });
+
   it("describes the rust playback migration contract through the command bridge", async () => {
     invokeMock.mockResolvedValueOnce({
       currentOwner: "frontend-audio-element during v1 baseline",

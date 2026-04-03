@@ -30,6 +30,8 @@ Playback controls live in a persistent bottom bar with clear transport actions, 
 
 The current v1 shell still renders playback from a frontend-owned audio path, but the `v1.1.0` direction is now explicit: Rust should own the transport truth and the shell should react to backend playback snapshots rather than inventing a parallel client-only playback model.
 
+The first implementation slice of that change is now in place: track loading and play/pause state can already come from the backend runtime, while the current audio element still handles output and timing until the next playback migration slice lands.
+
 ### Queue
 
 Queue management should be explicit and deterministic. Users should always understand what plays next and why. The current baseline derives next-up behavior from the playback-order snapshot created when playback starts, so searching or filtering the tracks view does not silently redefine the queue. The active queue view should also give the current track enough visual weight to feel like a player, including larger artwork for the now-playing item.

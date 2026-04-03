@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const bootstrapAppMock = vi.fn();
 const getShellStateMock = vi.fn();
+const loadPlaybackTrackMock = vi.fn();
 const queryLibraryMock = vi.fn();
 const pickLibraryDirectoryMock = vi.fn();
 const playbackActionMock = vi.fn();
@@ -16,6 +17,7 @@ const mockAudioInstances: MockAudio[] = [];
 vi.mock("./desktop", () => ({
   bootstrapApp: () => bootstrapAppMock(),
   getShellState: () => getShellStateMock(),
+  loadPlaybackTrack: (...args: unknown[]) => loadPlaybackTrackMock(...args),
   pickLibraryDirectory: (...args: unknown[]) => pickLibraryDirectoryMock(...args),
   queryLibrary: (...args: unknown[]) => queryLibraryMock(...args),
   playbackAction: (...args: unknown[]) => playbackActionMock(...args),
@@ -84,9 +86,22 @@ type DeferredLibraryPage = {
 };
 
 describe("app shell smoke checks", () => {
+  let mockBackendPlayback: {
+    statusLabel: string;
+    transportLabel: string;
+    progressSeconds: number;
+    durationSeconds: number;
+    isPlaying: boolean;
+    trackId: string | null;
+    trackTitle: string | null;
+    trackArtist: string | null;
+    trackAlbum: string | null;
+  };
+
   beforeEach(() => {
     bootstrapAppMock.mockReset();
     getShellStateMock.mockReset();
+    loadPlaybackTrackMock.mockReset();
     queryLibraryMock.mockReset();
     pickLibraryDirectoryMock.mockReset();
     playbackActionMock.mockReset();
@@ -94,6 +109,17 @@ describe("app shell smoke checks", () => {
     resolveTrackPlaybackSourceMock.mockReset();
     scanLocalLibraryMock.mockReset();
     mockAudioInstances.length = 0;
+    mockBackendPlayback = {
+      statusLabel: "Nothing playing",
+      transportLabel: "Idle",
+      progressSeconds: 0,
+      durationSeconds: 0,
+      isPlaying: false,
+      trackId: null,
+      trackTitle: null,
+      trackArtist: null,
+      trackAlbum: null,
+    };
     vi.stubGlobal(
       "Audio",
       vi.fn(() => {
@@ -172,6 +198,52 @@ describe("app shell smoke checks", () => {
       localPath: `/Users/rujulw/Music/${trackId}.mp3`,
       assetUrl: `asset://localhost/${trackId}.mp3`,
     }));
+    loadPlaybackTrackMock.mockImplementation(async (trackId: string) => ({
+      playback: (() => {
+        mockBackendPlayback = {
+          statusLabel: "Ready",
+          transportLabel: "Ready",
+          progressSeconds: 0,
+          durationSeconds: trackId === "track-1" ? 182 : 205,
+          isPlaying: false,
+          trackId,
+          trackTitle: trackId === "track-1" ? "Alpha" : "Bravo",
+          trackArtist: trackId === "track-1" ? "North" : "South",
+          trackAlbum: trackId === "track-1" ? "Signals" : "Horizons",
+        };
+        return mockBackendPlayback;
+      })(),
+      source: {
+        trackId,
+        localPath: `/Users/rujulw/Music/${trackId}.mp3`,
+        assetUrl: `asset://localhost/${trackId}.mp3`,
+      },
+    }));
+    playbackActionMock.mockImplementation(async (action: "previous" | "toggle" | "next") => {
+      if (action === "toggle") {
+        if (!mockBackendPlayback.trackId) {
+          mockBackendPlayback = {
+            ...mockBackendPlayback,
+            transportLabel: "Play requested",
+          };
+          return mockBackendPlayback;
+        }
+
+        mockBackendPlayback = {
+          ...mockBackendPlayback,
+          isPlaying: !mockBackendPlayback.isPlaying,
+          statusLabel: !mockBackendPlayback.isPlaying ? "Playing" : "Ready",
+          transportLabel: !mockBackendPlayback.isPlaying ? "Playing" : "Paused",
+        };
+        return mockBackendPlayback;
+      }
+
+      mockBackendPlayback = {
+        ...mockBackendPlayback,
+        transportLabel: action === "previous" ? "Previous unavailable" : "Next unavailable",
+      };
+      return mockBackendPlayback;
+    });
     resolveArtworkSourceMock.mockImplementation(async (artworkKey: string) => ({
       artworkKey,
       localPath: `/Users/rujulw/Library/Application Support/resona/artwork/${artworkKey}`,
@@ -534,7 +606,7 @@ describe("app shell smoke checks", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Select Alpha" }));
 
     await waitFor(() => {
-      expect(resolveTrackPlaybackSourceMock).toHaveBeenCalledWith("track-1");
+      expect(loadPlaybackTrackMock).toHaveBeenCalledWith("track-1");
       expect(screen.getByRole("button", { name: "Pause playback" })).toBeTruthy();
     });
 
@@ -545,7 +617,7 @@ describe("app shell smoke checks", () => {
     firstAudio.dispatchEvent(new Event("ended"));
 
     await waitFor(() => {
-      expect(resolveTrackPlaybackSourceMock).toHaveBeenCalledWith("track-2");
+      expect(loadPlaybackTrackMock).toHaveBeenCalledWith("track-2");
       expect(screen.getAllByText("Bravo").length).toBeGreaterThan(0);
       expect(screen.getByRole("button", { name: "Pause playback" })).toBeTruthy();
     });
@@ -876,18 +948,49 @@ describe("app shell smoke checks", () => {
     window.history.replaceState({}, "", "/tracks");
 
     let resolveAlpha: ((value: DeferredPlaybackSource) => void) | undefined;
-    resolveTrackPlaybackSourceMock.mockImplementation(
+    loadPlaybackTrackMock.mockImplementation(
       (trackId: string) =>
-        new Promise<DeferredPlaybackSource>((resolve) => {
+        new Promise<{ playback: Record<string, unknown>; source: DeferredPlaybackSource }>((resolve) => {
           if (trackId === "track-1") {
-            resolveAlpha = resolve;
+            resolveAlpha = (value) =>
+              resolve({
+                playback: {
+                  ...(mockBackendPlayback = {
+                    statusLabel: "Ready",
+                    transportLabel: "Ready",
+                    progressSeconds: 0,
+                    durationSeconds: 182,
+                    isPlaying: false,
+                    trackId: "track-1",
+                    trackTitle: "Alpha",
+                    trackArtist: "North",
+                    trackAlbum: "Signals",
+                  }),
+                },
+                source: value,
+              });
             return;
           }
 
           resolve({
-            trackId,
-            localPath: `/Users/rujulw/Music/${trackId}.mp3`,
-            assetUrl: `asset://localhost/${trackId}.mp3`,
+            playback: {
+              ...(mockBackendPlayback = {
+                statusLabel: "Ready",
+                transportLabel: "Ready",
+                progressSeconds: 0,
+                durationSeconds: 205,
+                isPlaying: false,
+                trackId,
+                trackTitle: "Bravo",
+                trackArtist: "South",
+                trackAlbum: "Horizons",
+              }),
+            },
+            source: {
+              trackId,
+              localPath: `/Users/rujulw/Music/${trackId}.mp3`,
+              assetUrl: `asset://localhost/${trackId}.mp3`,
+            },
           });
         }),
     );

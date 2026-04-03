@@ -67,6 +67,11 @@ export type PlaybackSource = {
   assetUrl: string;
 };
 
+export type LoadedPlaybackTrackPayload = {
+  playback: PlaybackShellState;
+  source: PlaybackSource;
+};
+
 export type ArtworkSource = {
   artworkKey: string;
   localPath: string;
@@ -207,6 +212,41 @@ export async function getShellState(): Promise<ShellStatePayload> {
     return await invoke<ShellStatePayload>("get_shell_state");
   } catch {
     return browserShellStatePayload;
+  }
+}
+
+export async function loadPlaybackTrack(
+  trackId: string,
+): Promise<LoadedPlaybackTrackPayload | null> {
+  try {
+    const payload = await invoke<{
+      playback: PlaybackShellState;
+      source: { trackId: string; localPath: string };
+    }>("load_playback_track", { trackId });
+
+    return {
+      playback: payload.playback,
+      source: {
+        trackId: payload.source.trackId,
+        localPath: payload.source.localPath,
+        assetUrl: convertFileSrc(payload.source.localPath),
+      },
+    };
+  } catch {
+    const source = await resolveTrackPlaybackSource(trackId);
+    if (!source) {
+      return null;
+    }
+
+    return {
+      playback: {
+        ...browserShellStatePayload.playback,
+        statusLabel: "Ready",
+        transportLabel: "Ready",
+        trackId,
+      },
+      source,
+    };
   }
 }
 

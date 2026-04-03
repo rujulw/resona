@@ -3,10 +3,10 @@ import { useEffect, useRef, useState } from "react";
 import {
   bootstrapApp,
   getShellState,
+  loadPlaybackTrack,
   pickLibraryDirectory,
   playbackAction,
   queryLibrary,
-  resolveTrackPlaybackSource,
   scanLocalLibrary,
   type TrackListItem,
 } from "../desktop";
@@ -141,28 +141,6 @@ export function useAppShell() {
       }));
     };
 
-    const handlePlay = () => {
-      syncPlayback((existing) => ({
-        ...existing,
-        statusLabel: "Playing",
-        transportLabel: "Playing",
-        isPlaying: true,
-      }));
-    };
-
-    const handlePause = () => {
-      if (audio.ended) {
-        return;
-      }
-
-      syncPlayback((existing) => ({
-        ...existing,
-        statusLabel: existing.trackTitle ? "Paused" : existing.statusLabel,
-        transportLabel: existing.trackTitle ? "Paused" : existing.transportLabel,
-        isPlaying: false,
-      }));
-    };
-
     const handleEnded = () => {
       const activeTrackId = activeTrackIdRef.current;
       const activeIndex = activeTrackId
@@ -181,13 +159,15 @@ export function useAppShell() {
         return;
       }
 
-      syncPlayback((existing) => ({
-        ...existing,
-        statusLabel: existing.trackTitle ? "Ended" : existing.statusLabel,
-        transportLabel: existing.trackTitle ? "Ended" : existing.transportLabel,
-        progressSeconds: existing.durationSeconds,
-        isPlaying: false,
-      }));
+      void playbackAction("toggle").then(() => {
+        syncPlayback((existing) => ({
+          ...existing,
+          statusLabel: existing.trackTitle ? "Ended" : existing.statusLabel,
+          transportLabel: existing.trackTitle ? "Ended" : existing.transportLabel,
+          progressSeconds: existing.durationSeconds,
+          isPlaying: false,
+        }));
+      });
     };
 
     const handleError = () => {
@@ -201,8 +181,6 @@ export function useAppShell() {
 
     audio.addEventListener("loadedmetadata", handleLoadedMetadata);
     audio.addEventListener("timeupdate", handleTimeUpdate);
-    audio.addEventListener("play", handlePlay);
-    audio.addEventListener("pause", handlePause);
     audio.addEventListener("ended", handleEnded);
     audio.addEventListener("error", handleError);
 
@@ -214,8 +192,6 @@ export function useAppShell() {
       }
       audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
       audio.removeEventListener("timeupdate", handleTimeUpdate);
-      audio.removeEventListener("play", handlePlay);
-      audio.removeEventListener("pause", handlePause);
       audio.removeEventListener("ended", handleEnded);
       audio.removeEventListener("error", handleError);
       audioRef.current = null;
@@ -337,62 +313,61 @@ export function useAppShell() {
 
     if (action === "toggle") {
       if (audio && shellState?.playback.trackId && audio.src) {
-        if (audio.paused) {
-          void audio
-            .play()
-            .then(() => {
-              setShellState((existing) => {
-                if (!existing) {
-                  return existing;
-                }
+        void playbackAction("toggle").then((playback) => {
+          if (playback.isPlaying) {
+            void audio
+              .play()
+              .then(() => {
+                setShellState((existing) => {
+                  if (!existing) {
+                    return existing;
+                  }
 
-                return {
-                  ...existing,
-                  playback: {
-                    ...existing.playback,
-                    statusLabel: "Playing",
-                    transportLabel: "Playing",
-                    isPlaying: true,
-                  },
-                };
-              });
-            })
-            .catch(() => {
-              setShellState((existing) => {
-                if (!existing) {
-                  return existing;
-                }
+                  return {
+                    ...existing,
+                    playback: {
+                      ...existing.playback,
+                      ...playback,
+                    },
+                  };
+                });
+              })
+              .catch(() => {
+                void playbackAction("toggle").then(() => {
+                  setShellState((existing) => {
+                    if (!existing) {
+                      return existing;
+                    }
 
-                return {
-                  ...existing,
-                  playback: {
-                    ...existing.playback,
-                    statusLabel: "Error",
-                    transportLabel: "Playback blocked",
-                    isPlaying: false,
-                  },
-                };
+                    return {
+                      ...existing,
+                      playback: {
+                        ...existing.playback,
+                        statusLabel: "Error",
+                        transportLabel: "Playback blocked",
+                        isPlaying: false,
+                      },
+                    };
+                  });
+                });
               });
+          } else {
+            audio.pause();
+            setShellState((existing) => {
+              if (!existing) {
+                return existing;
+              }
+
+              return {
+                ...existing,
+                playback: {
+                  ...existing.playback,
+                  ...playback,
+                },
+              };
             });
-        } else {
-          audio.pause();
-          setShellState((existing) => {
-            if (!existing) {
-              return existing;
-            }
-
-            return {
-              ...existing,
-              playback: {
-                ...existing.playback,
-                statusLabel: "Paused",
-                transportLabel: "Paused",
-                isPlaying: false,
-              },
-            };
-          });
-        }
-
+          }
+        });
         return;
       }
 
@@ -472,12 +447,12 @@ export function useAppShell() {
       };
     });
 
-    void resolveTrackPlaybackSource(track.id).then((source) => {
+    void loadPlaybackTrack(track.id).then((payload) => {
       if (playbackRequestIdRef.current != requestId) {
         return;
       }
 
-      if (!source) {
+      if (!payload) {
         setShellState((existing) => {
           if (!existing || existing.playback.trackId !== track.id) {
             return existing;
@@ -501,25 +476,27 @@ export function useAppShell() {
       }
 
       audio.pause();
-      audio.src = source.assetUrl;
+      audio.src = payload.source.assetUrl;
       audio.currentTime = 0;
 
-      if (!autoplay) {
-        setShellState((existing) => {
-          if (!existing || existing.playback.trackId !== track.id) {
-            return existing;
-          }
+      setShellState((existing) => {
+        if (!existing || payload.playback.trackId !== track.id) {
+          return existing;
+        }
 
-          return {
-            ...existing,
-            playback: {
-              ...existing.playback,
-              statusLabel: "Ready",
-              transportLabel: "Ready",
-              isPlaying: false,
-            },
-          };
-        });
+        return {
+          ...existing,
+          playback: {
+            ...existing.playback,
+            ...payload.playback,
+            trackTitle: payload.playback.trackTitle ?? track.title,
+            trackArtist: payload.playback.trackArtist ?? track.artist,
+            trackAlbum: payload.playback.trackAlbum ?? track.album,
+          },
+        };
+      });
+
+      if (!autoplay) {
         return;
       }
 
@@ -530,20 +507,24 @@ export function useAppShell() {
             return;
           }
 
-          setShellState((existing) => {
-            if (!existing || existing.playback.trackId !== track.id) {
-              return existing;
+          void playbackAction("toggle").then((playback) => {
+            if (playbackRequestIdRef.current != requestId) {
+              return;
             }
 
-            return {
-              ...existing,
-              playback: {
-                ...existing.playback,
-                statusLabel: "Playing",
-                transportLabel: "Playing",
-                isPlaying: true,
-              },
-            };
+            setShellState((existing) => {
+              if (!existing || existing.playback.trackId !== track.id) {
+                return existing;
+              }
+
+              return {
+                ...existing,
+                playback: {
+                  ...existing.playback,
+                  ...playback,
+                },
+              };
+            });
           });
         })
         .catch(() => {

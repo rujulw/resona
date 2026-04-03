@@ -9,7 +9,7 @@ use crate::database::{schema, AppDatabase};
 
 use super::models::{
     ArtworkSource, LibraryCursor, LibraryPage, LibraryQuery, LibraryRootRecord, NormalizedTrack,
-    PersistedLibrarySummary, PlaybackSource, ScanError, ScanSummary,
+    PersistedLibrarySummary, PlaybackSource, ResolvedPlaybackTrack, ScanError, ScanSummary,
 };
 use super::normalization::{build_library_root, discover_mp3_files, normalize_track};
 use super::query::{
@@ -179,6 +179,43 @@ impl LocalLibraryScanner {
             track_id: track_id.to_owned(),
             local_path,
         }))
+    }
+
+    pub fn resolve_playback_track(
+        &self,
+        track_id: &str,
+    ) -> Result<Option<ResolvedPlaybackTrack>, ScanError> {
+        let connection = self.app_database.connect()?;
+        let mut statement = connection.prepare(
+            "
+            SELECT
+              t.id,
+              t.title,
+              t.artist,
+              t.album,
+              t.duration_seconds,
+              ts.local_path
+            FROM tracks t
+            JOIN track_sources ts ON ts.track_id = t.id
+            WHERE t.id = ?1
+              AND ts.local_path IS NOT NULL
+            LIMIT 1
+            ",
+        )?;
+
+        statement
+            .query_row([track_id], |row| {
+                Ok(ResolvedPlaybackTrack {
+                    track_id: row.get(0)?,
+                    title: row.get(1)?,
+                    artist: row.get(2)?,
+                    album: row.get(3)?,
+                    duration_seconds: row.get(4)?,
+                    local_path: row.get(5)?,
+                })
+            })
+            .optional()
+            .map_err(ScanError::from)
     }
 
     pub fn resolve_artwork_source(

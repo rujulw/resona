@@ -35,6 +35,16 @@ pub struct PlaybackSource {
     pub local_path: String,
 }
 
+#[derive(Clone, Debug)]
+pub struct ResolvedPlaybackTrack {
+    pub track_id: String,
+    pub title: String,
+    pub artist: Option<String>,
+    pub album: Option<String>,
+    pub duration_seconds: Option<f64>,
+    pub local_path: String,
+}
+
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ArtworkSource {
