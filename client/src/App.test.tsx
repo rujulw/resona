@@ -859,6 +859,33 @@ describe("app shell smoke checks", () => {
     });
   });
 
+  it("renders backend-owned pause snapshots without a local shell playback mutation", async () => {
+    window.history.replaceState({}, "", "/tracks");
+
+    const { default: App } = await import("./App");
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Select Alpha" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Pause playback" })).toBeTruthy();
+    });
+
+    mockBackendPlayback = {
+      ...mockBackendPlayback,
+      isPlaying: false,
+      statusLabel: "Paused",
+      transportLabel: "Paused",
+      progressSeconds: 17,
+    };
+    playbackStateListener?.(mockBackendPlayback);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Play playback" })).toBeTruthy();
+      expect(screen.getByText("0:17")).toBeTruthy();
+    });
+  });
+
   it("restarts the current track when previous is pressed after progress has advanced", async () => {
     window.history.replaceState({}, "", "/tracks");
 
@@ -888,6 +915,55 @@ describe("app shell smoke checks", () => {
       expect(
         screen.getByRole("button", { name: "Select Alpha" }).getAttribute("aria-pressed"),
       ).toBe("true");
+    });
+  });
+
+  it("renders backend-owned ended and error snapshots from backend playback events", async () => {
+    window.history.replaceState({}, "", "/tracks");
+
+    const { default: App } = await import("./App");
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Select Alpha" }));
+
+    await waitFor(() => {
+      expect(mockAudioInstances.length).toBeGreaterThan(0);
+      expect(screen.getByRole("button", { name: "Pause playback" })).toBeTruthy();
+    });
+
+    const audio = mockAudioInstances.at(-1);
+    if (!audio) {
+      throw new Error("Expected a mock audio instance");
+    }
+
+    audio.emitLoadedMetadata(182);
+    audio.emitTimeUpdate(182, 182);
+    mockBackendPlayback = {
+      ...mockBackendPlayback,
+      statusLabel: "Ended",
+      transportLabel: "Ended",
+      progressSeconds: 182,
+      durationSeconds: 182,
+      isPlaying: false,
+    };
+    playbackStateListener?.(mockBackendPlayback);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Play playback" })).toBeTruthy();
+      expect(screen.getAllByText("3:02").length).toBeGreaterThan(0);
+    });
+
+    mockBackendPlayback = {
+      ...mockBackendPlayback,
+      statusLabel: "Error",
+      transportLabel: "Playback error",
+      isPlaying: false,
+    };
+    playbackStateListener?.(mockBackendPlayback);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Play playback" })).toBeTruthy();
+      expect(screen.getAllByText("3:02").length).toBeGreaterThan(0);
     });
   });
 

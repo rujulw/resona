@@ -347,6 +347,38 @@ pub fn playback_action_with_runtime(
     playback_runtime_state.apply_action(action)
 }
 
+#[cfg(test)]
+pub fn sync_playback_timing_with_runtime(
+    playback_runtime_state: &PlaybackRuntimeState,
+    progress_seconds: Option<u32>,
+    duration_seconds: Option<u32>,
+) -> PlaybackSnapshot {
+    playback_runtime_state.sync_timing(progress_seconds, duration_seconds)
+}
+
+#[cfg(test)]
+pub fn seek_playback_with_runtime(
+    playback_runtime_state: &PlaybackRuntimeState,
+    position_seconds: u32,
+) -> PlaybackSnapshot {
+    playback_runtime_state.seek(position_seconds)
+}
+
+#[cfg(test)]
+pub fn complete_playback_with_runtime(
+    playback_runtime_state: &PlaybackRuntimeState,
+) -> PlaybackSnapshot {
+    playback_runtime_state.complete()
+}
+
+#[cfg(test)]
+pub fn report_playback_error_with_runtime(
+    playback_runtime_state: &PlaybackRuntimeState,
+    transport_label: Option<&str>,
+) -> PlaybackSnapshot {
+    playback_runtime_state.report_error(transport_label)
+}
+
 #[tauri::command]
 pub fn sync_playback_timing(
     app_handle: AppHandle,
@@ -405,9 +437,12 @@ mod tests {
 
     use super::{
         bootstrap_app, build_shell_state, build_shell_state_with_playback,
-        describe_playback_contract, load_playback_track_with_database, playback_action_with_runtime,
+        complete_playback_with_runtime, describe_playback_contract,
+        load_playback_track_with_database, playback_action_with_runtime,
         playback_state_for_action, query_library_with_database,
+        report_playback_error_with_runtime, seek_playback_with_runtime,
         resolve_track_playback_source_with_database, scan_local_library_with_database, DatabaseState,
+        sync_playback_timing_with_runtime,
     };
     use crate::database::AppDatabase;
     use crate::playback::PlaybackRuntimeState;
@@ -629,5 +664,59 @@ mod tests {
         let toggled = playback_action_with_runtime(&playback_runtime_state, "toggle");
         assert!(toggled.is_playing);
         assert_eq!(toggled.status_label, "Playing");
+    }
+
+    #[test]
+    fn playback_runtime_commands_cover_backend_owned_state_sync() {
+        let database_state = test_database_state();
+        let playback_runtime_state = PlaybackRuntimeState::default();
+        let root = std::env::temp_dir().join(unique_test_suffix("resona-playback-sync"));
+
+        std::fs::create_dir_all(root.join("disc")).expect("directories should be created");
+        std::fs::File::create(root.join("disc").join("alpha.mp3"))
+            .expect("track should be created");
+
+        scan_local_library_with_database(
+            &database_state.app_database,
+            &root.display().to_string(),
+            Some("portfolio"),
+        )
+        .expect("scan should succeed");
+
+        let page = query_library_with_database(
+            &database_state.app_database,
+            Some(10),
+            None,
+            None,
+            Some("title".to_owned()),
+            Some("asc".to_owned()),
+        )
+        .expect("query should succeed");
+
+        load_playback_track_with_database(
+            &database_state.app_database,
+            &playback_runtime_state,
+            &page.items[0].id,
+        )
+        .expect("load should succeed");
+
+        let timed = sync_playback_timing_with_runtime(&playback_runtime_state, Some(33), Some(182));
+        assert_eq!(timed.progress_seconds, 33);
+        assert_eq!(timed.duration_seconds, 182);
+
+        let seeked = seek_playback_with_runtime(&playback_runtime_state, 12);
+        assert_eq!(seeked.progress_seconds, 12);
+        assert_eq!(seeked.transport_label, "Paused");
+
+        let failed = report_playback_error_with_runtime(
+            &playback_runtime_state,
+            Some("Playback blocked"),
+        );
+        assert_eq!(failed.status_label, "Error");
+        assert_eq!(failed.transport_label, "Playback blocked");
+
+        let completed = complete_playback_with_runtime(&playback_runtime_state);
+        assert_eq!(completed.status_label, "Ended");
+        assert_eq!(completed.progress_seconds, 182);
     }
 }
