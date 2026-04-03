@@ -34,6 +34,8 @@ Track loading, play/pause, seek, ended, and playback-error transitions should no
 
 This leaves one clear boundary for later slices: if native output eventually moves deeper into Rust, the command/event contract can stay stable because the shell is already no longer the transport source of truth.
 
+That is now the intended `v1.2.0` direction: move playback output into Rust while keeping the React shell fully responsible for the visible playback UI. Native output should reduce the webview's responsibility, but it should not reduce the product's ability to ship a custom progress bar, queue view, artwork treatment, or transport layout.
+
 ### Queue
 
 Queue management should be explicit and deterministic. Users should always understand what plays next and why. The current baseline derives next-up behavior from the playback-order snapshot created when playback starts, so searching or filtering the tracks view does not silently redefine the queue. The active queue view should also give the current track enough visual weight to feel like a player, including larger artwork for the now-playing item.
@@ -65,6 +67,7 @@ Track insights from timbre should appear in secondary detail surfaces such as a 
 - The analysis subsystem is planned to be fused from the local `~/dev/timbre` project behind an internal service boundary after v1 ships
 - Local library onboarding should use a desktop directory picker and recursive MP3 discovery instead of asking the user to paste filesystem paths
 - Public `v1.0.0` used a Web Audio path for faster delivery, while `v1.1.0` now moves playback authority into Rust and leaves native output depth as a follow-up decision
+- Native output for `v1.2.0` should use a Rust-local stack centered on `symphonia` decode and `cpal` device output while preserving the existing shell-facing playback contract
 - Playback-critical source resolution and library persistence flows are owned by Rust to reduce frontend complexity
 - The app remains open source even when used with private Atlas-backed media libraries
 - The desktop client should use a persistent routed shell so home, tracks, queue, and settings share the same navigation and playback frame

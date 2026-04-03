@@ -78,7 +78,7 @@ Build a private, performance-first music player that feels closer to a system ut
 - Desktop shell: Tauri
 - Core engine: Rust
 - Database: SQLite
-- Audio path: Web Audio in public `v1.0.0`, Rust-owned playback targeted for `v1.1.0`
+- Audio path: Web Audio in public `v1.0.0`, Rust-owned playback state in `v1.1.0`, native Rust output targeted for `v1.2.0`
 - Remote storage: Atlas integration deferred until `v3.0.0`
 - Analysis engine: `timbre` integration deferred until `v2.0.0`
 
@@ -114,6 +114,36 @@ Current implementation status:
 - `get_shell_state` now reflects backend playback snapshots instead of only hard-coded idle defaults
 - The frontend still provides the active audio output path and progress/time updates for now
 - Queue advancement and progress broadcasting remain follow-up `v1.1.0` slices
+
+## v1.2.0 Native Output Direction
+
+The next playback branch should move audio output itself into Rust while keeping the current shell contract stable.
+
+Chosen stack:
+
+- `symphonia` for local decode and metadata-friendly format parsing
+- `cpal` for device output
+- a small `playback` runtime-owned buffering layer in Rust rather than a browser `Audio` element
+
+Why this stack:
+
+- `symphonia` keeps decode ownership in Rust and fits the local-file-first roadmap cleanly
+- `cpal` keeps output cross-platform enough that a later iOS-oriented Rust core is still plausible
+- the current Tauri command/event contract can remain the same while the output engine behind it changes
+
+Constraints recorded up front:
+
+- scope `v1.2.0` to local-file playback first; do not mix remote streaming into the native-output milestone
+- preserve the React playback UI so custom transport, progress, queue, and artwork surfaces stay fully app-defined
+- keep queue and playback-state authority in Rust; the shell should only render snapshots and dispatch intent
+- benchmark memory before and after the switch instead of assuming native output is automatically lighter
+- defer gapless playback, EQ, DSP, and advanced output-device UX until after native output is stable
+
+Expected result:
+
+- the `localhost:1420` process should stop owning active audio execution
+- frontend memory pressure from playback should become less significant
+- playback lifecycle behavior should become more deterministic on desktop
 
 ## MVP Subsystems
 

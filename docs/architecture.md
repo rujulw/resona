@@ -57,6 +57,7 @@ The current Rust structure is organized around service ownership rather than aro
 - Defines the event surface that will broadcast playback and queue snapshots back to the frontend shell
 - Keeps playback ownership decisions explicit before the runtime implementation lands
 - Now also owns the first in-memory playback runtime for loaded-track and play/pause authority
+- Will own the native output stack in `v1.2.0`, with `symphonia` handling decode and `cpal` handling device output
 
 ### `library`
 
@@ -127,6 +128,16 @@ The backend is intentionally split so each layer has a clear responsibility boun
 - The `playback` Rust module is now the source of truth for loaded-track identity, play/pause state, timing updates, completion state, and playback errors
 - The frontend dispatches user intent and renders backend snapshots through Tauri commands and `playback://state-changed`
 - Queue state is still shell-derived today, but the ownership boundary is now narrow enough to move queue authority into Rust without changing the visible client contract
+
+### Native Output Decision For `v1.2.0`
+
+- Keep the current Tauri playback command and event contract as the public shell boundary
+- Replace the frontend-owned `Audio` element output path with a Rust-native output engine
+- Use `symphonia` for decode and format parsing of local files
+- Use `cpal` for audio device output
+- Keep the first native-output milestone local-file only so memory, buffering, and seek behavior can be validated without Atlas/cache complexity layered on top
+
+This is intentionally a backend-engine swap behind an already defined shell contract, not a UI rewrite.
 
 Current implemented boundary:
 
@@ -223,6 +234,12 @@ Current implementation slice:
 - `playback_action` now flips backend play/pause state for an already loaded track instead of returning a static placeholder payload
 - `sync_playback_timing`, `seek_playback`, `complete_playback`, and `report_playback_error` let the frontend audio element report media lifecycle facts back to the backend runtime without reclaiming playback authority
 - `playback://state-changed` now keeps the shell aligned to backend-owned playback snapshots instead of relying on local promise timing
+
+Planned `v1.2.0` slice:
+
+- move decode and output into Rust so the frontend no longer hosts active audio execution
+- keep playback state snapshots and intent commands stable so the shell remains a customizable renderer/controller
+- measure the native-output branch against the webview-output baseline before claiming a lightweight-runtime win
 
 Current frontend playback baseline:
 
