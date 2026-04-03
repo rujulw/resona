@@ -87,7 +87,7 @@ export type LibraryPagePayload = {
 
 const browserBootstrapPayload: BootstrapPayload = {
   appName: "resona",
-  appVersion: "0.1.0",
+  appVersion: "1.0.1",
   windowTitle: "resona",
   platform: "browser",
   runtime: {
