@@ -347,6 +347,51 @@ pub fn playback_action_with_runtime(
     playback_runtime_state.apply_action(action)
 }
 
+#[tauri::command]
+pub fn sync_playback_timing(
+    app_handle: AppHandle,
+    playback_runtime_state: State<'_, PlaybackRuntimeState>,
+    progress_seconds: Option<u32>,
+    duration_seconds: Option<u32>,
+) -> Result<PlaybackSnapshot, String> {
+    let snapshot =
+        playback_runtime_state.sync_timing(progress_seconds, duration_seconds);
+    emit_playback_state(&app_handle, &snapshot).map_err(|error| error.to_string())?;
+    Ok(snapshot)
+}
+
+#[tauri::command]
+pub fn seek_playback(
+    app_handle: AppHandle,
+    playback_runtime_state: State<'_, PlaybackRuntimeState>,
+    position_seconds: u32,
+) -> Result<PlaybackSnapshot, String> {
+    let snapshot = playback_runtime_state.seek(position_seconds);
+    emit_playback_state(&app_handle, &snapshot).map_err(|error| error.to_string())?;
+    Ok(snapshot)
+}
+
+#[tauri::command]
+pub fn complete_playback(
+    app_handle: AppHandle,
+    playback_runtime_state: State<'_, PlaybackRuntimeState>,
+) -> Result<PlaybackSnapshot, String> {
+    let snapshot = playback_runtime_state.complete();
+    emit_playback_state(&app_handle, &snapshot).map_err(|error| error.to_string())?;
+    Ok(snapshot)
+}
+
+#[tauri::command]
+pub fn report_playback_error(
+    app_handle: AppHandle,
+    playback_runtime_state: State<'_, PlaybackRuntimeState>,
+    transport_label: Option<String>,
+) -> Result<PlaybackSnapshot, String> {
+    let snapshot = playback_runtime_state.report_error(transport_label.as_deref());
+    emit_playback_state(&app_handle, &snapshot).map_err(|error| error.to_string())?;
+    Ok(snapshot)
+}
+
 #[cfg(test)]
 pub fn playback_state_for_action(action: &str) -> PlaybackSnapshot {
     let runtime = PlaybackRuntimeState::default();
@@ -444,9 +489,10 @@ mod tests {
             payload.runtime_boundary,
             "tauri commands mutate playback runtime and tauri events broadcast playback snapshots"
         );
-        assert_eq!(payload.commands.len(), 5);
+        assert_eq!(payload.commands.len(), 8);
         assert_eq!(payload.events.len(), 2);
         assert_eq!(payload.commands[0].name, "load_playback_track");
+        assert_eq!(payload.commands[3].name, "sync_playback_timing");
         assert_eq!(payload.events[0].name, "playback://state-changed");
     }
 

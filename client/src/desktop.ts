@@ -178,6 +178,34 @@ const browserPlaybackContractPayload: PlaybackContractPayload = {
       responseShape: "PlaybackSnapshot",
       authority: "rust playback runtime",
     },
+    {
+      name: "seek_playback",
+      summary: "Move the active playback position to an explicit second offset.",
+      requestShape: "{ positionSeconds }",
+      responseShape: "PlaybackSnapshot",
+      authority: "rust playback runtime",
+    },
+    {
+      name: "sync_playback_timing",
+      summary: "Report renderer-observed playback timing back into the backend snapshot.",
+      requestShape: "{ progressSeconds?, durationSeconds? }",
+      responseShape: "PlaybackSnapshot",
+      authority: "rust playback runtime",
+    },
+    {
+      name: "complete_playback",
+      summary: "Mark the active playback item as ended when the renderer reaches the end.",
+      requestShape: "{}",
+      responseShape: "PlaybackSnapshot",
+      authority: "rust playback runtime",
+    },
+    {
+      name: "report_playback_error",
+      summary: "Record a renderer playback failure without letting the shell invent its own error state.",
+      requestShape: "{ transportLabel? }",
+      responseShape: "PlaybackSnapshot",
+      authority: "rust playback runtime",
+    },
   ],
   events: [
     {
@@ -287,6 +315,61 @@ export async function playbackAction(
     }
 
     return browserShellStatePayload.playback;
+  }
+}
+
+export async function syncPlaybackTiming(
+  progressSeconds?: number,
+  durationSeconds?: number,
+): Promise<PlaybackShellState> {
+  try {
+    return await invoke<PlaybackShellState>("sync_playback_timing", {
+      progressSeconds: progressSeconds ?? null,
+      durationSeconds: durationSeconds ?? null,
+    });
+  } catch {
+    return browserShellStatePayload.playback;
+  }
+}
+
+export async function seekPlayback(positionSeconds: number): Promise<PlaybackShellState> {
+  try {
+    return await invoke<PlaybackShellState>("seek_playback", {
+      positionSeconds,
+    });
+  } catch {
+    return {
+      ...browserShellStatePayload.playback,
+      progressSeconds: positionSeconds,
+    };
+  }
+}
+
+export async function completePlayback(): Promise<PlaybackShellState> {
+  try {
+    return await invoke<PlaybackShellState>("complete_playback");
+  } catch {
+    return {
+      ...browserShellStatePayload.playback,
+      statusLabel: "Ended",
+      transportLabel: "Ended",
+    };
+  }
+}
+
+export async function reportPlaybackError(
+  transportLabel?: string,
+): Promise<PlaybackShellState> {
+  try {
+    return await invoke<PlaybackShellState>("report_playback_error", {
+      transportLabel: transportLabel ?? null,
+    });
+  } catch {
+    return {
+      ...browserShellStatePayload.playback,
+      statusLabel: "Error",
+      transportLabel: transportLabel ?? "Playback error",
+    };
   }
 }
 

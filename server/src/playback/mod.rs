@@ -43,6 +43,7 @@ pub struct PlaybackRuntimeState {
 #[derive(Clone, Debug)]
 struct PlaybackRuntime {
     active_track: Option<ActivePlaybackTrack>,
+    status_label: String,
     progress_seconds: u32,
     is_playing: bool,
     transport_label: String,
@@ -70,6 +71,7 @@ impl Default for PlaybackRuntime {
     fn default() -> Self {
         Self {
             active_track: None,
+            status_label: "Nothing playing".to_owned(),
             progress_seconds: 0,
             is_playing: false,
             transport_label: "Idle".to_owned(),
@@ -133,6 +135,27 @@ pub fn playback_contract() -> PlaybackContract {
                 name: "seek_playback",
                 summary: "Move the active playback position to an explicit second offset.",
                 request_shape: "{ positionSeconds }",
+                response_shape: "PlaybackSnapshot",
+                authority: "rust playback runtime",
+            },
+            PlaybackCommandContract {
+                name: "sync_playback_timing",
+                summary: "Report renderer-observed playback timing back into the backend snapshot.",
+                request_shape: "{ progressSeconds?, durationSeconds? }",
+                response_shape: "PlaybackSnapshot",
+                authority: "rust playback runtime",
+            },
+            PlaybackCommandContract {
+                name: "complete_playback",
+                summary: "Mark the active playback item as ended when the renderer reaches the end.",
+                request_shape: "{}",
+                response_shape: "PlaybackSnapshot",
+                authority: "rust playback runtime",
+            },
+            PlaybackCommandContract {
+                name: "report_playback_error",
+                summary: "Record a renderer playback failure without letting the shell invent its own error state.",
+                request_shape: "{ transportLabel? }",
                 response_shape: "PlaybackSnapshot",
                 authority: "rust playback runtime",
             },
@@ -203,6 +226,42 @@ impl PlaybackRuntimeState {
             .expect("playback runtime lock should not be poisoned");
         runtime.apply_action(action)
     }
+
+    pub fn sync_timing(
+        &self,
+        progress_seconds: Option<u32>,
+        duration_seconds: Option<u32>,
+    ) -> PlaybackSnapshot {
+        let mut runtime = self
+            .inner
+            .lock()
+            .expect("playback runtime lock should not be poisoned");
+        runtime.sync_timing(progress_seconds, duration_seconds)
+    }
+
+    pub fn seek(&self, position_seconds: u32) -> PlaybackSnapshot {
+        let mut runtime = self
+            .inner
+            .lock()
+            .expect("playback runtime lock should not be poisoned");
+        runtime.seek(position_seconds)
+    }
+
+    pub fn complete(&self) -> PlaybackSnapshot {
+        let mut runtime = self
+            .inner
+            .lock()
+            .expect("playback runtime lock should not be poisoned");
+        runtime.complete()
+    }
+
+    pub fn report_error(&self, transport_label: Option<&str>) -> PlaybackSnapshot {
+        let mut runtime = self
+            .inner
+            .lock()
+            .expect("playback runtime lock should not be poisoned");
+        runtime.report_error(transport_label)
+    }
 }
 
 pub fn emit_playback_state(
@@ -216,11 +275,7 @@ impl PlaybackRuntime {
     fn snapshot(&self) -> PlaybackSnapshot {
         match &self.active_track {
             Some(track) => PlaybackSnapshot {
-                status_label: if self.is_playing {
-                    "Playing".to_owned()
-                } else {
-                    "Ready".to_owned()
-                },
+                status_label: self.status_label.clone(),
                 transport_label: self.transport_label.clone(),
                 progress_seconds: self.progress_seconds,
                 duration_seconds: track.duration_seconds,
@@ -231,7 +286,7 @@ impl PlaybackRuntime {
                 track_album: track.album.clone(),
             },
             None => PlaybackSnapshot {
-                status_label: "Nothing playing".to_owned(),
+                status_label: self.status_label.clone(),
                 transport_label: self.transport_label.clone(),
                 progress_seconds: 0,
                 duration_seconds: 0,
@@ -255,6 +310,7 @@ impl PlaybackRuntime {
         };
 
         self.active_track = Some(active_track.clone());
+        self.status_label = "Ready".to_owned();
         self.progress_seconds = 0;
         self.is_playing = false;
         self.transport_label = "Ready".to_owned();
@@ -272,16 +328,19 @@ impl PlaybackRuntime {
         match action {
             "toggle" => {
                 if self.active_track.is_none() {
+                    self.status_label = "Nothing playing".to_owned();
                     self.transport_label = "Play requested".to_owned();
                     return self.snapshot();
                 }
 
                 self.is_playing = !self.is_playing;
-                self.transport_label = if self.is_playing {
-                    "Playing".to_owned()
+                if self.is_playing {
+                    self.status_label = "Playing".to_owned();
+                    self.transport_label = "Playing".to_owned()
                 } else {
-                    "Paused".to_owned()
-                };
+                    self.status_label = "Paused".to_owned();
+                    self.transport_label = "Paused".to_owned()
+                }
                 self.snapshot()
             }
             "previous" => {
@@ -294,6 +353,63 @@ impl PlaybackRuntime {
             }
             _ => self.snapshot(),
         }
+    }
+
+    fn sync_timing(
+        &mut self,
+        progress_seconds: Option<u32>,
+        duration_seconds: Option<u32>,
+    ) -> PlaybackSnapshot {
+        if let Some(progress_seconds) = progress_seconds {
+            self.progress_seconds = progress_seconds;
+        }
+
+        if let (Some(duration_seconds), Some(active_track)) =
+            (duration_seconds, self.active_track.as_mut())
+        {
+            active_track.duration_seconds = duration_seconds;
+        }
+
+        self.snapshot()
+    }
+
+    fn seek(&mut self, position_seconds: u32) -> PlaybackSnapshot {
+        let duration_seconds = self
+            .active_track
+            .as_ref()
+            .map(|track| track.duration_seconds)
+            .unwrap_or(position_seconds);
+        self.progress_seconds = position_seconds.min(duration_seconds);
+        if self.is_playing {
+            self.status_label = "Playing".to_owned();
+            self.transport_label = "Playing".to_owned();
+        } else if self.active_track.is_some() {
+            self.status_label = "Paused".to_owned();
+            self.transport_label = "Paused".to_owned();
+        }
+        self.snapshot()
+    }
+
+    fn complete(&mut self) -> PlaybackSnapshot {
+        if let Some(active_track) = &self.active_track {
+            self.progress_seconds = active_track.duration_seconds;
+            self.is_playing = false;
+            self.status_label = "Ended".to_owned();
+            self.transport_label = "Ended".to_owned();
+        }
+        self.snapshot()
+    }
+
+    fn report_error(&mut self, transport_label: Option<&str>) -> PlaybackSnapshot {
+        if self.active_track.is_some() {
+            self.is_playing = false;
+            self.status_label = "Error".to_owned();
+            self.transport_label = transport_label.unwrap_or("Playback error").to_owned();
+        } else {
+            self.status_label = "Nothing playing".to_owned();
+            self.transport_label = transport_label.unwrap_or("Playback error").to_owned();
+        }
+        self.snapshot()
     }
 }
 
@@ -316,6 +432,8 @@ mod tests {
         assert_eq!(contract.source_resolution_order, vec!["local", "cache", "remote"]);
         assert_eq!(contract.commands[0].name, "load_playback_track");
         assert_eq!(contract.commands[1].name, "playback_action");
+        assert_eq!(contract.commands[2].name, "seek_playback");
+        assert_eq!(contract.commands[3].name, "sync_playback_timing");
         assert_eq!(contract.events[0].name, PLAYBACK_STATE_CHANGED_EVENT);
         assert_eq!(contract.events[1].name, PLAYBACK_QUEUE_CHANGED_EVENT);
     }

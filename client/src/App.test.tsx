@@ -9,6 +9,10 @@ const loadPlaybackTrackMock = vi.fn();
 const queryLibraryMock = vi.fn();
 const pickLibraryDirectoryMock = vi.fn();
 const playbackActionMock = vi.fn();
+const syncPlaybackTimingMock = vi.fn();
+const seekPlaybackMock = vi.fn();
+const completePlaybackMock = vi.fn();
+const reportPlaybackErrorMock = vi.fn();
 const subscribePlaybackStateMock = vi.fn();
 const resolveArtworkSourceMock = vi.fn();
 const resolveTrackPlaybackSourceMock = vi.fn();
@@ -22,6 +26,10 @@ vi.mock("./desktop", () => ({
   pickLibraryDirectory: (...args: unknown[]) => pickLibraryDirectoryMock(...args),
   queryLibrary: (...args: unknown[]) => queryLibraryMock(...args),
   playbackAction: (...args: unknown[]) => playbackActionMock(...args),
+  syncPlaybackTiming: (...args: unknown[]) => syncPlaybackTimingMock(...args),
+  seekPlayback: (...args: unknown[]) => seekPlaybackMock(...args),
+  completePlayback: (...args: unknown[]) => completePlaybackMock(...args),
+  reportPlaybackError: (...args: unknown[]) => reportPlaybackErrorMock(...args),
   subscribePlaybackState: (...args: unknown[]) => subscribePlaybackStateMock(...args),
   resolveArtworkSource: (...args: unknown[]) => resolveArtworkSourceMock(...args),
   resolveTrackPlaybackSource: (...args: unknown[]) => resolveTrackPlaybackSourceMock(...args),
@@ -120,6 +128,10 @@ describe("app shell smoke checks", () => {
     queryLibraryMock.mockReset();
     pickLibraryDirectoryMock.mockReset();
     playbackActionMock.mockReset();
+    syncPlaybackTimingMock.mockReset();
+    seekPlaybackMock.mockReset();
+    completePlaybackMock.mockReset();
+    reportPlaybackErrorMock.mockReset();
     subscribePlaybackStateMock.mockReset();
     resolveArtworkSourceMock.mockReset();
     resolveTrackPlaybackSourceMock.mockReset();
@@ -267,6 +279,47 @@ describe("app shell smoke checks", () => {
       mockBackendPlayback = {
         ...mockBackendPlayback,
         transportLabel: action === "previous" ? "Previous unavailable" : "Next unavailable",
+      };
+      playbackStateListener?.(mockBackendPlayback);
+      return mockBackendPlayback;
+    });
+    syncPlaybackTimingMock.mockImplementation(
+      async (progressSeconds?: number, durationSeconds?: number) => {
+        mockBackendPlayback = {
+          ...mockBackendPlayback,
+          progressSeconds: progressSeconds ?? mockBackendPlayback.progressSeconds,
+          durationSeconds: durationSeconds ?? mockBackendPlayback.durationSeconds,
+        };
+        playbackStateListener?.(mockBackendPlayback);
+        return mockBackendPlayback;
+      },
+    );
+    seekPlaybackMock.mockImplementation(async (positionSeconds: number) => {
+      mockBackendPlayback = {
+        ...mockBackendPlayback,
+        progressSeconds: positionSeconds,
+        transportLabel: mockBackendPlayback.isPlaying ? "Playing" : "Paused",
+      };
+      playbackStateListener?.(mockBackendPlayback);
+      return mockBackendPlayback;
+    });
+    completePlaybackMock.mockImplementation(async () => {
+      mockBackendPlayback = {
+        ...mockBackendPlayback,
+        statusLabel: "Ended",
+        transportLabel: "Ended",
+        progressSeconds: mockBackendPlayback.durationSeconds,
+        isPlaying: false,
+      };
+      playbackStateListener?.(mockBackendPlayback);
+      return mockBackendPlayback;
+    });
+    reportPlaybackErrorMock.mockImplementation(async (transportLabel?: string) => {
+      mockBackendPlayback = {
+        ...mockBackendPlayback,
+        statusLabel: "Error",
+        transportLabel: transportLabel ?? "Playback error",
+        isPlaying: false,
       };
       playbackStateListener?.(mockBackendPlayback);
       return mockBackendPlayback;
@@ -802,6 +855,7 @@ describe("app shell smoke checks", () => {
     await waitFor(() => {
       expect(screen.getByText("0:41")).toBeTruthy();
       expect(screen.getAllByText("3:02").length).toBeGreaterThan(0);
+      expect(syncPlaybackTimingMock).toHaveBeenCalled();
     });
   });
 
@@ -830,6 +884,7 @@ describe("app shell smoke checks", () => {
     await waitFor(() => {
       expect(screen.getByText("0:00")).toBeTruthy();
       expect(audio.currentTime).toBe(0);
+      expect(seekPlaybackMock).toHaveBeenCalledWith(0);
       expect(
         screen.getByRole("button", { name: "Select Alpha" }).getAttribute("aria-pressed"),
       ).toBe("true");

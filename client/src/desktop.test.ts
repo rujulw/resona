@@ -92,6 +92,77 @@ describe("desktop bootstrap bridge", () => {
     expect(payload?.playback.trackTitle).toBe("Alpha");
   });
 
+  it("reports timing updates through the playback runtime contract", async () => {
+    invokeMock.mockResolvedValueOnce({
+      statusLabel: "Playing",
+      transportLabel: "Playing",
+      progressSeconds: 41,
+      durationSeconds: 182,
+      isPlaying: true,
+    });
+
+    const { syncPlaybackTiming } = await import("./desktop");
+    const payload = await syncPlaybackTiming(41, 182);
+
+    expect(invokeMock).toHaveBeenCalledWith("sync_playback_timing", {
+      progressSeconds: 41,
+      durationSeconds: 182,
+    });
+    expect(payload.progressSeconds).toBe(41);
+  });
+
+  it("reports explicit seek updates through the playback runtime contract", async () => {
+    invokeMock.mockResolvedValueOnce({
+      statusLabel: "Paused",
+      transportLabel: "Paused",
+      progressSeconds: 0,
+      durationSeconds: 182,
+      isPlaying: false,
+    });
+
+    const { seekPlayback } = await import("./desktop");
+    const payload = await seekPlayback(0);
+
+    expect(invokeMock).toHaveBeenCalledWith("seek_playback", {
+      positionSeconds: 0,
+    });
+    expect(payload.progressSeconds).toBe(0);
+  });
+
+  it("reports playback completion through the backend runtime contract", async () => {
+    invokeMock.mockResolvedValueOnce({
+      statusLabel: "Ended",
+      transportLabel: "Ended",
+      progressSeconds: 182,
+      durationSeconds: 182,
+      isPlaying: false,
+    });
+
+    const { completePlayback } = await import("./desktop");
+    const payload = await completePlayback();
+
+    expect(invokeMock).toHaveBeenCalledWith("complete_playback");
+    expect(payload.transportLabel).toBe("Ended");
+  });
+
+  it("reports playback errors through the backend runtime contract", async () => {
+    invokeMock.mockResolvedValueOnce({
+      statusLabel: "Error",
+      transportLabel: "Playback blocked",
+      progressSeconds: 0,
+      durationSeconds: 182,
+      isPlaying: false,
+    });
+
+    const { reportPlaybackError } = await import("./desktop");
+    const payload = await reportPlaybackError("Playback blocked");
+
+    expect(invokeMock).toHaveBeenCalledWith("report_playback_error", {
+      transportLabel: "Playback blocked",
+    });
+    expect(payload.statusLabel).toBe("Error");
+  });
+
   it("describes the rust playback migration contract through the command bridge", async () => {
     invokeMock.mockResolvedValueOnce({
       currentOwner: "frontend-audio-element during v1 baseline",

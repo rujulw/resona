@@ -1,5 +1,23 @@
 # Bug Log
 
+## 2026-04-03 - Avoided split playback authority between React and the backend runtime
+- Status: fixed
+- Severity: high
+- Symptom: after backend track loading and play/pause landed, the shell still directly owned progress, ended, restart, and playback-error state, which meant UI state could diverge from the Rust runtime during real audio lifecycle events.
+- Root cause: the frontend hook still mutated playback status locally from audio callbacks and transport handlers, so the backend event stream was only part of the playback truth instead of the single authority.
+- Fix: route timing sync, seeks, completion, and playback errors through backend commands, keep `playback://state-changed` as the only playback snapshot ingress into the shell, and reduce the audio element to a renderer/controller that follows backend state.
+- Verification: `cargo test` passes with the expanded playback command surface, and `npm test` passes with bridge and shell coverage for timing sync, restart seeking, and backend-owned playback updates.
+- Files touched:
+  - `server/src/commands.rs`
+  - `server/src/lib.rs`
+  - `client/src/desktop.ts`
+  - `client/src/desktop.test.ts`
+  - `client/src/hooks/useAppShell.ts`
+  - `client/src/App.test.tsx`
+  - `docs/design.md`
+- Linked commit/PR: pending
+- Notes: the shell still hosts the actual webview audio output in this slice, but React no longer decides playback truth on its own.
+
 ## 2026-04-03 - Avoided shell playback drift by emitting backend playback snapshots through Tauri events
 - Status: fixed
 - Severity: high

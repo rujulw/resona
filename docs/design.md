@@ -28,11 +28,11 @@ The working library view is a focused tracks table with an inline search field, 
 
 Playback controls live in a persistent bottom bar with clear transport actions, current track identity, progress, and source or cache status. Core actions should be available with minimal pointer movement, and the selected track in the library should immediately become the active shell track.
 
-The current v1 shell still renders playback from a frontend-owned audio path, but the `v1.1.0` direction is now explicit: Rust should own the transport truth and the shell should react to backend playback snapshots rather than inventing a parallel client-only playback model.
+The current `v1.1.0` migration now treats the shell as a playback renderer/controller rather than the playback authority. Rust owns the transport snapshot, timing updates, completion state, and error labels, while the audio element is reduced to an output adapter that follows backend-owned playback state.
 
-The first implementation slice of that change is now in place: track loading and play/pause state can already come from the backend runtime, while the current audio element still handles output and timing until the next playback migration slice lands.
+Track loading, play/pause, seek, ended, and playback-error transitions should now move through backend commands and come back through named playback events instead of through local React state writes. The shell still hosts the actual audio element for this slice, but it should behave like a renderer that reports media facts upward and follows backend playback instructions back down.
 
-The next implementation step is event-driven shell sync. Once the backend mutates playback state, the shell should hear about it through named Tauri playback events instead of assuming that local promise timing is the same thing as playback truth.
+This leaves one clear boundary for later slices: if native output eventually moves deeper into Rust, the command/event contract can stay stable because the shell is already no longer the transport source of truth.
 
 ### Queue
 
@@ -71,6 +71,7 @@ Track insights from timbre should appear in secondary detail surfaces such as a 
 - The playback bar and queue route should both read from the same active-track state so transport and next-up behavior cannot drift apart
 - The `v1.1.0` playback migration should move command authority to Rust through a narrow Tauri contract and push playback snapshots back to the shell through named events
 - The shell should consume backend playback snapshots through `playback://state-changed` rather than inventing separate client-only transport truth
+- The shell audio element should act as a renderer/controller that reports timing and media errors back to Rust instead of mutating playback state locally
 - The tracks route should feel like one uninterrupted library surface, even if the backend continues to use paged query primitives under the hood
 - Public v1 release readiness should be enforced by automated frontend and backend CI rather than manual spot checks alone
 
