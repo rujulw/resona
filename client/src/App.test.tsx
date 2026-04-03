@@ -105,7 +105,7 @@ describe("app shell smoke checks", () => {
 
     bootstrapAppMock.mockResolvedValue({
       appName: "resona",
-      appVersion: "1.0.1",
+      appVersion: "1.0.2",
       windowTitle: "resona",
       platform: "macos",
       runtime: {
