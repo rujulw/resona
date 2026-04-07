@@ -27,7 +27,7 @@ pub(crate) fn build_library_root(
     }
 }
 
-pub(crate) fn discover_mp3_files(root_path: &Path) -> Result<Vec<PathBuf>, ScanError> {
+pub(crate) fn discover_local_audio_files(root_path: &Path) -> Result<Vec<PathBuf>, ScanError> {
     let mut stack = vec![root_path.to_path_buf()];
     let mut visited_dirs = HashSet::new();
     let mut files = Vec::new();
@@ -52,7 +52,7 @@ pub(crate) fn discover_mp3_files(root_path: &Path) -> Result<Vec<PathBuf>, ScanE
                 continue;
             }
 
-            if file_type.is_file() && is_mp3_file(&path) {
+            if file_type.is_file() && is_supported_audio_file(&path) {
                 files.push(path);
             }
         }
@@ -72,63 +72,65 @@ pub(crate) fn normalize_track(
         .strip_prefix(root_path)?
         .to_string_lossy()
         .replace('\\', "/");
+    let extension = file_path
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .map(|extension| extension.to_ascii_lowercase())
+        .unwrap_or_else(|| "unknown".to_owned());
     let file_name = file_path
         .file_name()
         .and_then(|name| name.to_str())
-        .unwrap_or("unknown.mp3")
+        .unwrap_or("unknown.audio")
         .to_owned();
-    let tag = Tag::read_from_path(file_path).ok();
     let file_stem = file_path
         .file_stem()
         .and_then(|stem| stem.to_str())
         .unwrap_or("unknown");
     let cleaned_file_title = clean_file_stem(file_stem);
-    let normalized_title = preferred_label(
-        tag.as_ref().and_then(|value| value.title()),
-        Some(cleaned_file_title.as_str()),
-    )
-    .unwrap_or_else(|| "Unknown Track".to_owned());
-    let normalized_album_artist =
-        preferred_label(tag.as_ref().and_then(|value| value.album_artist()), None);
-    let normalized_artist = preferred_label(
-        tag.as_ref().and_then(|value| value.artist()),
-        normalized_album_artist.as_deref(),
-    );
     let parent_folder_label = file_path
         .parent()
         .and_then(|parent| parent.strip_prefix(root_path).ok())
         .and_then(|relative_parent| relative_parent.file_name())
         .and_then(|folder| folder.to_str())
         .and_then(|folder| preferred_label(Some(folder), None));
-    let normalized_album = preferred_label(
-        tag.as_ref().and_then(|value| value.album()),
-        parent_folder_label.as_deref(),
+    let metadata_fields = match extension.as_str() {
+        "mp3" => read_mp3_metadata(file_path)?,
+        "flac" => read_flac_metadata(file_path)?,
+        _ => AudioMetadata::default(),
+    };
+    let normalized_title =
+        preferred_label(metadata_fields.title.as_deref(), Some(cleaned_file_title.as_str()))
+            .unwrap_or_else(|| "Unknown Track".to_owned());
+    let normalized_album_artist =
+        preferred_label(metadata_fields.album_artist.as_deref(), None);
+    let normalized_artist = preferred_label(
+        metadata_fields.artist.as_deref(),
+        normalized_album_artist.as_deref(),
     );
-    let duration_seconds = tag
+    let normalized_album =
+        preferred_label(metadata_fields.album.as_deref(), parent_folder_label.as_deref());
+    let artwork_key = metadata_fields
+        .artwork
         .as_ref()
-        .and_then(|value| value.duration())
-        .map(|value| value as f64)
-        .filter(|value| *value > 0.0)
-        .or_else(|| estimate_mp3_duration_seconds(file_path).ok().flatten());
-    let (artwork_key, artwork_bytes) =
-        extract_embedded_artwork(tag.as_ref(), library_root_id, &relative_path);
+        .map(|artwork| build_artwork_key(library_root_id, &relative_path, &artwork.mime_type, &artwork.data));
+    let artwork_bytes = metadata_fields.artwork.map(|artwork| artwork.data);
 
     Ok(NormalizedTrack {
         id: stable_identifier("track", &format!("{library_root_id}:{relative_path}")),
         relative_path,
         file_name,
-        extension: "mp3".to_owned(),
+        extension,
         title: normalized_title,
         artist: normalized_artist,
         album: normalized_album,
         album_artist: normalized_album_artist,
-        genre: tag
-            .as_ref()
-            .and_then(|value| value.genre())
+        genre: metadata_fields
+            .genre
+            .as_deref()
             .and_then(|value| preferred_label(Some(value), None)),
-        track_number: tag.as_ref().and_then(|value| value.track()).map(i64::from),
-        disc_number: tag.as_ref().and_then(|value| value.disc()).map(i64::from),
-        duration_seconds,
+        track_number: metadata_fields.track_number,
+        disc_number: metadata_fields.disc_number,
+        duration_seconds: metadata_fields.duration_seconds,
         artwork_key,
         artwork_bytes,
         file_size_bytes: metadata.len() as i64,
@@ -182,40 +184,30 @@ pub(crate) fn stable_identifier(namespace: &str, value: &str) -> String {
     format!("{namespace}-{:x}", hasher.finalize())
 }
 
-fn is_mp3_file(path: &Path) -> bool {
+fn is_supported_audio_file(path: &Path) -> bool {
     path.extension()
         .and_then(|extension| extension.to_str())
-        .map(|extension| extension.eq_ignore_ascii_case("mp3"))
+        .map(|extension| {
+            extension.eq_ignore_ascii_case("mp3") || extension.eq_ignore_ascii_case("flac")
+        })
         .unwrap_or(false)
 }
 
-fn extract_embedded_artwork(
-    tag: Option<&Tag>,
+fn build_artwork_key(
     library_root_id: &str,
     relative_path: &str,
-) -> (Option<String>, Option<Vec<u8>>) {
-    let Some(tag) = tag else {
-        return (None, None);
-    };
-    let Some(picture) = tag.pictures().next() else {
-        return (None, None);
-    };
-
-    if picture.data.is_empty() {
-        return (None, None);
-    }
-
+    mime_type: &str,
+    picture_data: &[u8],
+) -> String {
     let digest = stable_identifier(
         "artwork",
         &format!(
             "{library_root_id}:{relative_path}:{}",
-            hex_sha256(&picture.data)
+            hex_sha256(picture_data)
         ),
     );
-    let extension = picture_extension(&picture.mime_type);
-    let artwork_key = format!("{digest}.{extension}");
-
-    (Some(artwork_key), Some(picture.data.clone()))
+    let extension = picture_extension(mime_type);
+    format!("{digest}.{extension}")
 }
 
 fn picture_extension(mime_type: &str) -> &'static str {
@@ -232,6 +224,225 @@ fn hex_sha256(bytes: &[u8]) -> String {
     let mut hasher = Sha256::new();
     hasher.update(bytes);
     format!("{:x}", hasher.finalize())
+}
+
+#[derive(Default)]
+struct AudioMetadata {
+    title: Option<String>,
+    artist: Option<String>,
+    album: Option<String>,
+    album_artist: Option<String>,
+    genre: Option<String>,
+    track_number: Option<i64>,
+    disc_number: Option<i64>,
+    duration_seconds: Option<f64>,
+    artwork: Option<EmbeddedArtwork>,
+}
+
+struct EmbeddedArtwork {
+    mime_type: String,
+    data: Vec<u8>,
+}
+
+fn read_mp3_metadata(file_path: &Path) -> Result<AudioMetadata, ScanError> {
+    let tag = Tag::read_from_path(file_path).ok();
+    let duration_seconds = tag
+        .as_ref()
+        .and_then(|value| value.duration())
+        .map(|value| value as f64)
+        .filter(|value| *value > 0.0)
+        .or_else(|| estimate_mp3_duration_seconds(file_path).ok().flatten());
+    let artwork = tag
+        .as_ref()
+        .and_then(|value| value.pictures().next())
+        .filter(|picture| !picture.data.is_empty())
+        .map(|picture| EmbeddedArtwork {
+            mime_type: picture.mime_type.clone(),
+            data: picture.data.clone(),
+        });
+
+    Ok(AudioMetadata {
+        title: tag.as_ref().and_then(|value| value.title()).map(str::to_owned),
+        artist: tag.as_ref().and_then(|value| value.artist()).map(str::to_owned),
+        album: tag.as_ref().and_then(|value| value.album()).map(str::to_owned),
+        album_artist: tag
+            .as_ref()
+            .and_then(|value| value.album_artist())
+            .map(str::to_owned),
+        genre: tag.as_ref().and_then(|value| value.genre()).map(str::to_owned),
+        track_number: tag.as_ref().and_then(|value| value.track()).map(i64::from),
+        disc_number: tag.as_ref().and_then(|value| value.disc()).map(i64::from),
+        duration_seconds,
+        artwork,
+    })
+}
+
+fn read_flac_metadata(file_path: &Path) -> Result<AudioMetadata, ScanError> {
+    let bytes = fs::read(file_path)?;
+    if bytes.len() < 4 || &bytes[0..4] != b"fLaC" {
+        return Ok(AudioMetadata::default());
+    }
+
+    let mut offset = 4usize;
+    let mut metadata = AudioMetadata::default();
+
+    while offset + 4 <= bytes.len() {
+        let header = bytes[offset];
+        let is_last = (header & 0x80) != 0;
+        let block_type = header & 0x7F;
+        let block_length = ((bytes[offset + 1] as usize) << 16)
+            | ((bytes[offset + 2] as usize) << 8)
+            | bytes[offset + 3] as usize;
+        offset += 4;
+
+        if offset + block_length > bytes.len() {
+            break;
+        }
+
+        let block = &bytes[offset..offset + block_length];
+        match block_type {
+            0 => {
+                if let Some(duration_seconds) = parse_flac_streaminfo_duration(block) {
+                    metadata.duration_seconds = Some(duration_seconds);
+                }
+            }
+            4 => {
+                apply_flac_vorbis_comments(block, &mut metadata);
+            }
+            6 => {
+                if metadata.artwork.is_none() {
+                    metadata.artwork = parse_flac_picture(block);
+                }
+            }
+            _ => {}
+        }
+
+        offset += block_length;
+        if is_last {
+            break;
+        }
+    }
+
+    Ok(metadata)
+}
+
+fn parse_flac_streaminfo_duration(block: &[u8]) -> Option<f64> {
+    if block.len() < 18 {
+        return None;
+    }
+
+    let field = u64::from_be_bytes(block[10..18].try_into().ok()?);
+    let sample_rate = ((field >> 44) & 0xFFFFF) as u32;
+    let total_samples = field & ((1u64 << 36) - 1);
+
+    if sample_rate == 0 || total_samples == 0 {
+        return None;
+    }
+
+    Some(total_samples as f64 / sample_rate as f64)
+}
+
+fn apply_flac_vorbis_comments(block: &[u8], metadata: &mut AudioMetadata) {
+    let mut offset = 0usize;
+    let Some(vendor_length) = read_le_u32(block, &mut offset) else {
+        return;
+    };
+    offset = offset.saturating_add(vendor_length as usize);
+    let Some(comment_count) = read_le_u32(block, &mut offset) else {
+        return;
+    };
+
+    for _ in 0..comment_count {
+        let Some(length) = read_le_u32(block, &mut offset) else {
+            return;
+        };
+        let length = length as usize;
+        if offset + length > block.len() {
+            return;
+        }
+        let Ok(comment) = std::str::from_utf8(&block[offset..offset + length]) else {
+            offset += length;
+            continue;
+        };
+        offset += length;
+
+        let Some((key, value)) = comment.split_once('=') else {
+            continue;
+        };
+        let value = value.trim();
+        if value.is_empty() {
+            continue;
+        }
+
+        match key.to_ascii_uppercase().as_str() {
+            "TITLE" => metadata.title = Some(value.to_owned()),
+            "ARTIST" => metadata.artist = Some(value.to_owned()),
+            "ALBUM" => metadata.album = Some(value.to_owned()),
+            "ALBUMARTIST" | "ALBUM_ARTIST" => metadata.album_artist = Some(value.to_owned()),
+            "GENRE" => metadata.genre = Some(value.to_owned()),
+            "TRACKNUMBER" => metadata.track_number = parse_integer_prefix(value),
+            "DISCNUMBER" => metadata.disc_number = parse_integer_prefix(value),
+            _ => {}
+        }
+    }
+}
+
+fn parse_flac_picture(block: &[u8]) -> Option<EmbeddedArtwork> {
+    let mut offset = 0usize;
+    read_be_u32(block, &mut offset)?;
+    let mime_length = read_be_u32(block, &mut offset)? as usize;
+    if offset + mime_length > block.len() {
+        return None;
+    }
+    let mime_type = std::str::from_utf8(&block[offset..offset + mime_length]).ok()?.to_owned();
+    offset += mime_length;
+
+    let description_length = read_be_u32(block, &mut offset)? as usize;
+    offset = offset.checked_add(description_length)?;
+    if offset > block.len() {
+        return None;
+    }
+
+    read_be_u32(block, &mut offset)?;
+    read_be_u32(block, &mut offset)?;
+    read_be_u32(block, &mut offset)?;
+    read_be_u32(block, &mut offset)?;
+
+    let data_length = read_be_u32(block, &mut offset)? as usize;
+    if offset + data_length > block.len() {
+        return None;
+    }
+    let data = block[offset..offset + data_length].to_vec();
+    if data.is_empty() {
+        return None;
+    }
+
+    Some(EmbeddedArtwork { mime_type, data })
+}
+
+fn read_le_u32(bytes: &[u8], offset: &mut usize) -> Option<u32> {
+    if *offset + 4 > bytes.len() {
+        return None;
+    }
+    let value = u32::from_le_bytes(bytes[*offset..*offset + 4].try_into().ok()?);
+    *offset += 4;
+    Some(value)
+}
+
+fn read_be_u32(bytes: &[u8], offset: &mut usize) -> Option<u32> {
+    if *offset + 4 > bytes.len() {
+        return None;
+    }
+    let value = u32::from_be_bytes(bytes[*offset..*offset + 4].try_into().ok()?);
+    *offset += 4;
+    Some(value)
+}
+
+fn parse_integer_prefix(value: &str) -> Option<i64> {
+    value
+        .split('/')
+        .next()
+        .and_then(|segment| segment.trim().parse::<i64>().ok())
 }
 
 fn estimate_mp3_duration_seconds(file_path: &Path) -> Result<Option<f64>, ScanError> {

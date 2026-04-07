@@ -456,7 +456,7 @@ export function useAppShell() {
           message:
             summary.discoveredTracks > 0
               ? `Indexed ${summary.discoveredTracks} track(s) from ${summary.libraryRootName}.`
-              : `Scan finished for ${summary.libraryRootName}, but no MP3 files were found.`,
+              : `Scan finished for ${summary.libraryRootName}, but no supported audio files were found.`,
           lastScan,
         });
         refreshShellState();

@@ -9,7 +9,7 @@ use id3::{Tag, TagLike, Version};
 
 use crate::database::AppDatabase;
 
-use super::normalization::{discover_mp3_files, normalize_track};
+use super::normalization::{discover_local_audio_files, normalize_track};
 use super::{LibraryQuery, LocalLibraryScanner, SortDirection, TrackSortKey};
 
 static TEST_COUNTER: AtomicU64 = AtomicU64::new(0);
@@ -102,18 +102,113 @@ fn build_partial_mp3_bytes() -> Vec<u8> {
     bytes
 }
 
+fn write_test_flac(
+    file_path: &std::path::Path,
+    title: Option<&str>,
+    album: Option<&str>,
+    artist: Option<&str>,
+    include_artwork: bool,
+) {
+    if let Some(parent) = file_path.parent() {
+        fs::create_dir_all(parent).expect("parent directories should be created");
+    }
+
+    let mut bytes = Vec::new();
+    bytes.extend_from_slice(b"fLaC");
+
+    let streaminfo = build_test_flac_streaminfo(44_100, 88_200);
+    bytes.push(0);
+    bytes.extend_from_slice(&(streaminfo.len() as u32).to_be_bytes()[1..]);
+    bytes.extend_from_slice(&streaminfo);
+
+    let comments = build_test_flac_comments(title, album, artist);
+    bytes.push(if include_artwork { 4 } else { 0x84 });
+    bytes.extend_from_slice(&(comments.len() as u32).to_be_bytes()[1..]);
+    bytes.extend_from_slice(&comments);
+
+    if include_artwork {
+        let picture = build_test_flac_picture();
+        bytes.push(0x86);
+        bytes.extend_from_slice(&(picture.len() as u32).to_be_bytes()[1..]);
+        bytes.extend_from_slice(&picture);
+    }
+
+    fs::write(file_path, bytes).expect("test flac should be created");
+}
+
+fn build_test_flac_streaminfo(sample_rate: u32, total_samples: u64) -> Vec<u8> {
+    let mut block = vec![0u8; 34];
+    block[0..2].copy_from_slice(&4096u16.to_be_bytes());
+    block[2..4].copy_from_slice(&4096u16.to_be_bytes());
+    let combined = ((sample_rate as u64) << 44) | (1u64 << 41) | (15u64 << 36) | total_samples;
+    let combined_bytes = combined.to_be_bytes();
+    block[10..18].copy_from_slice(&combined_bytes);
+    block
+}
+
+fn build_test_flac_comments(
+    title: Option<&str>,
+    album: Option<&str>,
+    artist: Option<&str>,
+) -> Vec<u8> {
+    let mut comments = Vec::new();
+    let vendor = b"resona-test";
+    comments.extend_from_slice(&(vendor.len() as u32).to_le_bytes());
+    comments.extend_from_slice(vendor);
+
+    let mut entries = Vec::new();
+    if let Some(title) = title {
+        entries.push(format!("TITLE={title}"));
+    }
+    if let Some(album) = album {
+        entries.push(format!("ALBUM={album}"));
+    }
+    if let Some(artist) = artist {
+        entries.push(format!("ARTIST={artist}"));
+    }
+    entries.push("TRACKNUMBER=7".to_owned());
+    entries.push("DISCNUMBER=1".to_owned());
+
+    comments.extend_from_slice(&(entries.len() as u32).to_le_bytes());
+    for entry in entries {
+        comments.extend_from_slice(&(entry.len() as u32).to_le_bytes());
+        comments.extend_from_slice(entry.as_bytes());
+    }
+    comments
+}
+
+fn build_test_flac_picture() -> Vec<u8> {
+    let mime = b"image/png";
+    let description = b"cover";
+    let data = [137, 80, 78, 71, 13, 10, 26, 10, 1, 2, 3, 4];
+    let mut block = Vec::new();
+    block.extend_from_slice(&3u32.to_be_bytes());
+    block.extend_from_slice(&(mime.len() as u32).to_be_bytes());
+    block.extend_from_slice(mime);
+    block.extend_from_slice(&(description.len() as u32).to_be_bytes());
+    block.extend_from_slice(description);
+    block.extend_from_slice(&64u32.to_be_bytes());
+    block.extend_from_slice(&64u32.to_be_bytes());
+    block.extend_from_slice(&24u32.to_be_bytes());
+    block.extend_from_slice(&0u32.to_be_bytes());
+    block.extend_from_slice(&(data.len() as u32).to_be_bytes());
+    block.extend_from_slice(&data);
+    block
+}
+
 #[test]
-fn discovers_nested_mp3_files_only() {
+fn discovers_nested_supported_audio_files_only() {
     let root = unique_temp_dir();
     let nested = root.join("disc-one");
     fs::create_dir_all(&nested).expect("directories should be created");
     fs::File::create(root.join("track-a.mp3")).expect("mp3 file should be created");
+    fs::File::create(root.join("track-c.flac")).expect("flac file should be created");
     fs::File::create(nested.join("track-b.MP3")).expect("mp3 file should be created");
     fs::File::create(root.join("cover.jpg")).expect("non-mp3 file should be created");
 
-    let discovered = discover_mp3_files(&root).expect("scan should succeed");
+    let discovered = discover_local_audio_files(&root).expect("scan should succeed");
 
-    assert_eq!(discovered.len(), 2);
+    assert_eq!(discovered.len(), 3);
 }
 
 #[test]
@@ -150,6 +245,38 @@ fn normalizes_track_with_audio_duration_fallback_and_embedded_artwork() {
     assert_eq!(track.artist.as_deref(), Some("North"));
     assert!(track.duration_seconds.is_some());
     assert!(track.duration_seconds.expect("duration should exist") > 0.0);
+    assert!(track
+        .artwork_key
+        .as_deref()
+        .is_some_and(|value| value.ends_with(".png")));
+    assert!(track
+        .artwork_bytes
+        .as_ref()
+        .is_some_and(|bytes| !bytes.is_empty()));
+}
+
+#[test]
+fn normalizes_flac_track_with_metadata_duration_and_artwork() {
+    let root = unique_temp_dir();
+    fs::create_dir_all(&root).expect("root should be created");
+    let file_path = root.join("albums/Signal.flac");
+    write_test_flac(
+        &file_path,
+        Some("Signal"),
+        Some("Frames"),
+        Some("North"),
+        true,
+    );
+
+    let track = normalize_track(&root, &file_path, "library-root").expect("track should normalize");
+
+    assert_eq!(track.title, "Signal");
+    assert_eq!(track.album.as_deref(), Some("Frames"));
+    assert_eq!(track.artist.as_deref(), Some("North"));
+    assert_eq!(track.extension, "flac");
+    assert_eq!(track.track_number, Some(7));
+    assert_eq!(track.disc_number, Some(1));
+    assert!(track.duration_seconds.is_some_and(|value| value > 1.9 && value < 2.1));
     assert!(track
         .artwork_key
         .as_deref()
@@ -200,7 +327,7 @@ fn normalizes_track_with_bitrate_based_duration_fallback() {
 
 #[test]
 fn persists_recursive_scan_results_into_sqlite() {
-    let root = create_test_library(&["alpha.mp3", "nested/beta.mp3"]);
+    let root = create_test_library(&["alpha.mp3", "nested/beta.flac"]);
     let database_path = root.join("library.sqlite3");
     let database = AppDatabase::initialize_at(&database_path).expect("db should initialize");
     let scanner = LocalLibraryScanner::new(database);

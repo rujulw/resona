@@ -36,6 +36,17 @@ This leaves one clear boundary for later slices: deeper output/runtime work can 
 
 That remains the direction for later refinement: keep playback output in Rust while the React shell stays fully responsible for the visible playback UI. Native output should not reduce the product's ability to ship a custom progress bar, queue view, artwork treatment, or transport layout.
 
+### Format Compatibility
+
+`v1.2.1` should add FLAC support as a compatibility expansion, not as a UI redesign. A mixed MP3 + FLAC library should still feel like one coherent local collection:
+
+- the tracks table should not split the library into codec-specific views
+- playback controls should behave identically for MP3 and FLAC tracks
+- queue, artwork, album, and artist presentation should stay format-agnostic
+- missing metadata should still degrade gracefully through the same fallback rules the MP3 path already uses
+
+The product goal is "more local libraries work immediately," not "surface audio-format complexity in the UI."
+
 ### Queue
 
 Queue management should be explicit and deterministic. Users should always understand what plays next and why. The current baseline derives next-up behavior from the playback-order snapshot created when playback starts, so searching or filtering the tracks view does not silently redefine the queue. The active queue view should also give the current track enough visual weight to feel like a player, including larger artwork for the now-playing item.
@@ -66,9 +77,11 @@ Track insights from timbre should appear in secondary detail surfaces such as a 
 - Atlas integration is deferred until a later release and should not distort the public v1 local-first UX
 - The analysis subsystem is planned to be fused from the local `~/dev/timbre` project behind an internal service boundary after v1 ships
 - Local library onboarding should use a desktop directory picker and recursive MP3 discovery instead of asking the user to paste filesystem paths
+- Local library onboarding should expand to recursive MP3 + FLAC discovery without changing the visible library workflow
 - Public `v1.0.0` used a Web Audio path for faster delivery, while `v1.2.0` moves playback authority and local desktop output into Rust
 - Further native-output refinement can deepen the Rust-local stack around `symphonia` decode and `cpal` device output while preserving the existing shell-facing playback contract
 - Playback-critical source resolution and library persistence flows are owned by Rust to reduce frontend complexity
+- Format support should remain additive: new local codecs should fit the same normalization, query, and playback shell contracts instead of creating format-specific app modes
 - The app remains open source even when used with private Atlas-backed media libraries
 - The desktop client should use a persistent routed shell so home, tracks, queue, and settings share the same navigation and playback frame
 - The playback bar and queue route should both read from the same active-track state so transport and next-up behavior cannot drift apart

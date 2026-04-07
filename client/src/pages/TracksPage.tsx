@@ -161,15 +161,15 @@ function getEmptyState(libraryPath: string, scanState: ScanState) {
   if (!libraryPath.trim() && !scanState.lastScan) {
     return {
       title: "No local library selected yet.",
-      detail: "Choose a folder in settings to start the first recursive MP3 scan.",
+      detail: "Choose a folder in settings to start the first recursive audio scan.",
     };
   }
 
   if (scanState.lastScan && scanState.lastScan.discoveredTracks === 0) {
     return {
-      title: `No MP3 files found in ${scanState.lastScan.libraryRootName}.`,
+      title: `No audio files found in ${scanState.lastScan.libraryRootName}.`,
       detail:
-        "The recursive scan completed, but that root did not contain any MP3 files in the selected folder tree.",
+        "The recursive scan completed, but that root did not contain any supported audio files in the selected folder tree.",
     };
   }
 

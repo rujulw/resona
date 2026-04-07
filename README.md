@@ -148,7 +148,7 @@ Expected result:
 
 ### Library Engine
 
-Indexes local files from a user-selected directory, scans nested folders for MP3 content, normalizes track records, and exposes searchable/sortable library queries.
+Indexes local files from a user-selected directory, scans nested folders for supported audio content, normalizes track records, and exposes searchable/sortable library queries.
 
 The current ingest baseline now goes beyond tag-only metadata:
 - Track duration falls back to MP3 frame parsing when ID3 duration is missing
@@ -156,6 +156,33 @@ The current ingest baseline now goes beyond tag-only metadata:
 - Embedded album art is extracted during scan and persisted into local app data for later UI use
 - Track rows also fall back more gracefully when tags are sparse by cleaning file-stem titles and using album-artist / parent-folder metadata when available
 - The tracks table now renders artwork tiles for indexed items, and the queue view now shows larger cover art for the active track
+
+### `v1.2.1` FLAC Compatibility Scope
+
+The next patch release should expand the local-first engine from MP3-only handling to a mixed MP3 + FLAC library without widening product scope beyond local desktop playback.
+
+Compatibility goals:
+- allow recursive scan and indexing of `.flac` files alongside `.mp3`
+- preserve the current track model, query contract, queue behavior, and playback shell
+- treat FLAC as another local source format, not as a new source-provider type
+- keep the shell format-agnostic so track rows, queue state, and playback controls do not branch on codec-specific UI
+
+Metadata and ingest rules:
+- continue using the current normalization shape so MP3 and FLAC tracks land in the same library/query surfaces
+- keep title, artist, album, duration, artwork, relative path, and extension as the minimum compatibility baseline
+- prefer embedded metadata and artwork when present, while keeping filename and folder fallbacks for sparse tags
+- record the real file extension so later mixed-format duplicate handling remains possible
+
+Playback rules:
+- native desktop playback should accept FLAC anywhere the runtime already accepts indexed local MP3 tracks
+- source resolution should remain `local -> cache -> remote`, with FLAC entering only through the local path in `v1.2.1`
+- transport, seek, completion, queue progression, and snapshot events should behave the same regardless of MP3 or FLAC source format
+
+Out of scope for `v1.2.1`:
+- remote FLAC streaming
+- format-specific transcoding
+- ReplayGain, cue sheets, gapless-album logic, or audiophile device UX
+- duplicate-resolution UI between MP3 and FLAC copies of the same release
 
 ## Engineering Notes
 
@@ -186,6 +213,12 @@ Current v1 playback chooses the local indexed file path. Later branches can exte
 3. Remote fetch to temporary buffer, then playback
 
 The current implementation baseline supports direct local playback for indexed MP3 files through the desktop client, with the next-up queue derived from the currently active library selection.
+
+The next patch-release compatibility target is mixed-format local playback:
+
+- MP3 remains the baseline path
+- FLAC should enter through the same local indexed source-resolution flow
+- queue and playback snapshots should remain format-agnostic at the shell boundary
 
 The current playback contract narrows the migration boundary further:
 

@@ -81,6 +81,7 @@ describe("desktop bootstrap bridge", () => {
       source: {
         trackId: "track-1",
         localPath: "/Users/rujulw/Music/alpha.mp3",
+        extension: "mp3",
       },
     });
 
@@ -89,6 +90,7 @@ describe("desktop bootstrap bridge", () => {
 
     expect(invokeMock).toHaveBeenCalledWith("load_playback_track", { trackId: "track-1" });
     expect(payload?.source.assetUrl).toContain("asset://localhost/");
+    expect(payload?.source.extension).toBe("mp3");
     expect(payload?.playback.trackTitle).toBe("Alpha");
   });
 
