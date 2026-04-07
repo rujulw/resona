@@ -386,8 +386,7 @@ pub fn sync_playback_timing(
     progress_seconds: Option<u32>,
     duration_seconds: Option<u32>,
 ) -> Result<PlaybackSnapshot, String> {
-    let snapshot =
-        playback_runtime_state.sync_timing(progress_seconds, duration_seconds);
+    let snapshot = playback_runtime_state.sync_timing(progress_seconds, duration_seconds);
     emit_playback_state(&app_handle, &snapshot).map_err(|error| error.to_string())?;
     Ok(snapshot)
 }
@@ -438,11 +437,10 @@ mod tests {
     use super::{
         bootstrap_app, build_shell_state, build_shell_state_with_playback,
         complete_playback_with_runtime, describe_playback_contract,
-        load_playback_track_with_database, playback_action_with_runtime,
-        playback_state_for_action, query_library_with_database,
-        report_playback_error_with_runtime, seek_playback_with_runtime,
-        resolve_track_playback_source_with_database, scan_local_library_with_database, DatabaseState,
-        sync_playback_timing_with_runtime,
+        load_playback_track_with_database, playback_action_with_runtime, playback_state_for_action,
+        query_library_with_database, report_playback_error_with_runtime,
+        resolve_track_playback_source_with_database, scan_local_library_with_database,
+        seek_playback_with_runtime, sync_playback_timing_with_runtime, DatabaseState,
     };
     use crate::database::AppDatabase;
     use crate::playback::PlaybackRuntimeState;
@@ -658,7 +656,10 @@ mod tests {
         .expect("load should succeed");
 
         assert_eq!(payload.playback.status_label, "Ready");
-        assert_eq!(payload.playback.track_id.as_deref(), Some(page.items[0].id.as_str()));
+        assert_eq!(
+            payload.playback.track_id.as_deref(),
+            Some(page.items[0].id.as_str())
+        );
         assert!(payload.source.local_path.ends_with("disc/alpha.mp3"));
 
         let toggled = playback_action_with_runtime(&playback_runtime_state, "toggle");
@@ -708,10 +709,8 @@ mod tests {
         assert_eq!(seeked.progress_seconds, 12);
         assert_eq!(seeked.transport_label, "Paused");
 
-        let failed = report_playback_error_with_runtime(
-            &playback_runtime_state,
-            Some("Playback blocked"),
-        );
+        let failed =
+            report_playback_error_with_runtime(&playback_runtime_state, Some("Playback blocked"));
         assert_eq!(failed.status_label, "Error");
         assert_eq!(failed.transport_label, "Playback blocked");
 

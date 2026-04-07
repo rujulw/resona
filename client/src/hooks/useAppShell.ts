@@ -55,6 +55,9 @@ export function useAppShell() {
     sortDirection: "asc",
   });
   const [playbackQueueTrackIds, setPlaybackQueueTrackIds] = useState<string[]>([]);
+  const completionHandledRef = useRef<string | null>(null);
+
+  const isRustOutputPlayback = shellState?.playback.outputOwner === "rust";
 
   useEffect(() => {
     playbackQueueTrackIdsRef.current = playbackQueueTrackIds;
@@ -158,6 +161,9 @@ export function useAppShell() {
     audioRef.current = audio;
 
     const handleLoadedMetadata = () => {
+      if (isRustOutputPlayback) {
+        return;
+      }
       void syncPlaybackTiming(
         undefined,
         Number.isFinite(audio.duration) ? Math.round(audio.duration) : undefined,
@@ -165,6 +171,9 @@ export function useAppShell() {
     };
 
     const handleTimeUpdate = () => {
+      if (isRustOutputPlayback) {
+        return;
+      }
       void syncPlaybackTiming(
         Math.round(audio.currentTime),
         Number.isFinite(audio.duration) && audio.duration > 0
@@ -174,6 +183,9 @@ export function useAppShell() {
     };
 
     const handleEnded = () => {
+      if (isRustOutputPlayback) {
+        return;
+      }
       const activeTrackId = activeTrackIdRef.current;
       const activeIndex = activeTrackId
         ? playbackQueueTrackIdsRef.current.findIndex((trackId) => trackId === activeTrackId)
@@ -195,6 +207,9 @@ export function useAppShell() {
     };
 
     const handleError = () => {
+      if (isRustOutputPlayback) {
+        return;
+      }
       void reportPlaybackError();
     };
 
@@ -215,11 +230,22 @@ export function useAppShell() {
       audio.removeEventListener("error", handleError);
       audioRef.current = null;
     };
-  }, []);
+  }, [isRustOutputPlayback]);
 
   useEffect(() => {
     const audio = audioRef.current;
-    if (!audio || !shellState?.playback.trackId || !audio.src) {
+    if (!audio || !shellState?.playback.trackId) {
+      return;
+    }
+
+    if (shellState.playback.outputOwner === "rust") {
+      if (!audio.paused) {
+        audio.pause();
+      }
+      return;
+    }
+
+    if (!audio.src) {
       return;
     }
 
@@ -239,7 +265,45 @@ export function useAppShell() {
     if (!audio.paused) {
       audio.pause();
     }
-  }, [shellState?.playback.isPlaying, shellState?.playback.trackId]);
+  }, [
+    shellState?.playback.isPlaying,
+    shellState?.playback.outputOwner,
+    shellState?.playback.trackId,
+  ]);
+
+  useEffect(() => {
+    const playback = shellState?.playback;
+    if (!playback || playback.outputOwner !== "rust" || playback.statusLabel !== "Ended") {
+      completionHandledRef.current = null;
+      return;
+    }
+
+    const completionKey = `${playback.trackId ?? "none"}:${playback.progressSeconds}`;
+    if (completionHandledRef.current === completionKey) {
+      return;
+    }
+    completionHandledRef.current = completionKey;
+
+    const activeTrackId = playback.trackId ?? tracksState.selectedTrackId;
+    const activeIndex = activeTrackId
+      ? playbackQueueTrackIdsRef.current.findIndex((trackId) => trackId === activeTrackId)
+      : -1;
+    const nextTrackId =
+      activeIndex >= 0 ? playbackQueueTrackIdsRef.current[activeIndex + 1] : undefined;
+    const nextTrack = nextTrackId
+      ? trackCatalogRef.current.get(nextTrackId)
+      : undefined;
+
+    if (nextTrack) {
+      void startTrackPlayback(nextTrack, true);
+    }
+  }, [
+    shellState?.playback.outputOwner,
+    shellState?.playback.progressSeconds,
+    shellState?.playback.statusLabel,
+    shellState?.playback.trackId,
+    tracksState.selectedTrackId,
+  ]);
 
   const refreshShellState = () => {
     void getShellState().then((shellPayload) => {
@@ -315,8 +379,14 @@ export function useAppShell() {
         ? playbackQueueTrackIds.findIndex((trackId) => trackId === activeTrackId)
         : -1;
 
-      if (action === "previous" && audio && audio.currentTime > 3 && activeIndex >= 0) {
-        audio.currentTime = 0;
+      const currentProgressSeconds = isRustOutputPlayback
+        ? shellState?.playback.progressSeconds ?? 0
+        : audio?.currentTime ?? 0;
+
+      if (action === "previous" && currentProgressSeconds > 3 && activeIndex >= 0) {
+        if (audio) {
+          audio.currentTime = 0;
+        }
         void seekPlayback(0);
         return;
       }
@@ -342,7 +412,7 @@ export function useAppShell() {
     }
 
     if (action === "toggle") {
-      if (audio && shellState?.playback.trackId && audio.src) {
+      if (shellState?.playback.trackId && (isRustOutputPlayback || (audio && audio.src))) {
         void playbackAction("toggle");
         return;
       }
@@ -397,7 +467,11 @@ export function useAppShell() {
     }
 
     audio.pause();
-    audio.src = payload.source.assetUrl;
+    if (payload.playback.outputOwner === "rust") {
+      audio.src = "";
+    } else {
+      audio.src = payload.source.assetUrl;
+    }
     audio.currentTime = 0;
 
     if (!autoplay) {

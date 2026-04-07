@@ -28,6 +28,7 @@ export type LibraryRow = {
 export type PlaybackShellState = {
   statusLabel: string;
   transportLabel: string;
+  outputOwner?: string;
   progressSeconds: number;
   durationSeconds: number;
   isPlaying?: boolean;
@@ -147,6 +148,7 @@ const browserShellStatePayload: ShellStatePayload = {
   playback: {
     statusLabel: "Nothing playing",
     transportLabel: "Idle",
+    outputOwner: "frontend",
     progressSeconds: 0,
     durationSeconds: 0,
     isPlaying: false,
@@ -274,6 +276,7 @@ export async function loadPlaybackTrack(
         ...browserShellStatePayload.playback,
         statusLabel: "Ready",
         transportLabel: "Ready",
+        outputOwner: "frontend",
         trackId,
       },
       source,
@@ -311,6 +314,7 @@ export async function playbackAction(
       return {
         ...browserShellStatePayload.playback,
         transportLabel: "Preview only",
+        outputOwner: "frontend",
       };
     }
 
@@ -340,6 +344,7 @@ export async function seekPlayback(positionSeconds: number): Promise<PlaybackShe
   } catch {
     return {
       ...browserShellStatePayload.playback,
+      outputOwner: "frontend",
       progressSeconds: positionSeconds,
     };
   }
@@ -353,6 +358,7 @@ export async function completePlayback(): Promise<PlaybackShellState> {
       ...browserShellStatePayload.playback,
       statusLabel: "Ended",
       transportLabel: "Ended",
+      outputOwner: "frontend",
     };
   }
 }
@@ -369,6 +375,7 @@ export async function reportPlaybackError(
       ...browserShellStatePayload.playback,
       statusLabel: "Error",
       transportLabel: transportLabel ?? "Playback error",
+      outputOwner: "frontend",
     };
   }
 }

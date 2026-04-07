@@ -15,11 +15,16 @@ use playback::PlaybackRuntimeState;
 pub fn run() {
     let app_database =
         AppDatabase::initialize_default().expect("failed to initialize resona database");
+    let playback_runtime_state = PlaybackRuntimeState::default();
 
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .manage(DatabaseState { app_database })
-        .manage(PlaybackRuntimeState::default())
+        .manage(playback_runtime_state.clone())
+        .setup(move |app| {
+            playback_runtime_state.register_app_handle(app.handle().clone());
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             bootstrap_app,
             complete_playback,

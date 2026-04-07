@@ -88,10 +88,8 @@ pub(crate) fn normalize_track(
         Some(cleaned_file_title.as_str()),
     )
     .unwrap_or_else(|| "Unknown Track".to_owned());
-    let normalized_album_artist = preferred_label(
-        tag.as_ref().and_then(|value| value.album_artist()),
-        None,
-    );
+    let normalized_album_artist =
+        preferred_label(tag.as_ref().and_then(|value| value.album_artist()), None);
     let normalized_artist = preferred_label(
         tag.as_ref().and_then(|value| value.artist()),
         normalized_album_artist.as_deref(),

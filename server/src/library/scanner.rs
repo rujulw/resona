@@ -222,7 +222,11 @@ impl LocalLibraryScanner {
         &self,
         artwork_key: &str,
     ) -> Result<Option<ArtworkSource>, ScanError> {
-        let artwork_path = self.app_database.app_data_dir().join("artwork").join(artwork_key);
+        let artwork_path = self
+            .app_database
+            .app_data_dir()
+            .join("artwork")
+            .join(artwork_key);
 
         if !artwork_path.exists() {
             return Ok(None);

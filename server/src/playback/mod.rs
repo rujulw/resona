@@ -1,5 +1,13 @@
+use rodio::{Decoder, OutputStream, OutputStreamBuilder, Sink};
 use serde::Serialize;
-use std::sync::Mutex;
+use std::fs::File;
+use std::io::BufReader;
+use std::sync::{
+    mpsc::{self, Receiver, RecvTimeoutError, Sender},
+    Arc, Mutex,
+};
+use std::thread;
+use std::time::Duration;
 use tauri::{AppHandle, Emitter};
 
 use crate::library::ResolvedPlaybackTrack;
@@ -12,6 +20,7 @@ pub const PLAYBACK_QUEUE_CHANGED_EVENT: &str = "playback://queue-changed";
 pub struct PlaybackSnapshot {
     pub status_label: String,
     pub transport_label: String,
+    pub output_owner: String,
     pub progress_seconds: u32,
     pub duration_seconds: u32,
     pub is_playing: bool,
@@ -35,18 +44,25 @@ pub struct PlaybackSourcePayload {
     pub local_path: String,
 }
 
-#[derive(Debug)]
+#[derive(Clone)]
 pub struct PlaybackRuntimeState {
-    inner: Mutex<PlaybackRuntime>,
+    shared: Arc<PlaybackRuntimeShared>,
 }
 
-#[derive(Clone, Debug)]
 struct PlaybackRuntime {
     active_track: Option<ActivePlaybackTrack>,
     status_label: String,
+    output_owner: String,
     progress_seconds: u32,
     is_playing: bool,
     transport_label: String,
+    native_output_session: u64,
+    native_output: Option<NativePlaybackController>,
+}
+
+struct PlaybackRuntimeShared {
+    inner: Mutex<PlaybackRuntime>,
+    app_handle: Mutex<Option<AppHandle>>,
 }
 
 #[derive(Clone, Debug)]
@@ -59,10 +75,24 @@ struct ActivePlaybackTrack {
     local_path: String,
 }
 
+struct NativePlaybackController {
+    command_tx: Sender<NativePlaybackCommand>,
+}
+
+enum NativePlaybackCommand {
+    Play { path: String, position_seconds: u32 },
+    Pause,
+    Seek { position_seconds: u32 },
+    Stop,
+}
+
 impl Default for PlaybackRuntimeState {
     fn default() -> Self {
         Self {
-            inner: Mutex::new(PlaybackRuntime::default()),
+            shared: Arc::new(PlaybackRuntimeShared {
+                inner: Mutex::new(PlaybackRuntime::default()),
+                app_handle: Mutex::new(None),
+            }),
         }
     }
 }
@@ -72,9 +102,12 @@ impl Default for PlaybackRuntime {
         Self {
             active_track: None,
             status_label: "Nothing playing".to_owned(),
+            output_owner: "frontend".to_owned(),
             progress_seconds: 0,
             is_playing: false,
             transport_label: "Idle".to_owned(),
+            native_output_session: 0,
+            native_output: None,
         }
     }
 }
@@ -113,7 +146,7 @@ pub struct PlaybackEventContract {
 pub fn playback_contract() -> PlaybackContract {
     PlaybackContract {
         current_owner: "frontend-audio-element during v1 baseline",
-        migration_target: "rust playback runtime owns transport queue progress and source state",
+        migration_target: "rust playback runtime owns transport queue progress source state and native local output",
         runtime_boundary: "tauri commands mutate playback runtime and tauri events broadcast playback snapshots",
         source_resolution_order: vec!["local", "cache", "remote"],
         commands: vec![
@@ -122,7 +155,7 @@ pub fn playback_contract() -> PlaybackContract {
                 summary: "Resolve a track and replace the active playback item without forcing autoplay.",
                 request_shape: "{ trackId, queueTrackIds?, startPositionSeconds? }",
                 response_shape: "PlaybackSnapshot",
-                authority: "rust playback runtime",
+                authority: "rust playback runtime with native local output",
             },
             PlaybackCommandContract {
                 name: "playback_action",
@@ -193,6 +226,7 @@ pub fn playback_contract() -> PlaybackContract {
             "playback state snapshots include track identity transport status timing and source authority",
             "frontend shell renders playback state and dispatches commands but does not own transport truth after migration",
             "local playback remains the first supported source while cache and remote inputs reuse the same command surface later",
+            "native local playback output runs in rust while the shell remains a renderer controller for playback ui",
         ],
     }
 }
@@ -203,8 +237,18 @@ pub fn default_playback_snapshot() -> PlaybackSnapshot {
 }
 
 impl PlaybackRuntimeState {
+    pub fn register_app_handle(&self, app_handle: AppHandle) {
+        let mut handle_slot = self
+            .shared
+            .app_handle
+            .lock()
+            .expect("playback app handle lock should not be poisoned");
+        *handle_slot = Some(app_handle);
+    }
+
     pub fn snapshot(&self) -> PlaybackSnapshot {
         let runtime = self
+            .shared
             .inner
             .lock()
             .expect("playback runtime lock should not be poisoned");
@@ -213,6 +257,7 @@ impl PlaybackRuntimeState {
 
     pub fn load_track(&self, track: ResolvedPlaybackTrack) -> LoadedPlaybackTrackPayload {
         let mut runtime = self
+            .shared
             .inner
             .lock()
             .expect("playback runtime lock should not be poisoned");
@@ -221,10 +266,11 @@ impl PlaybackRuntimeState {
 
     pub fn apply_action(&self, action: &str) -> PlaybackSnapshot {
         let mut runtime = self
+            .shared
             .inner
             .lock()
             .expect("playback runtime lock should not be poisoned");
-        runtime.apply_action(action)
+        runtime.apply_action(action, &self.shared)
     }
 
     pub fn sync_timing(
@@ -233,6 +279,7 @@ impl PlaybackRuntimeState {
         duration_seconds: Option<u32>,
     ) -> PlaybackSnapshot {
         let mut runtime = self
+            .shared
             .inner
             .lock()
             .expect("playback runtime lock should not be poisoned");
@@ -241,6 +288,7 @@ impl PlaybackRuntimeState {
 
     pub fn seek(&self, position_seconds: u32) -> PlaybackSnapshot {
         let mut runtime = self
+            .shared
             .inner
             .lock()
             .expect("playback runtime lock should not be poisoned");
@@ -249,6 +297,7 @@ impl PlaybackRuntimeState {
 
     pub fn complete(&self) -> PlaybackSnapshot {
         let mut runtime = self
+            .shared
             .inner
             .lock()
             .expect("playback runtime lock should not be poisoned");
@@ -257,6 +306,7 @@ impl PlaybackRuntimeState {
 
     pub fn report_error(&self, transport_label: Option<&str>) -> PlaybackSnapshot {
         let mut runtime = self
+            .shared
             .inner
             .lock()
             .expect("playback runtime lock should not be poisoned");
@@ -277,6 +327,7 @@ impl PlaybackRuntime {
             Some(track) => PlaybackSnapshot {
                 status_label: self.status_label.clone(),
                 transport_label: self.transport_label.clone(),
+                output_owner: self.output_owner.clone(),
                 progress_seconds: self.progress_seconds,
                 duration_seconds: track.duration_seconds,
                 is_playing: self.is_playing,
@@ -288,6 +339,7 @@ impl PlaybackRuntime {
             None => PlaybackSnapshot {
                 status_label: self.status_label.clone(),
                 transport_label: self.transport_label.clone(),
+                output_owner: self.output_owner.clone(),
                 progress_seconds: 0,
                 duration_seconds: 0,
                 is_playing: false,
@@ -300,6 +352,8 @@ impl PlaybackRuntime {
     }
 
     fn load_track(&mut self, track: ResolvedPlaybackTrack) -> LoadedPlaybackTrackPayload {
+        self.stop_native_output();
+
         let active_track = ActivePlaybackTrack {
             track_id: track.track_id.clone(),
             title: track.title,
@@ -311,6 +365,7 @@ impl PlaybackRuntime {
 
         self.active_track = Some(active_track.clone());
         self.status_label = "Ready".to_owned();
+        self.output_owner = "rust".to_owned();
         self.progress_seconds = 0;
         self.is_playing = false;
         self.transport_label = "Ready".to_owned();
@@ -324,7 +379,11 @@ impl PlaybackRuntime {
         }
     }
 
-    fn apply_action(&mut self, action: &str) -> PlaybackSnapshot {
+    fn apply_action(
+        &mut self,
+        action: &str,
+        shared: &Arc<PlaybackRuntimeShared>,
+    ) -> PlaybackSnapshot {
         match action {
             "toggle" => {
                 if self.active_track.is_none() {
@@ -333,13 +392,27 @@ impl PlaybackRuntime {
                     return self.snapshot();
                 }
 
-                self.is_playing = !self.is_playing;
                 if self.is_playing {
-                    self.status_label = "Playing".to_owned();
-                    self.transport_label = "Playing".to_owned()
-                } else {
+                    if let Some(native_output) = &self.native_output {
+                        let _ = native_output.command_tx.send(NativePlaybackCommand::Pause);
+                    }
+                    self.is_playing = false;
                     self.status_label = "Paused".to_owned();
                     self.transport_label = "Paused".to_owned()
+                } else {
+                    if let Some(active_track) = &self.active_track {
+                        if self.progress_seconds >= active_track.duration_seconds {
+                            self.progress_seconds = 0;
+                        }
+                    }
+
+                    if let Err(error) = self.start_native_output(shared) {
+                        return self.report_error(Some(error.as_str()));
+                    }
+
+                    self.is_playing = true;
+                    self.status_label = "Playing".to_owned();
+                    self.transport_label = "Playing".to_owned()
                 }
                 self.snapshot()
             }
@@ -380,6 +453,19 @@ impl PlaybackRuntime {
             .map(|track| track.duration_seconds)
             .unwrap_or(position_seconds);
         self.progress_seconds = position_seconds.min(duration_seconds);
+
+        if let Some(native_output) = &self.native_output {
+            if native_output
+                .command_tx
+                .send(NativePlaybackCommand::Seek {
+                    position_seconds: self.progress_seconds,
+                })
+                .is_err()
+            {
+                return self.report_error(Some("Seek unavailable"));
+            }
+        }
+
         if self.is_playing {
             self.status_label = "Playing".to_owned();
             self.transport_label = "Playing".to_owned();
@@ -391,8 +477,13 @@ impl PlaybackRuntime {
     }
 
     fn complete(&mut self) -> PlaybackSnapshot {
-        if let Some(active_track) = &self.active_track {
-            self.progress_seconds = active_track.duration_seconds;
+        if let Some(duration_seconds) = self
+            .active_track
+            .as_ref()
+            .map(|track| track.duration_seconds)
+        {
+            self.stop_native_output();
+            self.progress_seconds = duration_seconds;
             self.is_playing = false;
             self.status_label = "Ended".to_owned();
             self.transport_label = "Ended".to_owned();
@@ -401,6 +492,7 @@ impl PlaybackRuntime {
     }
 
     fn report_error(&mut self, transport_label: Option<&str>) -> PlaybackSnapshot {
+        self.stop_native_output();
         if self.active_track.is_some() {
             self.is_playing = false;
             self.status_label = "Error".to_owned();
@@ -410,6 +502,184 @@ impl PlaybackRuntime {
             self.transport_label = transport_label.unwrap_or("Playback error").to_owned();
         }
         self.snapshot()
+    }
+
+    fn start_native_output(&mut self, shared: &Arc<PlaybackRuntimeShared>) -> Result<(), String> {
+        let active_track = self
+            .active_track
+            .as_ref()
+            .cloned()
+            .ok_or_else(|| "No active track loaded".to_owned())?;
+
+        self.stop_native_output();
+        let session_id = self.native_output_session;
+        let (command_tx, command_rx) = mpsc::channel();
+        let shared = Arc::clone(shared);
+        let initial_position = self.progress_seconds;
+        thread::Builder::new()
+            .name("resona-native-playback".to_owned())
+            .spawn(move || native_playback_loop(shared, command_rx, session_id))
+            .map_err(|error| format!("Failed to launch native playback thread: {error}"))?;
+
+        command_tx
+            .send(NativePlaybackCommand::Play {
+                path: active_track.local_path.clone(),
+                position_seconds: initial_position,
+            })
+            .map_err(|error| format!("Failed to start native playback: {error}"))?;
+
+        self.native_output = Some(NativePlaybackController { command_tx });
+        Ok(())
+    }
+
+    fn stop_native_output(&mut self) {
+        self.native_output_session = self.native_output_session.saturating_add(1);
+        if let Some(native_output) = self.native_output.take() {
+            let _ = native_output.command_tx.send(NativePlaybackCommand::Stop);
+        }
+    }
+}
+
+fn native_playback_loop(
+    shared: Arc<PlaybackRuntimeShared>,
+    command_rx: Receiver<NativePlaybackCommand>,
+    session_id: u64,
+) {
+    let mut stream_and_sink: Option<(OutputStream, Sink)> = None;
+    let mut last_position_seconds = 0;
+
+    loop {
+        match command_rx.recv_timeout(Duration::from_millis(250)) {
+            Ok(NativePlaybackCommand::Play {
+                path,
+                position_seconds,
+            }) => match build_native_sink(&path, position_seconds) {
+                Ok((stream, sink)) => {
+                    last_position_seconds = position_seconds;
+                    stream_and_sink = Some((stream, sink));
+                    publish_native_snapshot(&shared, session_id, |runtime| {
+                        runtime.progress_seconds = position_seconds;
+                        runtime.is_playing = true;
+                        runtime.status_label = "Playing".to_owned();
+                        runtime.transport_label = "Playing".to_owned();
+                        Some(runtime.snapshot())
+                    });
+                }
+                Err(error) => {
+                    publish_native_snapshot(&shared, session_id, |runtime| {
+                        runtime.native_output = None;
+                        runtime.is_playing = false;
+                        runtime.status_label = "Error".to_owned();
+                        runtime.transport_label = error;
+                        Some(runtime.snapshot())
+                    });
+                    break;
+                }
+            },
+            Ok(NativePlaybackCommand::Pause) => {
+                if let Some((_, sink)) = &stream_and_sink {
+                    sink.pause();
+                }
+            }
+            Ok(NativePlaybackCommand::Seek { position_seconds }) => {
+                if let Some((_, sink)) = &stream_and_sink {
+                    let _ = sink.try_seek(Duration::from_secs(position_seconds as u64));
+                    last_position_seconds = position_seconds;
+                }
+            }
+            Ok(NativePlaybackCommand::Stop) => {
+                if let Some((_, sink)) = stream_and_sink.take() {
+                    sink.stop();
+                }
+                break;
+            }
+            Err(RecvTimeoutError::Disconnected) => break,
+            Err(RecvTimeoutError::Timeout) => {}
+        }
+
+        if let Some((_, sink)) = &stream_and_sink {
+            let position_seconds = sink.get_pos().as_secs() as u32;
+            if position_seconds != last_position_seconds {
+                last_position_seconds = position_seconds;
+                publish_native_snapshot(&shared, session_id, |runtime| {
+                    let duration_seconds = runtime
+                        .active_track
+                        .as_ref()
+                        .map(|track| track.duration_seconds)
+                        .unwrap_or(position_seconds);
+                    runtime.progress_seconds = position_seconds.min(duration_seconds);
+                    Some(runtime.snapshot())
+                });
+            }
+
+            if sink.empty() {
+                publish_native_snapshot(&shared, session_id, |runtime| {
+                    let duration_seconds = runtime
+                        .active_track
+                        .as_ref()
+                        .map(|track| track.duration_seconds)
+                        .unwrap_or(runtime.progress_seconds);
+                    runtime.native_output = None;
+                    runtime.progress_seconds = duration_seconds;
+                    runtime.is_playing = false;
+                    runtime.status_label = "Ended".to_owned();
+                    runtime.transport_label = "Ended".to_owned();
+                    Some(runtime.snapshot())
+                });
+                break;
+            }
+        }
+    }
+}
+
+fn build_native_sink(path: &str, position_seconds: u32) -> Result<(OutputStream, Sink), String> {
+    let stream = OutputStreamBuilder::open_default_stream()
+        .map_err(|error| format!("Failed to open native output stream: {error}"))?;
+    let sink = Sink::connect_new(stream.mixer());
+    let file = BufReader::new(
+        File::open(path).map_err(|error| format!("Failed to open local playback file: {error}"))?,
+    );
+    let source = Decoder::try_from(file)
+        .map_err(|error| format!("Failed to decode local playback file: {error}"))?;
+
+    sink.append(source);
+    if position_seconds > 0 {
+        sink.try_seek(Duration::from_secs(position_seconds as u64))
+            .map_err(|error| format!("Failed to seek native output: {error}"))?;
+    }
+    sink.play();
+    Ok((stream, sink))
+}
+
+fn publish_native_snapshot<F>(shared: &Arc<PlaybackRuntimeShared>, session_id: u64, mutate: F)
+where
+    F: FnOnce(&mut PlaybackRuntime) -> Option<PlaybackSnapshot>,
+{
+    let snapshot = {
+        let mut runtime = shared
+            .inner
+            .lock()
+            .expect("playback runtime lock should not be poisoned");
+        if runtime.native_output_session != session_id {
+            return;
+        }
+        mutate(&mut runtime)
+    };
+
+    let Some(snapshot) = snapshot else {
+        return;
+    };
+
+    let app_handle = {
+        let handle_slot = shared
+            .app_handle
+            .lock()
+            .expect("playback app handle lock should not be poisoned");
+        handle_slot.clone()
+    };
+
+    if let Some(app_handle) = app_handle {
+        let _ = emit_playback_state(&app_handle, &snapshot);
     }
 }
 
@@ -427,9 +697,12 @@ mod tests {
 
         assert_eq!(
             contract.migration_target,
-            "rust playback runtime owns transport queue progress and source state"
+            "rust playback runtime owns transport queue progress source state and native local output"
         );
-        assert_eq!(contract.source_resolution_order, vec!["local", "cache", "remote"]);
+        assert_eq!(
+            contract.source_resolution_order,
+            vec!["local", "cache", "remote"]
+        );
         assert_eq!(contract.commands[0].name, "load_playback_track");
         assert_eq!(contract.commands[1].name, "playback_action");
         assert_eq!(contract.commands[2].name, "seek_playback");
@@ -444,6 +717,7 @@ mod tests {
 
         assert_eq!(snapshot.status_label, "Nothing playing");
         assert_eq!(snapshot.transport_label, "Idle");
+        assert_eq!(snapshot.output_owner, "frontend");
         assert!(!snapshot.is_playing);
         assert_eq!(snapshot.track_id, None);
     }
@@ -461,6 +735,7 @@ mod tests {
         });
 
         assert_eq!(loaded.playback.status_label, "Ready");
+        assert_eq!(loaded.playback.output_owner, "rust");
         assert_eq!(loaded.playback.track_title.as_deref(), Some("Alpha"));
         assert_eq!(loaded.source.local_path, "/tmp/alpha.mp3");
 
