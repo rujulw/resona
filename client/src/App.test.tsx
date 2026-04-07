@@ -847,6 +847,96 @@ describe("app shell smoke checks", () => {
     });
   });
 
+  it("covers native playback launch play seek pause and completion through backend snapshots", async () => {
+    window.history.replaceState({}, "", "/tracks");
+
+    const { default: App } = await import("./App");
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Select Alpha" }));
+
+    await waitFor(() => {
+      expect(screen.getAllByText("Alpha").length).toBeGreaterThan(0);
+      expect(
+        screen.getByRole("button", { name: "Select Alpha" }).getAttribute("aria-pressed"),
+      ).toBe("true");
+      expect(screen.getByRole("button", { name: "Pause playback" })).toBeTruthy();
+      expect(screen.getByText("0:00")).toBeTruthy();
+      expect(mockBackendPlayback.outputOwner).toBe("rust");
+    });
+
+    mockBackendPlayback = {
+      ...mockBackendPlayback,
+      statusLabel: "Playing",
+      transportLabel: "Playing",
+      progressSeconds: 73,
+      durationSeconds: 182,
+      isPlaying: true,
+      outputOwner: "rust",
+    };
+    playbackStateListener?.(mockBackendPlayback);
+
+    await waitFor(() => {
+      expect(screen.getByText("1:13")).toBeTruthy();
+      expect(screen.getAllByText("3:02").length).toBeGreaterThan(0);
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Pause playback" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Play playback" })).toBeTruthy();
+      expect(mockBackendPlayback.transportLabel).toBe("Paused");
+    });
+
+    mockBackendPlayback = {
+      ...mockBackendPlayback,
+      statusLabel: "Ended",
+      transportLabel: "Ended",
+      progressSeconds: 182,
+      durationSeconds: 182,
+      isPlaying: false,
+      outputOwner: "rust",
+    };
+    playbackStateListener?.(mockBackendPlayback);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Play playback" })).toBeTruthy();
+      expect(screen.getAllByText("3:02").length).toBeGreaterThan(0);
+    });
+  });
+
+  it("seeks playback from the progress control", async () => {
+    window.history.replaceState({}, "", "/tracks");
+
+    const { default: App } = await import("./App");
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Select Alpha" }));
+
+    const progressControl = () => screen.getByRole("button", { name: "Seek playback" });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Pause playback" })).toBeTruthy();
+      expect(progressControl()).toBeTruthy();
+    });
+
+    Object.defineProperty(progressControl(), "getBoundingClientRect", {
+      configurable: true,
+      value: () =>
+        ({
+          left: 0,
+          width: 182,
+        }) as DOMRect,
+    });
+
+    fireEvent.click(progressControl(), { clientX: 91 });
+
+    await waitFor(() => {
+      expect(seekPlaybackMock).toHaveBeenCalledWith(91);
+      expect(screen.getByText("1:31")).toBeTruthy();
+    });
+  });
+
   it("restarts the current track when previous is pressed after progress has advanced", async () => {
     window.history.replaceState({}, "", "/tracks");
 

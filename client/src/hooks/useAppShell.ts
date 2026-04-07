@@ -364,6 +364,22 @@ export function useAppShell() {
     startTrackPlayback(track, true);
   };
 
+  const handlePlaybackSeek = (positionSeconds: number) => {
+    const clampedSeconds = Math.max(
+      0,
+      Math.min(
+        Math.round(positionSeconds),
+        shellState?.playback.durationSeconds ?? Math.round(positionSeconds),
+      ),
+    );
+
+    if (audioRef.current && !isRustOutputPlayback) {
+      audioRef.current.currentTime = clampedSeconds;
+    }
+
+    void seekPlayback(clampedSeconds);
+  };
+
   const startTrackPlayback = async (track: TrackListItem, autoplay: boolean) => {
     const requestId = playbackRequestIdRef.current + 1;
     playbackRequestIdRef.current = requestId;
@@ -543,6 +559,7 @@ export function useAppShell() {
     setLibraryPath,
     handlePickLibraryDirectory,
     handlePlaybackAction,
+    handlePlaybackSeek,
     handleTrackSelection,
     handleScan,
     handleTracksSearchDraftChange,

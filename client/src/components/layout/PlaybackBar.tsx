@@ -1,4 +1,5 @@
 import { Pause, Play, StepBack, StepForward } from "lucide-react";
+import type { MouseEvent } from "react";
 
 import type { PlaybackShellState } from "../../desktop";
 import type { TrackListItem } from "../../desktop";
@@ -9,16 +10,20 @@ export function PlaybackBar({
   activeTrack,
   playback,
   onPlaybackAction,
+  onSeek,
 }: {
   activeTrack: TrackListItem | null;
   playback: PlaybackShellState;
   onPlaybackAction: (action: "previous" | "toggle" | "next") => void;
+  onSeek: (positionSeconds: number) => void;
 }) {
   const hasActiveTrack = Boolean(playback.trackId);
   const progressValue =
     playback.durationSeconds > 0
       ? Math.min(playback.durationSeconds, playback.progressSeconds)
       : 0;
+  const progressPercent =
+    playback.durationSeconds > 0 ? (progressValue / playback.durationSeconds) * 100 : 0;
   const transportButtons = [
     {
       action: "previous" as const,
@@ -36,6 +41,17 @@ export function PlaybackBar({
       icon: StepForward,
     },
   ];
+
+  const handleSeekClick = (event: MouseEvent<HTMLButtonElement>) => {
+    if (!hasActiveTrack || playback.durationSeconds <= 0) {
+      return;
+    }
+
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const relativeX = Math.min(Math.max(event.clientX - bounds.left, 0), bounds.width);
+    const nextPosition = (relativeX / bounds.width) * playback.durationSeconds;
+    onSeek(nextPosition);
+  };
 
   return (
     <footer className="col-span-full grid min-h-[108px] grid-cols-[minmax(260px,1fr)_minmax(420px,640px)_minmax(260px,1fr)] items-center gap-4 border-t border-white/6 bg-[#0e0e0e] px-4">
@@ -79,11 +95,19 @@ export function PlaybackBar({
         </div>
 
         <div className="grid gap-2">
-          <progress
-            className="block h-1 w-full appearance-none overflow-hidden rounded-full bg-white/8 [&::-moz-progress-bar]:rounded-full [&::-moz-progress-bar]:bg-[#8f8f8f] [&::-webkit-progress-bar]:bg-white/8 [&::-webkit-progress-value]:rounded-full [&::-webkit-progress-value]:bg-[#8f8f8f]"
-            max={Math.max(playback.durationSeconds, 1)}
-            value={progressValue}
-          />
+          <button
+            aria-label="Seek playback"
+            className="block h-1 w-full overflow-hidden rounded-full bg-white/8 text-left disabled:cursor-not-allowed disabled:opacity-45"
+            type="button"
+            disabled={!hasActiveTrack || playback.durationSeconds <= 0}
+            onClick={handleSeekClick}
+          >
+            <span
+              aria-hidden="true"
+              className="block h-full rounded-full bg-[#8f8f8f]"
+              style={{ width: `${progressPercent}%` }}
+            />
+          </button>
           <div className="flex justify-between text-xs text-[#8f8f8f]">
             <span>{formatDuration(playback.progressSeconds)}</span>
             <span>{formatDuration(playback.durationSeconds)}</span>
