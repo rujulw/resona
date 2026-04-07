@@ -431,6 +431,7 @@ pub fn playback_state_for_action(action: &str) -> PlaybackSnapshot {
 
 #[cfg(test)]
 mod tests {
+    use std::io::Write;
     use std::sync::atomic::{AtomicU64, Ordering};
     use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -467,6 +468,102 @@ mod tests {
             app_database: AppDatabase::initialize_at(db_path)
                 .expect("test database should initialize"),
         }
+    }
+
+    fn write_test_flac(
+        file_path: &std::path::Path,
+        title: Option<&str>,
+        album: Option<&str>,
+        artist: Option<&str>,
+        include_artwork: bool,
+    ) {
+        if let Some(parent) = file_path.parent() {
+            std::fs::create_dir_all(parent).expect("parent directories should be created");
+        }
+
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(b"fLaC");
+
+        let streaminfo = build_test_flac_streaminfo(44_100, 132_300);
+        bytes.push(0);
+        bytes.extend_from_slice(&(streaminfo.len() as u32).to_be_bytes()[1..]);
+        bytes.extend_from_slice(&streaminfo);
+
+        let comments = build_test_flac_comments(title, album, artist);
+        bytes.push(if include_artwork { 4 } else { 0x84 });
+        bytes.extend_from_slice(&(comments.len() as u32).to_be_bytes()[1..]);
+        bytes.extend_from_slice(&comments);
+
+        if include_artwork {
+            let picture = build_test_flac_picture();
+            bytes.push(0x86);
+            bytes.extend_from_slice(&(picture.len() as u32).to_be_bytes()[1..]);
+            bytes.extend_from_slice(&picture);
+        }
+
+        std::fs::File::create(file_path)
+            .and_then(|mut file| file.write_all(&bytes))
+            .expect("test flac should be created");
+    }
+
+    fn build_test_flac_streaminfo(sample_rate: u32, total_samples: u64) -> Vec<u8> {
+        let mut block = vec![0u8; 34];
+        block[0..2].copy_from_slice(&4096u16.to_be_bytes());
+        block[2..4].copy_from_slice(&4096u16.to_be_bytes());
+        let combined = ((sample_rate as u64) << 44) | (1u64 << 41) | (15u64 << 36) | total_samples;
+        let combined_bytes = combined.to_be_bytes();
+        block[10..18].copy_from_slice(&combined_bytes);
+        block
+    }
+
+    fn build_test_flac_comments(
+        title: Option<&str>,
+        album: Option<&str>,
+        artist: Option<&str>,
+    ) -> Vec<u8> {
+        let mut comments = Vec::new();
+        let vendor = b"resona-command-test";
+        comments.extend_from_slice(&(vendor.len() as u32).to_le_bytes());
+        comments.extend_from_slice(vendor);
+
+        let mut entries = Vec::new();
+        if let Some(title) = title {
+            entries.push(format!("TITLE={title}"));
+        }
+        if let Some(album) = album {
+            entries.push(format!("ALBUM={album}"));
+        }
+        if let Some(artist) = artist {
+            entries.push(format!("ARTIST={artist}"));
+        }
+        entries.push("TRACKNUMBER=4".to_owned());
+        entries.push("DISCNUMBER=1".to_owned());
+
+        comments.extend_from_slice(&(entries.len() as u32).to_le_bytes());
+        for entry in entries {
+            comments.extend_from_slice(&(entry.len() as u32).to_le_bytes());
+            comments.extend_from_slice(entry.as_bytes());
+        }
+        comments
+    }
+
+    fn build_test_flac_picture() -> Vec<u8> {
+        let mime = b"image/png";
+        let description = b"cover";
+        let data = [137, 80, 78, 71, 13, 10, 26, 10, 1, 2, 3, 4];
+        let mut block = Vec::new();
+        block.extend_from_slice(&3u32.to_be_bytes());
+        block.extend_from_slice(&(mime.len() as u32).to_be_bytes());
+        block.extend_from_slice(mime);
+        block.extend_from_slice(&(description.len() as u32).to_be_bytes());
+        block.extend_from_slice(description);
+        block.extend_from_slice(&64u32.to_be_bytes());
+        block.extend_from_slice(&64u32.to_be_bytes());
+        block.extend_from_slice(&24u32.to_be_bytes());
+        block.extend_from_slice(&0u32.to_be_bytes());
+        block.extend_from_slice(&(data.len() as u32).to_be_bytes());
+        block.extend_from_slice(&data);
+        block
     }
 
     #[test]
@@ -619,6 +716,7 @@ mod tests {
 
         assert_eq!(source.track_id, page.items[0].id);
         assert!(source.local_path.ends_with("disc/alpha.mp3"));
+        assert_eq!(source.extension, "mp3");
     }
 
     #[test]
@@ -661,6 +759,7 @@ mod tests {
             Some(page.items[0].id.as_str())
         );
         assert!(payload.source.local_path.ends_with("disc/alpha.mp3"));
+        assert_eq!(payload.source.extension, "mp3");
 
         let toggled = playback_action_with_runtime(&playback_runtime_state, "toggle");
         assert!(toggled.is_playing);
@@ -704,6 +803,7 @@ mod tests {
         assert_eq!(payload.playback.status_label, "Ready");
         assert_eq!(payload.playback.output_owner, "rust");
         assert!(payload.source.local_path.ends_with("disc/alpha.flac"));
+        assert_eq!(payload.source.extension, "flac");
     }
 
     #[test]
@@ -818,6 +918,74 @@ mod tests {
         assert_eq!(completed.transport_label, "Ended");
         assert_eq!(completed.duration_seconds, 182);
         assert_eq!(completed.progress_seconds, 182);
+        assert_eq!(completed.output_owner, "rust");
+    }
+
+    #[test]
+    fn flac_smoke_covers_import_metadata_playback_and_queue_behavior() {
+        let database_state = test_database_state();
+        let playback_runtime_state = PlaybackRuntimeState::default();
+        let root = std::env::temp_dir().join(unique_test_suffix("resona-flac-smoke"));
+
+        std::fs::create_dir_all(root.join("disc")).expect("directories should be created");
+        std::fs::File::create(root.join("disc").join("alpha.mp3"))
+            .expect("mp3 track should be created");
+        write_test_flac(
+            &root.join("disc").join("signal.flac"),
+            Some("Signal"),
+            Some("Frames"),
+            Some("North"),
+            true,
+        );
+
+        let summary = scan_local_library_with_database(
+            &database_state.app_database,
+            &root.display().to_string(),
+            Some("portfolio"),
+        )
+        .expect("scan should succeed");
+        assert_eq!(summary.discovered_tracks, 2);
+
+        let page = query_library_with_database(
+            &database_state.app_database,
+            Some(10),
+            None,
+            None,
+            Some("title".to_owned()),
+            Some("asc".to_owned()),
+        )
+        .expect("query should succeed");
+
+        let flac_track = page
+            .items
+            .iter()
+            .find(|item| item.relative_path.ends_with("signal.flac"))
+            .expect("flac track should be indexed");
+        assert_eq!(flac_track.title, "Signal");
+        assert_eq!(flac_track.artist.as_deref(), Some("North"));
+        assert_eq!(flac_track.album.as_deref(), Some("Frames"));
+        assert_eq!(flac_track.extension, "flac");
+        assert!(flac_track.duration_seconds.is_some_and(|value| value > 2.9 && value < 3.1));
+        assert!(flac_track.artwork_key.is_some());
+
+        let payload = load_playback_track_with_database(
+            &database_state.app_database,
+            &playback_runtime_state,
+            &flac_track.id,
+        )
+        .expect("load should succeed");
+        assert_eq!(payload.playback.track_title.as_deref(), Some("Signal"));
+        assert_eq!(payload.playback.track_album.as_deref(), Some("Frames"));
+        assert_eq!(payload.source.extension, "flac");
+        assert!(payload.source.local_path.ends_with("signal.flac"));
+
+        let playing = playback_action_with_runtime(&playback_runtime_state, "toggle");
+        assert_eq!(playing.status_label, "Playing");
+        assert_eq!(playing.output_owner, "rust");
+
+        let completed = complete_playback_with_runtime(&playback_runtime_state);
+        assert_eq!(completed.status_label, "Ended");
+        assert_eq!(completed.track_title.as_deref(), Some("Signal"));
         assert_eq!(completed.output_owner, "rust");
     }
 }

@@ -66,6 +66,7 @@ export type PlaybackContractPayload = {
 export type PlaybackSource = {
   trackId: string;
   localPath: string;
+  extension?: string;
   assetUrl: string;
 };
 
@@ -106,6 +107,7 @@ export type TrackListItem = {
   durationSeconds: number | null;
   artworkKey: string | null;
   relativePath: string;
+  extension?: string;
   sourceStatus: string;
   cacheState: string;
   analysisStatus: string;
@@ -254,7 +256,7 @@ export async function loadPlaybackTrack(
   try {
     const payload = await invoke<{
       playback: PlaybackShellState;
-      source: { trackId: string; localPath: string };
+      source: { trackId: string; localPath: string; extension?: string };
     }>("load_playback_track", { trackId });
 
     return {
@@ -262,6 +264,7 @@ export async function loadPlaybackTrack(
       source: {
         trackId: payload.source.trackId,
         localPath: payload.source.localPath,
+        extension: payload.source.extension,
         assetUrl: convertFileSrc(payload.source.localPath),
       },
     };

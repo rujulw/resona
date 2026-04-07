@@ -33,6 +33,7 @@ pub struct LibraryPage {
 pub struct PlaybackSource {
     pub track_id: String,
     pub local_path: String,
+    pub extension: String,
 }
 
 #[derive(Clone, Debug)]
@@ -43,6 +44,7 @@ pub struct ResolvedPlaybackTrack {
     pub album: Option<String>,
     pub duration_seconds: Option<f64>,
     pub local_path: String,
+    pub extension: String,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -62,6 +64,7 @@ pub struct LibraryTrackItem {
     pub duration_seconds: Option<f64>,
     pub artwork_key: Option<String>,
     pub relative_path: String,
+    pub extension: String,
     pub source_status: String,
     pub cache_state: String,
     pub analysis_status: String,

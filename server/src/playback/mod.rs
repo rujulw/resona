@@ -42,6 +42,7 @@ pub struct LoadedPlaybackTrackPayload {
 pub struct PlaybackSourcePayload {
     pub track_id: String,
     pub local_path: String,
+    pub extension: String,
 }
 
 #[derive(Clone)]
@@ -73,6 +74,7 @@ struct ActivePlaybackTrack {
     album: Option<String>,
     duration_seconds: u32,
     local_path: String,
+    extension: String,
 }
 
 struct NativePlaybackController {
@@ -361,6 +363,7 @@ impl PlaybackRuntime {
             album: track.album,
             duration_seconds: track.duration_seconds.unwrap_or(0.0).round() as u32,
             local_path: track.local_path,
+            extension: track.extension,
         };
 
         self.active_track = Some(active_track.clone());
@@ -374,6 +377,7 @@ impl PlaybackRuntime {
             playback: self.snapshot(),
             source: PlaybackSourcePayload {
                 track_id: active_track.track_id,
+                extension: active_track.extension,
                 local_path: active_track.local_path,
             },
         }
@@ -732,12 +736,14 @@ mod tests {
             album: Some("Signals".to_owned()),
             duration_seconds: Some(182.0),
             local_path: "/tmp/alpha.mp3".to_owned(),
+            extension: "mp3".to_owned(),
         });
 
         assert_eq!(loaded.playback.status_label, "Ready");
         assert_eq!(loaded.playback.output_owner, "rust");
         assert_eq!(loaded.playback.track_title.as_deref(), Some("Alpha"));
         assert_eq!(loaded.source.local_path, "/tmp/alpha.mp3");
+        assert_eq!(loaded.source.extension, "mp3");
 
         let playing = runtime.apply_action("toggle");
         assert!(playing.is_playing);
@@ -758,12 +764,14 @@ mod tests {
             album: Some("Frames".to_owned()),
             duration_seconds: Some(192.0),
             local_path: "/tmp/signal.flac".to_owned(),
+            extension: "flac".to_owned(),
         });
 
         assert_eq!(loaded.playback.status_label, "Ready");
         assert_eq!(loaded.playback.output_owner, "rust");
         assert_eq!(loaded.playback.track_title.as_deref(), Some("Signal"));
         assert_eq!(loaded.source.local_path, "/tmp/signal.flac");
+        assert_eq!(loaded.source.extension, "flac");
 
         let snapshot = runtime.snapshot();
         assert_eq!(snapshot.track_id.as_deref(), Some("track-flac"));
@@ -781,6 +789,7 @@ mod tests {
             album: Some("Signals".to_owned()),
             duration_seconds: Some(182.0),
             local_path: "/tmp/alpha.mp3".to_owned(),
+            extension: "mp3".to_owned(),
         });
 
         let timed = runtime.sync_timing(Some(41), Some(200));

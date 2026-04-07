@@ -59,6 +59,7 @@ pub(crate) fn build_library_query_sql(
           t.duration_seconds,
           t.artwork_key,
           t.relative_path,
+          t.extension,
           ts.source_status,
           ce.cache_state,
           ar.analysis_status,
@@ -132,10 +133,11 @@ where
             duration_seconds: row.get(4)?,
             artwork_key: row.get(5)?,
             relative_path: row.get(6)?,
-            source_status: row.get(7)?,
-            cache_state: row.get(8)?,
-            analysis_status: row.get(9)?,
-            indexed_at: row.get(10)?,
+            extension: row.get(7)?,
+            source_status: row.get(8)?,
+            cache_state: row.get(9)?,
+            analysis_status: row.get(10)?,
+            indexed_at: row.get(11)?,
         })
     })?;
 
@@ -217,6 +219,7 @@ mod tests {
             duration_seconds: Some(180.0),
             artwork_key: Some("artwork-key.jpg".to_owned()),
             relative_path: "disc/breathe.mp3".to_owned(),
+            extension: "mp3".to_owned(),
             source_status: "local-only".to_owned(),
             cache_state: "none".to_owned(),
             analysis_status: "pending".to_owned(),

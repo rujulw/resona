@@ -71,6 +71,7 @@ type DeferredLibraryPage = {
     durationSeconds: number | null;
     artworkKey: string | null;
     relativePath: string;
+    extension?: string;
     sourceStatus: string;
     cacheState: string;
     analysisStatus: string;
@@ -789,6 +790,104 @@ describe("app shell smoke checks", () => {
     });
   });
 
+  it("covers flac import metadata playback and queue behavior", async () => {
+    window.history.replaceState({}, "", "/tracks");
+    queryLibraryMock.mockReset();
+    queryLibraryMock.mockResolvedValue({
+      items: [
+        {
+          id: "track-1",
+          title: "Alpha",
+          artist: "North",
+          album: "Signals",
+          durationSeconds: 182,
+          artworkKey: "alpha-cover.png",
+          relativePath: "alpha.mp3",
+          extension: "mp3",
+          sourceStatus: "local-only",
+          cacheState: "none",
+          analysisStatus: "pending",
+          indexedAt: "1700000000",
+        },
+        {
+          id: "track-2",
+          title: "Signal",
+          artist: "North",
+          album: "Frames",
+          durationSeconds: 192,
+          artworkKey: "signal-cover.png",
+          relativePath: "signal.flac",
+          extension: "flac",
+          sourceStatus: "local-only",
+          cacheState: "none",
+          analysisStatus: "pending",
+          indexedAt: "1700000100",
+        },
+      ],
+      nextCursor: null,
+      total: 2,
+      pageSize: 200,
+    });
+    loadPlaybackTrackMock.mockImplementation(async (trackId: string) => ({
+      playback: (() => {
+        mockBackendPlayback = {
+          statusLabel: "Ready",
+          transportLabel: "Ready",
+          progressSeconds: 0,
+          durationSeconds: trackId === "track-2" ? 192 : 182,
+          isPlaying: false,
+          outputOwner: "rust",
+          trackId,
+          trackTitle: trackId === "track-2" ? "Signal" : "Alpha",
+          trackArtist: "North",
+          trackAlbum: trackId === "track-2" ? "Frames" : "Signals",
+        };
+        playbackStateListener?.(mockBackendPlayback);
+        return mockBackendPlayback;
+      })(),
+      source: {
+        trackId,
+        localPath:
+          trackId === "track-2"
+            ? "/Users/rujulw/Music/track-2.flac"
+            : "/Users/rujulw/Music/track-1.mp3",
+        extension: trackId === "track-2" ? "flac" : "mp3",
+        assetUrl:
+          trackId === "track-2"
+            ? "asset://localhost/track-2.flac"
+            : "asset://localhost/track-1.mp3",
+      },
+    }));
+
+    const { default: App } = await import("./App");
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Select Signal" }));
+
+    await waitFor(() => {
+      expect(loadPlaybackTrackMock).toHaveBeenCalledWith("track-2");
+      expect(
+        screen.getByRole("button", { name: "Select Signal" }).getAttribute("aria-pressed"),
+      ).toBe("true");
+      expect(screen.getByRole("button", { name: "Pause playback" })).toBeTruthy();
+      expect(screen.getAllByText("Signal").length).toBeGreaterThan(0);
+      expect(screen.getAllByText("Frames").length).toBeGreaterThan(0);
+      expect(screen.getAllByText("3:12").length).toBeGreaterThan(0);
+    });
+
+    fireEvent.click(screen.getByRole("link", { name: /queue/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText("now playing")).toBeTruthy();
+      expect(screen.getAllByText("Signal").length).toBeGreaterThan(0);
+      expect(screen.getAllByText("North").length).toBeGreaterThan(0);
+      expect(screen.getByText("0 waiting")).toBeTruthy();
+      expect(
+        screen.getByText("No additional indexed tracks are queued after the current selection."),
+      ).toBeTruthy();
+    });
+  });
+
   it("renders progress labels from backend playback snapshots", async () => {
     window.history.replaceState({}, "", "/tracks");
 
@@ -1073,7 +1172,7 @@ describe("app shell smoke checks", () => {
     await waitFor(() => {
       expect(screen.getByText("Empty Root")).toBeTruthy();
       expect(screen.getByText("/Users/rujulw/Empty Root")).toBeTruthy();
-      expect(screen.getByText("Scan finished for Empty Root, but no MP3 files were found.")).toBeTruthy();
+      expect(screen.getByText("Scan finished for Empty Root, but no supported audio files were found.")).toBeTruthy();
       expect(screen.getByText("found")).toBeTruthy();
       expect(screen.getAllByText("0").length).toBeGreaterThan(0);
     });
@@ -1081,10 +1180,10 @@ describe("app shell smoke checks", () => {
     fireEvent.click(screen.getByRole("link", { name: /tracks/i }));
 
     await waitFor(() => {
-      expect(screen.getByText("No MP3 files found in Empty Root.")).toBeTruthy();
+      expect(screen.getByText("No audio files found in Empty Root.")).toBeTruthy();
       expect(
         screen.getByText(
-          "The recursive scan completed, but that root did not contain any MP3 files in the selected folder tree.",
+          "The recursive scan completed, but that root did not contain any supported audio files in the selected folder tree.",
         ),
       ).toBeTruthy();
     });

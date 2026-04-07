@@ -162,7 +162,7 @@ impl LocalLibraryScanner {
         let connection = self.app_database.connect()?;
         let mut statement = connection.prepare(
             "
-            SELECT ts.local_path
+            SELECT ts.local_path, t.extension
             FROM tracks t
             JOIN track_sources ts ON ts.track_id = t.id
             WHERE t.id = ?1
@@ -171,14 +171,17 @@ impl LocalLibraryScanner {
             ",
         )?;
 
-        let local_path = statement
-            .query_row([track_id], |row| row.get::<_, String>(0))
+        let source = statement
+            .query_row([track_id], |row| {
+                Ok(PlaybackSource {
+                    track_id: track_id.to_owned(),
+                    local_path: row.get(0)?,
+                    extension: row.get(1)?,
+                })
+            })
             .optional()?;
 
-        Ok(local_path.map(|local_path| PlaybackSource {
-            track_id: track_id.to_owned(),
-            local_path,
-        }))
+        Ok(source)
     }
 
     pub fn resolve_playback_track(
@@ -194,7 +197,8 @@ impl LocalLibraryScanner {
               t.artist,
               t.album,
               t.duration_seconds,
-              ts.local_path
+              ts.local_path,
+              t.extension
             FROM tracks t
             JOIN track_sources ts ON ts.track_id = t.id
             WHERE t.id = ?1
@@ -212,6 +216,7 @@ impl LocalLibraryScanner {
                     album: row.get(3)?,
                     duration_seconds: row.get(4)?,
                     local_path: row.get(5)?,
+                    extension: row.get(6)?,
                 })
             })
             .optional()
