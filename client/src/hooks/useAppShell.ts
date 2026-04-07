@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 
 import {
   bootstrapApp,
-  completePlayback,
   getShellState,
   loadPlaybackTrack,
   pickLibraryDirectory,
@@ -12,7 +11,6 @@ import {
   scanLocalLibrary,
   seekPlayback,
   subscribePlaybackState,
-  syncPlaybackTiming,
   type TrackListItem,
 } from "../desktop";
 import type {
@@ -55,6 +53,9 @@ export function useAppShell() {
     sortDirection: "asc",
   });
   const [playbackQueueTrackIds, setPlaybackQueueTrackIds] = useState<string[]>([]);
+  const completionHandledRef = useRef<string | null>(null);
+
+  const isRustOutputPlayback = shellState?.playback.outputOwner === "rust";
 
   useEffect(() => {
     playbackQueueTrackIdsRef.current = playbackQueueTrackIds;
@@ -157,69 +158,30 @@ export function useAppShell() {
     audio.preload = "metadata";
     audioRef.current = audio;
 
-    const handleLoadedMetadata = () => {
-      void syncPlaybackTiming(
-        undefined,
-        Number.isFinite(audio.duration) ? Math.round(audio.duration) : undefined,
-      );
-    };
-
-    const handleTimeUpdate = () => {
-      void syncPlaybackTiming(
-        Math.round(audio.currentTime),
-        Number.isFinite(audio.duration) && audio.duration > 0
-          ? Math.round(audio.duration)
-          : undefined,
-      );
-    };
-
-    const handleEnded = () => {
-      const activeTrackId = activeTrackIdRef.current;
-      const activeIndex = activeTrackId
-        ? playbackQueueTrackIdsRef.current.findIndex((trackId) => trackId === activeTrackId)
-        : -1;
-      const nextTrackId =
-        activeIndex >= 0
-          ? playbackQueueTrackIdsRef.current[activeIndex + 1]
-          : undefined;
-      const nextTrack = nextTrackId
-        ? trackCatalogRef.current.get(nextTrackId)
-        : undefined;
-
-      if (nextTrack) {
-        void startTrackPlayback(nextTrack, true);
-        return;
-      }
-
-      void completePlayback();
-    };
-
-    const handleError = () => {
-      void reportPlaybackError();
-    };
-
-    audio.addEventListener("loadedmetadata", handleLoadedMetadata);
-    audio.addEventListener("timeupdate", handleTimeUpdate);
-    audio.addEventListener("ended", handleEnded);
-    audio.addEventListener("error", handleError);
-
     return () => {
       try {
         audio.pause();
       } catch {
         // jsdom does not implement media teardown fully, but the browser/webview does.
       }
-      audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
-      audio.removeEventListener("timeupdate", handleTimeUpdate);
-      audio.removeEventListener("ended", handleEnded);
-      audio.removeEventListener("error", handleError);
       audioRef.current = null;
     };
   }, []);
 
   useEffect(() => {
     const audio = audioRef.current;
-    if (!audio || !shellState?.playback.trackId || !audio.src) {
+    if (!audio || !shellState?.playback.trackId) {
+      return;
+    }
+
+    if (shellState.playback.outputOwner === "rust") {
+      if (!audio.paused) {
+        audio.pause();
+      }
+      return;
+    }
+
+    if (!audio.src) {
       return;
     }
 
@@ -229,9 +191,7 @@ export function useAppShell() {
       }
 
       void audio.play().catch(() => {
-        void playbackAction("toggle").then(() => {
-          void reportPlaybackError("Playback blocked");
-        });
+        void playbackAction("toggle");
       });
       return;
     }
@@ -239,7 +199,45 @@ export function useAppShell() {
     if (!audio.paused) {
       audio.pause();
     }
-  }, [shellState?.playback.isPlaying, shellState?.playback.trackId]);
+  }, [
+    shellState?.playback.isPlaying,
+    shellState?.playback.outputOwner,
+    shellState?.playback.trackId,
+  ]);
+
+  useEffect(() => {
+    const playback = shellState?.playback;
+    if (!playback || playback.outputOwner !== "rust" || playback.statusLabel !== "Ended") {
+      completionHandledRef.current = null;
+      return;
+    }
+
+    const completionKey = `${playback.trackId ?? "none"}:${playback.progressSeconds}`;
+    if (completionHandledRef.current === completionKey) {
+      return;
+    }
+    completionHandledRef.current = completionKey;
+
+    const activeTrackId = playback.trackId ?? tracksState.selectedTrackId;
+    const activeIndex = activeTrackId
+      ? playbackQueueTrackIdsRef.current.findIndex((trackId) => trackId === activeTrackId)
+      : -1;
+    const nextTrackId =
+      activeIndex >= 0 ? playbackQueueTrackIdsRef.current[activeIndex + 1] : undefined;
+    const nextTrack = nextTrackId
+      ? trackCatalogRef.current.get(nextTrackId)
+      : undefined;
+
+    if (nextTrack) {
+      void startTrackPlayback(nextTrack, true);
+    }
+  }, [
+    shellState?.playback.outputOwner,
+    shellState?.playback.progressSeconds,
+    shellState?.playback.statusLabel,
+    shellState?.playback.trackId,
+    tracksState.selectedTrackId,
+  ]);
 
   const refreshShellState = () => {
     void getShellState().then((shellPayload) => {
@@ -315,8 +313,14 @@ export function useAppShell() {
         ? playbackQueueTrackIds.findIndex((trackId) => trackId === activeTrackId)
         : -1;
 
-      if (action === "previous" && audio && audio.currentTime > 3 && activeIndex >= 0) {
-        audio.currentTime = 0;
+      const currentProgressSeconds = isRustOutputPlayback
+        ? shellState?.playback.progressSeconds ?? 0
+        : audio?.currentTime ?? 0;
+
+      if (action === "previous" && currentProgressSeconds > 3 && activeTrackId) {
+        if (audio) {
+          audio.currentTime = 0;
+        }
         void seekPlayback(0);
         return;
       }
@@ -342,7 +346,7 @@ export function useAppShell() {
     }
 
     if (action === "toggle") {
-      if (audio && shellState?.playback.trackId && audio.src) {
+      if (shellState?.playback.trackId && (isRustOutputPlayback || (audio && audio.src))) {
         void playbackAction("toggle");
         return;
       }
@@ -358,6 +362,22 @@ export function useAppShell() {
 
   const handleTrackSelection = (track: TrackListItem) => {
     startTrackPlayback(track, true);
+  };
+
+  const handlePlaybackSeek = (positionSeconds: number) => {
+    const clampedSeconds = Math.max(
+      0,
+      Math.min(
+        Math.round(positionSeconds),
+        shellState?.playback.durationSeconds ?? Math.round(positionSeconds),
+      ),
+    );
+
+    if (audioRef.current && !isRustOutputPlayback) {
+      audioRef.current.currentTime = clampedSeconds;
+    }
+
+    void seekPlayback(clampedSeconds);
   };
 
   const startTrackPlayback = async (track: TrackListItem, autoplay: boolean) => {
@@ -397,7 +417,11 @@ export function useAppShell() {
     }
 
     audio.pause();
-    audio.src = payload.source.assetUrl;
+    if (payload.playback.outputOwner === "rust") {
+      audio.src = "";
+    } else {
+      audio.src = payload.source.assetUrl;
+    }
     audio.currentTime = 0;
 
     if (!autoplay) {
@@ -535,6 +559,7 @@ export function useAppShell() {
     setLibraryPath,
     handlePickLibraryDirectory,
     handlePlaybackAction,
+    handlePlaybackSeek,
     handleTrackSelection,
     handleScan,
     handleTracksSearchDraftChange,

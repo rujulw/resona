@@ -28,11 +28,13 @@ The working library view is a focused tracks table with an inline search field, 
 
 Playback controls live in a persistent bottom bar with clear transport actions, current track identity, progress, and source or cache status. Core actions should be available with minimal pointer movement, and the selected track in the library should immediately become the active shell track.
 
-The current `v1.1.0` migration now treats the shell as a playback renderer/controller rather than the playback authority. Rust owns the transport snapshot, timing updates, completion state, and error labels, while the audio element is reduced to an output adapter that follows backend-owned playback state.
+The current `v1.2.0` release treats the shell as a playback renderer/controller rather than the playback authority. Rust owns the transport snapshot, timing updates, completion state, error labels, and local desktop output for native playback.
 
-Track loading, play/pause, seek, ended, and playback-error transitions should now move through backend commands and come back through named playback events instead of through local React state writes. The shell still hosts the actual audio element for this slice, but it should behave like a renderer that reports media facts upward and follows backend playback instructions back down.
+Track loading, play/pause, seek, ended, and playback-error transitions now move through backend commands and come back through named playback events instead of through local React state writes.
 
-This leaves one clear boundary for later slices: if native output eventually moves deeper into Rust, the command/event contract can stay stable because the shell is already no longer the transport source of truth.
+This leaves one clear boundary for later slices: deeper output/runtime work can still keep the command/event contract stable because the shell is already no longer the transport source of truth.
+
+That remains the direction for later refinement: keep playback output in Rust while the React shell stays fully responsible for the visible playback UI. Native output should not reduce the product's ability to ship a custom progress bar, queue view, artwork treatment, or transport layout.
 
 ### Queue
 
@@ -64,14 +66,15 @@ Track insights from timbre should appear in secondary detail surfaces such as a 
 - Atlas integration is deferred until a later release and should not distort the public v1 local-first UX
 - The analysis subsystem is planned to be fused from the local `~/dev/timbre` project behind an internal service boundary after v1 ships
 - Local library onboarding should use a desktop directory picker and recursive MP3 discovery instead of asking the user to paste filesystem paths
-- Public `v1.0.0` used a Web Audio path for faster delivery, while `v1.1.0` now moves playback authority into Rust and leaves native output depth as a follow-up decision
+- Public `v1.0.0` used a Web Audio path for faster delivery, while `v1.2.0` moves playback authority and local desktop output into Rust
+- Further native-output refinement can deepen the Rust-local stack around `symphonia` decode and `cpal` device output while preserving the existing shell-facing playback contract
 - Playback-critical source resolution and library persistence flows are owned by Rust to reduce frontend complexity
 - The app remains open source even when used with private Atlas-backed media libraries
 - The desktop client should use a persistent routed shell so home, tracks, queue, and settings share the same navigation and playback frame
 - The playback bar and queue route should both read from the same active-track state so transport and next-up behavior cannot drift apart
-- The `v1.1.0` playback migration should move command authority to Rust through a narrow Tauri contract and push playback snapshots back to the shell through named events
+- The `v1.2.0` playback contract moves command authority to Rust through a narrow Tauri contract and pushes playback snapshots back to the shell through named events
 - The shell should consume backend playback snapshots through `playback://state-changed` rather than inventing separate client-only transport truth
-- The shell audio element should act as a renderer/controller that reports timing and media errors back to Rust instead of mutating playback state locally
+- The shell should remain a renderer/controller rather than reclaiming playback state locally
 - The tracks route should feel like one uninterrupted library surface, even if the backend continues to use paged query primitives under the hood
 - Public v1 release readiness should be enforced by automated frontend and backend CI rather than manual spot checks alone
 

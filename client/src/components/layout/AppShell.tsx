@@ -25,6 +25,7 @@ export function AppShell({
   scanState,
   onPickLibraryDirectory,
   onPlaybackAction,
+  onPlaybackSeek,
   onTrackSelect,
   onScan,
   onTracksSearchDraftChange,
@@ -41,6 +42,7 @@ export function AppShell({
   scanState: ScanState;
   onPickLibraryDirectory: () => void;
   onPlaybackAction: (action: "previous" | "toggle" | "next") => void;
+  onPlaybackSeek: (positionSeconds: number) => void;
   onTrackSelect: (track: TrackListItem) => void;
   onScan: () => void;
   onTracksSearchDraftChange: (value: string) => void;
@@ -108,6 +110,7 @@ export function AppShell({
           activeTrack={queueState.activeTrack}
           playback={shellState.playback}
           onPlaybackAction={onPlaybackAction}
+          onSeek={onPlaybackSeek}
         />
       </main>
     </BrowserRouter>

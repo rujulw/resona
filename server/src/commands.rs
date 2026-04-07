@@ -386,8 +386,7 @@ pub fn sync_playback_timing(
     progress_seconds: Option<u32>,
     duration_seconds: Option<u32>,
 ) -> Result<PlaybackSnapshot, String> {
-    let snapshot =
-        playback_runtime_state.sync_timing(progress_seconds, duration_seconds);
+    let snapshot = playback_runtime_state.sync_timing(progress_seconds, duration_seconds);
     emit_playback_state(&app_handle, &snapshot).map_err(|error| error.to_string())?;
     Ok(snapshot)
 }
@@ -438,11 +437,10 @@ mod tests {
     use super::{
         bootstrap_app, build_shell_state, build_shell_state_with_playback,
         complete_playback_with_runtime, describe_playback_contract,
-        load_playback_track_with_database, playback_action_with_runtime,
-        playback_state_for_action, query_library_with_database,
-        report_playback_error_with_runtime, seek_playback_with_runtime,
-        resolve_track_playback_source_with_database, scan_local_library_with_database, DatabaseState,
-        sync_playback_timing_with_runtime,
+        load_playback_track_with_database, playback_action_with_runtime, playback_state_for_action,
+        query_library_with_database, report_playback_error_with_runtime,
+        resolve_track_playback_source_with_database, scan_local_library_with_database,
+        seek_playback_with_runtime, sync_playback_timing_with_runtime, DatabaseState,
     };
     use crate::database::AppDatabase;
     use crate::playback::PlaybackRuntimeState;
@@ -658,7 +656,10 @@ mod tests {
         .expect("load should succeed");
 
         assert_eq!(payload.playback.status_label, "Ready");
-        assert_eq!(payload.playback.track_id.as_deref(), Some(page.items[0].id.as_str()));
+        assert_eq!(
+            payload.playback.track_id.as_deref(),
+            Some(page.items[0].id.as_str())
+        );
         assert!(payload.source.local_path.ends_with("disc/alpha.mp3"));
 
         let toggled = playback_action_with_runtime(&playback_runtime_state, "toggle");
@@ -708,15 +709,76 @@ mod tests {
         assert_eq!(seeked.progress_seconds, 12);
         assert_eq!(seeked.transport_label, "Paused");
 
-        let failed = report_playback_error_with_runtime(
-            &playback_runtime_state,
-            Some("Playback blocked"),
-        );
+        let failed =
+            report_playback_error_with_runtime(&playback_runtime_state, Some("Playback blocked"));
         assert_eq!(failed.status_label, "Error");
         assert_eq!(failed.transport_label, "Playback blocked");
 
         let completed = complete_playback_with_runtime(&playback_runtime_state);
         assert_eq!(completed.status_label, "Ended");
         assert_eq!(completed.progress_seconds, 182);
+    }
+
+    #[test]
+    fn native_playback_smoke_covers_launch_play_seek_pause_and_completion() {
+        let database_state = test_database_state();
+        let playback_runtime_state = PlaybackRuntimeState::default();
+        let root = std::env::temp_dir().join(unique_test_suffix("resona-native-smoke"));
+
+        std::fs::create_dir_all(root.join("disc")).expect("directories should be created");
+        std::fs::File::create(root.join("disc").join("alpha.mp3"))
+            .expect("track should be created");
+
+        scan_local_library_with_database(
+            &database_state.app_database,
+            &root.display().to_string(),
+            Some("portfolio"),
+        )
+        .expect("scan should succeed");
+
+        let page = query_library_with_database(
+            &database_state.app_database,
+            Some(10),
+            None,
+            None,
+            Some("title".to_owned()),
+            Some("asc".to_owned()),
+        )
+        .expect("query should succeed");
+
+        let launched = load_playback_track_with_database(
+            &database_state.app_database,
+            &playback_runtime_state,
+            &page.items[0].id,
+        )
+        .expect("load should succeed");
+        assert_eq!(launched.playback.status_label, "Ready");
+        assert_eq!(launched.playback.output_owner, "rust");
+
+        let playing = playback_action_with_runtime(&playback_runtime_state, "toggle");
+        assert_eq!(playing.status_label, "Playing");
+        assert!(playing.is_playing);
+        assert_eq!(playing.output_owner, "rust");
+
+        let timed =
+            sync_playback_timing_with_runtime(&playback_runtime_state, Some(0), Some(182));
+        assert_eq!(timed.duration_seconds, 182);
+
+        let seeked = seek_playback_with_runtime(&playback_runtime_state, 61);
+        assert_eq!(seeked.progress_seconds, 61);
+        assert_eq!(seeked.transport_label, "Playing");
+        assert_eq!(seeked.output_owner, "rust");
+
+        let paused = playback_action_with_runtime(&playback_runtime_state, "toggle");
+        assert_eq!(paused.status_label, "Paused");
+        assert!(!paused.is_playing);
+        assert_eq!(paused.output_owner, "rust");
+
+        let completed = complete_playback_with_runtime(&playback_runtime_state);
+        assert_eq!(completed.status_label, "Ended");
+        assert_eq!(completed.transport_label, "Ended");
+        assert_eq!(completed.duration_seconds, 182);
+        assert_eq!(completed.progress_seconds, 182);
+        assert_eq!(completed.output_owner, "rust");
     }
 }

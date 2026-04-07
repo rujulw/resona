@@ -9,10 +9,7 @@ const loadPlaybackTrackMock = vi.fn();
 const queryLibraryMock = vi.fn();
 const pickLibraryDirectoryMock = vi.fn();
 const playbackActionMock = vi.fn();
-const syncPlaybackTimingMock = vi.fn();
 const seekPlaybackMock = vi.fn();
-const completePlaybackMock = vi.fn();
-const reportPlaybackErrorMock = vi.fn();
 const subscribePlaybackStateMock = vi.fn();
 const resolveArtworkSourceMock = vi.fn();
 const resolveTrackPlaybackSourceMock = vi.fn();
@@ -26,10 +23,7 @@ vi.mock("./desktop", () => ({
   pickLibraryDirectory: (...args: unknown[]) => pickLibraryDirectoryMock(...args),
   queryLibrary: (...args: unknown[]) => queryLibraryMock(...args),
   playbackAction: (...args: unknown[]) => playbackActionMock(...args),
-  syncPlaybackTiming: (...args: unknown[]) => syncPlaybackTimingMock(...args),
   seekPlayback: (...args: unknown[]) => seekPlaybackMock(...args),
-  completePlayback: (...args: unknown[]) => completePlaybackMock(...args),
-  reportPlaybackError: (...args: unknown[]) => reportPlaybackErrorMock(...args),
   subscribePlaybackState: (...args: unknown[]) => subscribePlaybackStateMock(...args),
   resolveArtworkSource: (...args: unknown[]) => resolveArtworkSourceMock(...args),
   resolveTrackPlaybackSource: (...args: unknown[]) => resolveTrackPlaybackSourceMock(...args),
@@ -59,14 +53,6 @@ class MockAudio extends EventTarget {
     if (typeof duration === "number") {
       this.duration = duration;
     }
-
-    this.dispatchEvent(new Event("loadedmetadata"));
-  }
-
-  emitTimeUpdate(currentTime: number, duration = this.duration) {
-    this.currentTime = currentTime;
-    this.duration = duration;
-    this.dispatchEvent(new Event("timeupdate"));
   }
 }
 
@@ -99,12 +85,13 @@ describe("app shell smoke checks", () => {
   let mockBackendPlayback: {
     statusLabel: string;
     transportLabel: string;
-    progressSeconds: number;
-    durationSeconds: number;
-    isPlaying: boolean;
-    trackId: string | null;
-    trackTitle: string | null;
-    trackArtist: string | null;
+      progressSeconds: number;
+      durationSeconds: number;
+      isPlaying: boolean;
+      outputOwner: string;
+      trackId: string | null;
+      trackTitle: string | null;
+      trackArtist: string | null;
     trackAlbum: string | null;
   };
   let playbackStateListener:
@@ -114,6 +101,7 @@ describe("app shell smoke checks", () => {
         progressSeconds: number;
         durationSeconds: number;
         isPlaying: boolean;
+        outputOwner: string;
         trackId: string | null;
         trackTitle: string | null;
         trackArtist: string | null;
@@ -128,10 +116,7 @@ describe("app shell smoke checks", () => {
     queryLibraryMock.mockReset();
     pickLibraryDirectoryMock.mockReset();
     playbackActionMock.mockReset();
-    syncPlaybackTimingMock.mockReset();
     seekPlaybackMock.mockReset();
-    completePlaybackMock.mockReset();
-    reportPlaybackErrorMock.mockReset();
     subscribePlaybackStateMock.mockReset();
     resolveArtworkSourceMock.mockReset();
     resolveTrackPlaybackSourceMock.mockReset();
@@ -143,6 +128,7 @@ describe("app shell smoke checks", () => {
       progressSeconds: 0,
       durationSeconds: 0,
       isPlaying: false,
+      outputOwner: "frontend",
       trackId: null,
       trackTitle: null,
       trackArtist: null,
@@ -160,7 +146,7 @@ describe("app shell smoke checks", () => {
 
     bootstrapAppMock.mockResolvedValue({
       appName: "resona",
-      appVersion: "1.1.0",
+      appVersion: "1.2.0",
       windowTitle: "resona",
       platform: "macos",
       runtime: {
@@ -187,6 +173,7 @@ describe("app shell smoke checks", () => {
         transportLabel: "Idle",
         progressSeconds: 0,
         durationSeconds: 0,
+        outputOwner: "frontend",
       },
     });
     subscribePlaybackStateMock.mockImplementation(async (callback) => {
@@ -241,6 +228,7 @@ describe("app shell smoke checks", () => {
           progressSeconds: 0,
           durationSeconds: trackId === "track-1" ? 182 : 205,
           isPlaying: false,
+          outputOwner: "rust",
           trackId,
           trackTitle: trackId === "track-1" ? "Alpha" : "Bravo",
           trackArtist: trackId === "track-1" ? "North" : "South",
@@ -283,43 +271,11 @@ describe("app shell smoke checks", () => {
       playbackStateListener?.(mockBackendPlayback);
       return mockBackendPlayback;
     });
-    syncPlaybackTimingMock.mockImplementation(
-      async (progressSeconds?: number, durationSeconds?: number) => {
-        mockBackendPlayback = {
-          ...mockBackendPlayback,
-          progressSeconds: progressSeconds ?? mockBackendPlayback.progressSeconds,
-          durationSeconds: durationSeconds ?? mockBackendPlayback.durationSeconds,
-        };
-        playbackStateListener?.(mockBackendPlayback);
-        return mockBackendPlayback;
-      },
-    );
     seekPlaybackMock.mockImplementation(async (positionSeconds: number) => {
       mockBackendPlayback = {
         ...mockBackendPlayback,
         progressSeconds: positionSeconds,
         transportLabel: mockBackendPlayback.isPlaying ? "Playing" : "Paused",
-      };
-      playbackStateListener?.(mockBackendPlayback);
-      return mockBackendPlayback;
-    });
-    completePlaybackMock.mockImplementation(async () => {
-      mockBackendPlayback = {
-        ...mockBackendPlayback,
-        statusLabel: "Ended",
-        transportLabel: "Ended",
-        progressSeconds: mockBackendPlayback.durationSeconds,
-        isPlaying: false,
-      };
-      playbackStateListener?.(mockBackendPlayback);
-      return mockBackendPlayback;
-    });
-    reportPlaybackErrorMock.mockImplementation(async (transportLabel?: string) => {
-      mockBackendPlayback = {
-        ...mockBackendPlayback,
-        statusLabel: "Error",
-        transportLabel: transportLabel ?? "Playback error",
-        isPlaying: false,
       };
       playbackStateListener?.(mockBackendPlayback);
       return mockBackendPlayback;
@@ -690,11 +646,15 @@ describe("app shell smoke checks", () => {
       expect(screen.getByRole("button", { name: "Pause playback" })).toBeTruthy();
     });
 
-    const [firstAudio] = mockAudioInstances;
-    firstAudio.emitLoadedMetadata(182);
-    firstAudio.emitTimeUpdate(182, 182);
-    firstAudio.ended = true;
-    firstAudio.dispatchEvent(new Event("ended"));
+    mockBackendPlayback = {
+      ...mockBackendPlayback,
+      statusLabel: "Ended",
+      transportLabel: "Ended",
+      progressSeconds: 182,
+      durationSeconds: 182,
+      isPlaying: false,
+    };
+    playbackStateListener?.(mockBackendPlayback);
 
     await waitFor(() => {
       expect(loadPlaybackTrackMock).toHaveBeenCalledWith("track-2");
@@ -829,7 +789,7 @@ describe("app shell smoke checks", () => {
     });
   });
 
-  it("syncs progress labels from the active audio element", async () => {
+  it("renders progress labels from backend playback snapshots", async () => {
     window.history.replaceState({}, "", "/tracks");
 
     const { default: App } = await import("./App");
@@ -844,18 +804,19 @@ describe("app shell smoke checks", () => {
       ).toBe("true");
     });
 
-    const audio = mockAudioInstances.at(-1);
-    if (!audio) {
-      throw new Error("Expected a mock audio instance");
-    }
-
-    audio.emitLoadedMetadata(182);
-    audio.emitTimeUpdate(41, 182);
+    mockBackendPlayback = {
+      ...mockBackendPlayback,
+      progressSeconds: 41,
+      durationSeconds: 182,
+      isPlaying: true,
+      statusLabel: "Playing",
+      transportLabel: "Playing",
+    };
+    playbackStateListener?.(mockBackendPlayback);
 
     await waitFor(() => {
       expect(screen.getByText("0:41")).toBeTruthy();
       expect(screen.getAllByText("3:02").length).toBeGreaterThan(0);
-      expect(syncPlaybackTimingMock).toHaveBeenCalled();
     });
   });
 
@@ -886,6 +847,96 @@ describe("app shell smoke checks", () => {
     });
   });
 
+  it("covers native playback launch play seek pause and completion through backend snapshots", async () => {
+    window.history.replaceState({}, "", "/tracks");
+
+    const { default: App } = await import("./App");
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Select Alpha" }));
+
+    await waitFor(() => {
+      expect(screen.getAllByText("Alpha").length).toBeGreaterThan(0);
+      expect(
+        screen.getByRole("button", { name: "Select Alpha" }).getAttribute("aria-pressed"),
+      ).toBe("true");
+      expect(screen.getByRole("button", { name: "Pause playback" })).toBeTruthy();
+      expect(screen.getByText("0:00")).toBeTruthy();
+      expect(mockBackendPlayback.outputOwner).toBe("rust");
+    });
+
+    mockBackendPlayback = {
+      ...mockBackendPlayback,
+      statusLabel: "Playing",
+      transportLabel: "Playing",
+      progressSeconds: 73,
+      durationSeconds: 182,
+      isPlaying: true,
+      outputOwner: "rust",
+    };
+    playbackStateListener?.(mockBackendPlayback);
+
+    await waitFor(() => {
+      expect(screen.getByText("1:13")).toBeTruthy();
+      expect(screen.getAllByText("3:02").length).toBeGreaterThan(0);
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Pause playback" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Play playback" })).toBeTruthy();
+      expect(mockBackendPlayback.transportLabel).toBe("Paused");
+    });
+
+    mockBackendPlayback = {
+      ...mockBackendPlayback,
+      statusLabel: "Ended",
+      transportLabel: "Ended",
+      progressSeconds: 182,
+      durationSeconds: 182,
+      isPlaying: false,
+      outputOwner: "rust",
+    };
+    playbackStateListener?.(mockBackendPlayback);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Play playback" })).toBeTruthy();
+      expect(screen.getAllByText("3:02").length).toBeGreaterThan(0);
+    });
+  });
+
+  it("seeks playback from the progress control", async () => {
+    window.history.replaceState({}, "", "/tracks");
+
+    const { default: App } = await import("./App");
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Select Alpha" }));
+
+    const progressControl = () => screen.getByRole("button", { name: "Seek playback" });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Pause playback" })).toBeTruthy();
+      expect(progressControl()).toBeTruthy();
+    });
+
+    Object.defineProperty(progressControl(), "getBoundingClientRect", {
+      configurable: true,
+      value: () =>
+        ({
+          left: 0,
+          width: 182,
+        }) as DOMRect,
+    });
+
+    fireEvent.click(progressControl(), { clientX: 91 });
+
+    await waitFor(() => {
+      expect(seekPlaybackMock).toHaveBeenCalledWith(91);
+      expect(screen.getByText("1:31")).toBeTruthy();
+    });
+  });
+
   it("restarts the current track when previous is pressed after progress has advanced", async () => {
     window.history.replaceState({}, "", "/tracks");
 
@@ -898,20 +949,24 @@ describe("app shell smoke checks", () => {
       expect(mockAudioInstances.length).toBeGreaterThan(0);
     });
 
-    const audio = mockAudioInstances.at(-1);
-    if (!audio) {
-      throw new Error("Expected a mock audio instance");
-    }
+    mockBackendPlayback = {
+      ...mockBackendPlayback,
+      progressSeconds: 12,
+      isPlaying: true,
+      statusLabel: "Playing",
+      transportLabel: "Playing",
+    };
+    playbackStateListener?.(mockBackendPlayback);
 
-    audio.emitLoadedMetadata(182);
-    audio.emitTimeUpdate(12, 182);
+    await waitFor(() => {
+      expect(screen.getByText("0:12")).toBeTruthy();
+    });
 
     fireEvent.click(screen.getByRole("button", { name: "Previous track" }));
 
     await waitFor(() => {
-      expect(screen.getByText("0:00")).toBeTruthy();
-      expect(audio.currentTime).toBe(0);
       expect(seekPlaybackMock).toHaveBeenCalledWith(0);
+      expect(mockBackendPlayback.progressSeconds).toBe(0);
       expect(
         screen.getByRole("button", { name: "Select Alpha" }).getAttribute("aria-pressed"),
       ).toBe("true");
@@ -931,13 +986,6 @@ describe("app shell smoke checks", () => {
       expect(screen.getByRole("button", { name: "Pause playback" })).toBeTruthy();
     });
 
-    const audio = mockAudioInstances.at(-1);
-    if (!audio) {
-      throw new Error("Expected a mock audio instance");
-    }
-
-    audio.emitLoadedMetadata(182);
-    audio.emitTimeUpdate(182, 182);
     mockBackendPlayback = {
       ...mockBackendPlayback,
       statusLabel: "Ended",
@@ -1118,6 +1166,7 @@ describe("app shell smoke checks", () => {
                   progressSeconds: 0,
                   durationSeconds: 182,
                   isPlaying: false,
+                  outputOwner: "rust",
                   trackId: "track-1",
                   trackTitle: "Alpha",
                   trackArtist: "North",
@@ -1140,6 +1189,7 @@ describe("app shell smoke checks", () => {
             progressSeconds: 0,
             durationSeconds: 205,
             isPlaying: false,
+            outputOwner: "rust",
             trackId,
             trackTitle: "Bravo",
             trackArtist: "South",

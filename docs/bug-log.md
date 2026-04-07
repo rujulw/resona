@@ -1,6 +1,6 @@
 # Bug Log
 
-## 2026-04-03 - Added smoke coverage for backend-owned playback sync after the Rust playback migration
+## 2026-04-03 - Added smoke coverage for backend-owned playback sync in `v1.2.0`
 - Status: fixed
 - Severity: medium
 - Symptom: after shifting playback authority into Rust, the repo still lacked a tight smoke-check layer proving the backend timing/seek/completion/error path and the frontend playback-bar rendering path stayed aligned.
@@ -12,7 +12,7 @@
   - `server/src/playback/mod.rs`
   - `client/src/App.test.tsx`
 - Linked commit/PR: pending
-- Notes: this closes a release-readiness gap for `v1.1.0` by checking the current hybrid playback model at both the Rust and shell layers.
+- Notes: this closes a release-readiness gap for `v1.2.0` by checking the current backend-owned playback model at both the Rust and shell layers.
 
 ## 2026-04-03 - Avoided split playback authority between React and the backend runtime
 - Status: fixed
@@ -30,7 +30,7 @@
   - `client/src/App.test.tsx`
   - `docs/design.md`
 - Linked commit/PR: pending
-- Notes: the shell still hosts the actual webview audio output in this slice, but React no longer decides playback truth on its own.
+- Notes: React no longer decides playback truth on its own, even though the shell still renders the playback chrome and dispatches user intent.
 
 ## 2026-04-03 - Avoided shell playback drift by emitting backend playback snapshots through Tauri events
 - Status: fixed
@@ -48,7 +48,7 @@
   - `client/src/App.test.tsx`
   - `docs/design.md`
 - Linked commit/PR: pending
-- Notes: the frontend still owns actual audio output and progress timing for now, but loaded-track and play/pause truth now have an event-driven backend sync path instead of relying on local UI timing alone.
+- Notes: this was the event-driven handoff that made the later native local-output path possible without changing the shell contract.
 
 ## 2026-03-29 - Avoided invalid Tauri frontend path during desktop boot
 - Status: fixed
