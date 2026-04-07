@@ -165,6 +165,12 @@ Current ingest baseline:
 - Sparse tags fall back more gracefully through cleaned filename titles, album-artist fallback, and parent-folder album fallback
 - System media tools may still show richer metadata over time, but the current `resona` ingest path now closes the biggest duration and artwork gaps from the earlier MVP scanner
 
+Planned `v1.2.1` FLAC compatibility slice:
+- expand discovery from MP3-only scanning to mixed MP3 + FLAC local libraries
+- keep the normalized track shape unchanged so query, queue, and shell code do not branch on format
+- preserve `relative_path` identity and explicit `extension` metadata so later duplicate-resolution work can distinguish MP3 and FLAC variants cleanly
+- treat embedded artwork, title, artist, album, and duration as the baseline ingest contract for both formats
+
 ### Scan Pipeline Design
 
 The local import path is deliberately structured as a pipeline rather than a single filesystem pass:
@@ -214,6 +220,12 @@ That shape matters for both performance and clarity. The traversal is effectivel
 - Today resolves the local indexed playback path, with room to expand to cached and remote sources later
 - Owns queue state, transport controls, buffering state, and transitions
 - Started with a Web Audio-based path in public `v1.0.0` and now uses a Rust-owned playback/runtime model for local desktop output while the shell renders output
+
+Planned `v1.2.1` compatibility rules:
+- FLAC should enter through the same indexed local source-resolution path as MP3
+- playback snapshots, transport commands, seek, completion, and queue behavior should remain codec-agnostic at the shell boundary
+- format support should not widen the source-provider model yet; FLAC is still just a local file in this slice
+- remote FLAC, transcoding, ReplayGain, and gapless-album features remain out of scope
 
 Current `v1.2.0` contract:
 
@@ -299,7 +311,7 @@ This is the right tradeoff for `resona` because SQLite already provides ordered 
 
 1. User selects a library folder through a desktop directory picker
 2. Rust indexing service walks the selected directory recursively
-3. MP3 files are discovered in the root and nested subfolders
+3. Supported local audio files are discovered in the root and nested subfolders
 4. Metadata is parsed and normalized for the local-first library
 5. Normalized records are stored in SQLite
 6. UI refreshes the scrollable tracks view through Tauri-backed queries

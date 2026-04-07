@@ -4,6 +4,8 @@ pub const INITIAL_SCHEMA_MIGRATION: &str =
     include_str!("../../db/migrations/0001_initial_schema.sql");
 pub const LIBRARY_QUERY_INDEXES_MIGRATION: &str =
     include_str!("../../db/migrations/0002_library_query_indexes.sql");
+pub const FLAC_TRACK_SUPPORT_MIGRATION: &str =
+    include_str!("../../db/migrations/0003_flac_track_support.sql");
 
 pub const TABLE_LIBRARY_ROOTS: &str = "library_roots";
 pub const TABLE_TRACKS: &str = "tracks";

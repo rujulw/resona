@@ -530,14 +530,14 @@ mod tests {
     }
 
     #[test]
-    fn local_scan_command_persists_mp3_files() {
+    fn local_scan_command_persists_supported_local_audio_files() {
         let database_state = test_database_state();
         let root = std::env::temp_dir().join(unique_test_suffix("resona-command-scan"));
 
         std::fs::create_dir_all(root.join("nested")).expect("directories should be created");
         std::fs::File::create(root.join("alpha.mp3")).expect("root mp3 should be created");
-        std::fs::File::create(root.join("nested").join("beta.mp3"))
-            .expect("nested mp3 should be created");
+        std::fs::File::create(root.join("nested").join("beta.flac"))
+            .expect("nested flac should be created");
 
         let summary = scan_local_library_with_database(
             &database_state.app_database,

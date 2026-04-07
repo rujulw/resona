@@ -11,7 +11,7 @@ use super::models::{
     ArtworkSource, LibraryCursor, LibraryPage, LibraryQuery, LibraryRootRecord, NormalizedTrack,
     PersistedLibrarySummary, PlaybackSource, ResolvedPlaybackTrack, ScanError, ScanSummary,
 };
-use super::normalization::{build_library_root, discover_mp3_files, normalize_track};
+use super::normalization::{build_library_root, discover_local_audio_files, normalize_track};
 use super::query::{
     build_library_query_sql, count_matching_tracks, query_tracks, sort_value_for_item,
 };
@@ -41,7 +41,7 @@ impl LocalLibraryScanner {
         }
 
         let library_root = build_library_root(&canonical_root, display_name);
-        let discovered_files = discover_mp3_files(&canonical_root)?;
+        let discovered_files = discover_local_audio_files(&canonical_root)?;
         let normalized_tracks = discovered_files
             .iter()
             .map(|path| normalize_track(&canonical_root, path, &library_root.id))

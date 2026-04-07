@@ -4,7 +4,7 @@ use crate::database::schema;
 
 use super::DatabaseError;
 
-pub const MIGRATIONS: [Migration; 2] = [
+pub const MIGRATIONS: [Migration; 3] = [
     Migration {
         id: "0001_initial_schema",
         sql: schema::INITIAL_SCHEMA_MIGRATION,
@@ -12,6 +12,10 @@ pub const MIGRATIONS: [Migration; 2] = [
     Migration {
         id: "0002_library_query_indexes",
         sql: schema::LIBRARY_QUERY_INDEXES_MIGRATION,
+    },
+    Migration {
+        id: "0003_flac_track_support",
+        sql: schema::FLAC_TRACK_SUPPORT_MIGRATION,
     },
 ];
 
