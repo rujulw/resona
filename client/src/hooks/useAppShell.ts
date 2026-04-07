@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 
 import {
   bootstrapApp,
-  completePlayback,
   getShellState,
   loadPlaybackTrack,
   pickLibraryDirectory,
@@ -12,7 +11,6 @@ import {
   scanLocalLibrary,
   seekPlayback,
   subscribePlaybackState,
-  syncPlaybackTiming,
   type TrackListItem,
 } from "../desktop";
 import type {
@@ -160,77 +158,15 @@ export function useAppShell() {
     audio.preload = "metadata";
     audioRef.current = audio;
 
-    const handleLoadedMetadata = () => {
-      if (isRustOutputPlayback) {
-        return;
-      }
-      void syncPlaybackTiming(
-        undefined,
-        Number.isFinite(audio.duration) ? Math.round(audio.duration) : undefined,
-      );
-    };
-
-    const handleTimeUpdate = () => {
-      if (isRustOutputPlayback) {
-        return;
-      }
-      void syncPlaybackTiming(
-        Math.round(audio.currentTime),
-        Number.isFinite(audio.duration) && audio.duration > 0
-          ? Math.round(audio.duration)
-          : undefined,
-      );
-    };
-
-    const handleEnded = () => {
-      if (isRustOutputPlayback) {
-        return;
-      }
-      const activeTrackId = activeTrackIdRef.current;
-      const activeIndex = activeTrackId
-        ? playbackQueueTrackIdsRef.current.findIndex((trackId) => trackId === activeTrackId)
-        : -1;
-      const nextTrackId =
-        activeIndex >= 0
-          ? playbackQueueTrackIdsRef.current[activeIndex + 1]
-          : undefined;
-      const nextTrack = nextTrackId
-        ? trackCatalogRef.current.get(nextTrackId)
-        : undefined;
-
-      if (nextTrack) {
-        void startTrackPlayback(nextTrack, true);
-        return;
-      }
-
-      void completePlayback();
-    };
-
-    const handleError = () => {
-      if (isRustOutputPlayback) {
-        return;
-      }
-      void reportPlaybackError();
-    };
-
-    audio.addEventListener("loadedmetadata", handleLoadedMetadata);
-    audio.addEventListener("timeupdate", handleTimeUpdate);
-    audio.addEventListener("ended", handleEnded);
-    audio.addEventListener("error", handleError);
-
     return () => {
       try {
         audio.pause();
       } catch {
         // jsdom does not implement media teardown fully, but the browser/webview does.
       }
-      audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
-      audio.removeEventListener("timeupdate", handleTimeUpdate);
-      audio.removeEventListener("ended", handleEnded);
-      audio.removeEventListener("error", handleError);
       audioRef.current = null;
     };
-  }, [isRustOutputPlayback]);
+  }, []);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -255,9 +191,7 @@ export function useAppShell() {
       }
 
       void audio.play().catch(() => {
-        void playbackAction("toggle").then(() => {
-          void reportPlaybackError("Playback blocked");
-        });
+        void playbackAction("toggle");
       });
       return;
     }
@@ -383,7 +317,7 @@ export function useAppShell() {
         ? shellState?.playback.progressSeconds ?? 0
         : audio?.currentTime ?? 0;
 
-      if (action === "previous" && currentProgressSeconds > 3 && activeIndex >= 0) {
+      if (action === "previous" && currentProgressSeconds > 3 && activeTrackId) {
         if (audio) {
           audio.currentTime = 0;
         }
