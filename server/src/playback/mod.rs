@@ -749,6 +749,29 @@ mod tests {
     }
 
     #[test]
+    fn playback_runtime_accepts_flac_tracks_through_native_output_path() {
+        let runtime = PlaybackRuntimeState::default();
+        let loaded = runtime.load_track(ResolvedPlaybackTrack {
+            track_id: "track-flac".to_owned(),
+            title: "Signal".to_owned(),
+            artist: Some("North".to_owned()),
+            album: Some("Frames".to_owned()),
+            duration_seconds: Some(192.0),
+            local_path: "/tmp/signal.flac".to_owned(),
+        });
+
+        assert_eq!(loaded.playback.status_label, "Ready");
+        assert_eq!(loaded.playback.output_owner, "rust");
+        assert_eq!(loaded.playback.track_title.as_deref(), Some("Signal"));
+        assert_eq!(loaded.source.local_path, "/tmp/signal.flac");
+
+        let snapshot = runtime.snapshot();
+        assert_eq!(snapshot.track_id.as_deref(), Some("track-flac"));
+        assert_eq!(snapshot.duration_seconds, 192);
+        assert_eq!(snapshot.output_owner, "rust");
+    }
+
+    #[test]
     fn playback_runtime_syncs_timing_seek_completion_and_errors() {
         let runtime = PlaybackRuntimeState::default();
         runtime.load_track(ResolvedPlaybackTrack {

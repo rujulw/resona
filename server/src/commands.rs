@@ -668,6 +668,45 @@ mod tests {
     }
 
     #[test]
+    fn load_playback_track_supports_indexed_flac_files() {
+        let database_state = test_database_state();
+        let playback_runtime_state = PlaybackRuntimeState::default();
+        let root = std::env::temp_dir().join(unique_test_suffix("resona-load-flac-playback"));
+
+        std::fs::create_dir_all(root.join("disc")).expect("directories should be created");
+        std::fs::File::create(root.join("disc").join("alpha.flac"))
+            .expect("flac track should be created");
+
+        scan_local_library_with_database(
+            &database_state.app_database,
+            &root.display().to_string(),
+            Some("portfolio"),
+        )
+        .expect("scan should succeed");
+
+        let page = query_library_with_database(
+            &database_state.app_database,
+            Some(10),
+            None,
+            None,
+            Some("title".to_owned()),
+            Some("asc".to_owned()),
+        )
+        .expect("query should succeed");
+
+        let payload = load_playback_track_with_database(
+            &database_state.app_database,
+            &playback_runtime_state,
+            &page.items[0].id,
+        )
+        .expect("load should succeed");
+
+        assert_eq!(payload.playback.status_label, "Ready");
+        assert_eq!(payload.playback.output_owner, "rust");
+        assert!(payload.source.local_path.ends_with("disc/alpha.flac"));
+    }
+
+    #[test]
     fn playback_runtime_commands_cover_backend_owned_state_sync() {
         let database_state = test_database_state();
         let playback_runtime_state = PlaybackRuntimeState::default();
