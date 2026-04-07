@@ -55,13 +55,14 @@ Current milestone progress:
 
 - Active local track selection now drives the persistent playback bar
 - Local indexed MP3 playback is now working in the desktop client
-- Previous, next, pause, restart, and progress sync now operate against the active track
+- Previous, next, pause, restart, seek, and progress sync now operate against the active track
 - The queue route now reflects stable next-up behavior from playback order rather than from the filtered tracks table
 - Embedded artwork now renders in the tracks view, queue view, and playback bar
 - Release-hardening fixes now guard against stale playback-source and overlapping library-query races
-- The `v1.1.0` playback migration now has an explicit Rust-side command and event contract defined before runtime implementation begins
-- The first `v1.1.0` runtime slice now lets Rust load indexed local tracks and own play/pause state while the frontend still handles actual audio output and timing updates
-- The next playback milestone is `v1.2.0`, where native output should move into Rust with a local-file-first scope and measurable memory/perf validation
+- `v1.2.0` now has an explicit Rust-side playback command and event contract
+- Rust now owns local playback output for indexed desktop files behind the existing playback runtime
+- The shell now renders playback progress and completion from backend-driven state changes instead of frontend-owned media lifecycle callbacks
+- Native playback smoke coverage now exercises launch, play, seek, pause, and completion through backend and shell tests
 
 ## Milestone 5: Cache and Remote Media
 
@@ -92,11 +93,10 @@ Current milestone progress:
 
 - Atlas endpoint contracts need to be specified for object identity, metadata sync, streaming, and version validation
 - The local `~/dev/timbre` integration needs a defined module boundary and update workflow
-- Audio output path needs validation for the Web Audio based V1 approach
-- Native Rust output should use a local-file-first stack and keep the current shell contract stable while the backend engine changes underneath
+- Native output still needs dedicated validation for memory, CPU, and device-compatibility behavior
 - Library import behavior for malformed tags, missing artwork, permission failures, and non-MP3 files should be documented during implementation
 - Atlas sync and timbre analysis should stay explicitly deferred until the public v1 local-first release is stable
-- Rust-owned playback state is now in progress for `v1.1.0`; native Rust output is the next follow-up for `v1.2.0`
+- Queue ownership is still more shell-derived than the long-term Rust-first playback model
 - Tagged macOS release builds still need an explicit artifact-upload step so DMG output is downloadable from GitHub Actions
 
 ## Release Gate

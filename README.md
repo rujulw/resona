@@ -4,7 +4,7 @@ resona is a lightweight, local-first desktop music system built for fast playbac
 
 ## Product Goal
 
-Build a private, performance-first music player that feels closer to a system utility than a streaming platform. The public v1 focus is dependable local playback, folder-based library import, deterministic queueing, and a dense desktop shell. Atlas, timbre, and Rust-owned playback remain follow-up releases rather than part of the first public tag.
+Build a private, performance-first music player that feels closer to a system utility than a streaming platform. The public v1 focus is dependable local playback, folder-based library import, deterministic queueing, and a dense desktop shell. Atlas and timbre remain follow-up releases rather than part of the first public tag.
 
 ## MVP Scope
 
@@ -78,7 +78,7 @@ Build a private, performance-first music player that feels closer to a system ut
 - Desktop shell: Tauri
 - Core engine: Rust
 - Database: SQLite
-- Audio path: Web Audio in public `v1.0.0`, Rust-owned playback state in `v1.1.0`, native Rust output targeted for `v1.2.0`
+- Audio path: frontend-owned Web Audio in public `v1.0.0`, with backend-owned playback state and native Rust local desktop output in `v1.2.0`
 - Remote storage: Atlas integration deferred until `v3.0.0`
 - Analysis engine: `timbre` integration deferred until `v2.0.0`
 
@@ -94,56 +94,55 @@ Build a private, performance-first music player that feels closer to a system ut
 ## Current Playback Baseline
 
 - Selecting a track from the library now drives the active playback state in the persistent bottom bar
-- Local indexed MP3 files can now be played directly through the desktop client using Tauri asset-backed file access
-- Transport controls now handle play, pause, previous, next, restart-on-previous, and live progress updates
+- Local indexed MP3 files now play through a Rust-native output path behind the existing playback runtime
+- Transport controls now handle play, pause, previous, next, restart-on-previous, seek, and backend-driven progress updates
 - The queue route reflects a stable next-up flow derived from playback order rather than the currently filtered tracks table
 
-## v1.1.0 Playback Contract
+## Current Playback Contract
 
-The first post-v1 architecture slice is now defined in code as a Rust playback contract rather than only as a roadmap note.
+The playback migration boundary is now implemented in code rather than only described as a roadmap note.
 
-- The current baseline still uses a frontend-owned `Audio` element for active playback
-- The `v1.1.0` migration target is a Rust runtime that owns transport, queue order, progress, and source state
-- The planned command surface centers on `load_playback_track`, `playback_action`, `seek_playback`, `replace_playback_queue`, and `get_playback_snapshot`
-- The planned event surface centers on `playback://state-changed` and `playback://queue-changed`
-- The frontend shell is expected to become a renderer/controller for playback state rather than the system of record
+- Rust now owns the playback runtime for loaded-track identity, transport state, progress, seek, completion, and output ownership
+- The command surface centers on `load_playback_track`, `playback_action`, `seek_playback`, `replace_playback_queue`, and `get_playback_snapshot`
+- The event surface centers on `playback://state-changed` and `playback://queue-changed`
+- The frontend shell now acts as a renderer/controller for playback state rather than the system of record
 
 Current implementation status:
 
-- Rust now owns the in-memory playback runtime for loading a local track and tracking play/pause state
-- `get_shell_state` now reflects backend playback snapshots instead of only hard-coded idle defaults
-- The frontend still provides the active audio output path and progress/time updates for now
-- Queue advancement and progress broadcasting remain follow-up `v1.1.0` slices
+- Rust owns local-file playback output for desktop playback and emits playback snapshots back into the shell
+- `get_shell_state` reflects backend playback snapshots instead of only hard-coded idle defaults
+- The shell renders transport, timing, and completion state from backend snapshots and events rather than frontend media lifecycle callbacks
+- Native playback smoke coverage now exercises launch, play, seek, pause, and completion across backend and shell tests
 
-## v1.2.0 Native Output Direction
+## Native Output Direction
 
-The next playback branch should move audio output itself into Rust while keeping the current shell contract stable.
+Native output moved into Rust without changing the visible shell contract.
 
 Chosen stack:
 
-- `symphonia` for local decode and metadata-friendly format parsing
-- `cpal` for device output
-- a small `playback` runtime-owned buffering layer in Rust rather than a browser `Audio` element
+- `rodio` for the current local native output path behind the playback runtime
+- `symphonia` and `cpal` remain the intended lower-level stack for a deeper dedicated output layer
+- a runtime-owned output path in Rust rather than a browser `Audio` element
 
-Why this stack:
+Why this direction:
 
-- `symphonia` keeps decode ownership in Rust and fits the local-file-first roadmap cleanly
-- `cpal` keeps output cross-platform enough that a later iOS-oriented Rust core is still plausible
-- the current Tauri command/event contract can remain the same while the output engine behind it changes
+- the current Tauri command/event contract stays stable while the output engine behind it changes
+- keeping playback authority in Rust makes desktop behavior more deterministic and keeps future native clients closer to the same playback core
+- local-file-first scope keeps the migration focused before Atlas/cache complexity is layered on top
 
 Constraints recorded up front:
 
-- scope `v1.2.0` to local-file playback first; do not mix remote streaming into the native-output milestone
+- scope native output to local-file playback first; do not mix remote streaming into the output milestone
 - preserve the React playback UI so custom transport, progress, queue, and artwork surfaces stay fully app-defined
 - keep queue and playback-state authority in Rust; the shell should only render snapshots and dispatch intent
-- benchmark memory before and after the switch instead of assuming native output is automatically lighter
+- benchmark memory and playback behavior separately instead of assuming native output is automatically lighter
 - defer gapless playback, EQ, DSP, and advanced output-device UX until after native output is stable
 
 Expected result:
 
-- the `localhost:1420` process should stop owning active audio execution
-- frontend memory pressure from playback should become less significant
+- the shell should stop owning active audio execution for local desktop playback
 - playback lifecycle behavior should become more deterministic on desktop
+- future native clients should be able to reuse more playback behavior without moving authority back into the UI
 
 ## MVP Subsystems
 
@@ -186,19 +185,19 @@ Current v1 playback chooses the local indexed file path. Later branches can exte
 2. Cached file
 3. Remote fetch to temporary buffer, then playback
 
-The current implementation baseline already supports direct local playback for indexed MP3 files through the desktop client, with the next-up queue derived from the currently active library selection.
+The current implementation baseline supports direct local playback for indexed MP3 files through the desktop client, with the next-up queue derived from the currently active library selection.
 
-The `v1.1.0` contract now narrows the migration boundary further:
+The current playback contract narrows the migration boundary further:
 
-- Rust becomes the owner of transport, queue progression, progress snapshots, and source authority
+- Rust becomes the owner of transport, progress snapshots, completion state, output ownership, and source authority
 - Tauri commands mutate playback state while Tauri events broadcast committed playback snapshots back to the shell
 - The source order stays `local -> cache -> remote`, so future cache and Atlas work can reuse the same command/event boundary
 
-The first implementation slice of that contract is now live:
+Current implementation slice:
 
-- `load_playback_track` resolves an indexed local track into backend playback state and returns the local source path to the shell
-- `playback_action` now toggles backend play/pause state instead of returning a fixed placeholder message
-- The frontend still mirrors that backend decision onto the existing `Audio` element until the later event-driven playback slices land
+- `load_playback_track` resolves an indexed local track into backend playback state and hands local playback off to the Rust runtime
+- `playback_action` toggles backend play/pause state instead of returning a fixed placeholder message
+- `seek_playback`, completion updates, and playback snapshots keep the shell aligned to backend-owned transport state
 
 ### Analysis Engine
 
@@ -243,6 +242,11 @@ Current release CI includes:
 - GitHub Actions frontend checks on Ubuntu for `npm test` and `npm run build`
 - GitHub Actions backend checks on macOS for `cargo test` and `cargo check`
 - GitHub Actions tag builds for unsigned macOS `.dmg` artifacts via `.github/workflows/release-macos-dmg.yml`
+
+Current playback smoke coverage includes:
+
+- backend tests for load, play, seek, pause, and completion against the Rust playback runtime
+- frontend shell smoke checks that render backend-owned playback snapshots and transport transitions
 
 Current packaging baseline includes:
 
