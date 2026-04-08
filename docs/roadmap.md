@@ -63,6 +63,7 @@ Current milestone progress:
 - Rust now owns local playback output for indexed desktop files behind the existing playback runtime
 - The shell now renders playback progress and completion from backend-driven state changes instead of frontend-owned media lifecycle callbacks
 - Native playback smoke coverage now exercises launch, play, seek, pause, and completion through backend and shell tests
+- The next patch-release slice after FLAC is scoped as privacy-safe desktop presence, with a managed Discord RPC client and explicit/advisory metadata treated as a separate follow-up patch
 
 ## Milestone 5: Cache and Remote Media
 
@@ -88,6 +89,8 @@ Current milestone progress:
 - Waveform views
 - Intelligent queueing driven by timbre
 - Offline pinning and advanced cache controls
+- Rich presence payloads that expose album titles, artwork, queue contents, or filesystem-derived identity
+- Explicit-content inference from lyrics or heuristic text analysis
 
 ## Dependencies and Open Questions
 

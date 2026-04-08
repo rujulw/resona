@@ -184,6 +184,37 @@ Out of scope for `v1.2.1`:
 - ReplayGain, cue sheets, gapless-album logic, or audiophile device UX
 - duplicate-resolution UI between MP3 and FLAC copies of the same release
 
+### `v1.2.2` Privacy-Safe Presence Scope
+
+The next patch after FLAC should add desktop Discord Rich Presence carefully, without turning `resona` into a social product or leaking library details from a private local-first app.
+
+Presence goals:
+- publish lightweight now-playing state to Discord while desktop playback is active
+- keep the playback runtime as the only source of truth for externally published playback identity
+- use a maintained Discord RPC client library rather than hand-rolled IPC framing and socket lifecycle code
+- keep the first presence slice desktop-only and playback-only rather than a general account or social integration
+
+Allowed payload shape:
+- a generic app-facing activity line such as `Playing with resona`
+- artist metadata from trusted track tags
+- coarse playback session timing when needed to make the presence feel alive
+
+Explicitly out of bounds for the first presence slice:
+- local file paths
+- folder names
+- album titles
+- artwork keys or local artwork assets
+- library-root names
+- queue contents or upcoming tracks
+- lyrics, analysis output, or other secondary metadata
+- Discord user-id-specific logic, account linking, or OAuth flows
+
+Local setup for the first desktop presence pass:
+- set `RESONA_DISCORD_CLIENT_ID` in a local `.env` or launch shell before starting the Tauri app
+- keep Discord desktop running with activity status enabled
+- use a track that already has trusted artist metadata, because artist is the only listening identity exposed in the first slice
+- do not use a Discord client secret; the first presence pass only needs the public application client id
+
 ## Engineering Notes
 
 The local-library scanner is one of the main systems-oriented pieces in the MVP. It is intentionally designed to show more than basic CRUD work:

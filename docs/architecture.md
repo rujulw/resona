@@ -129,6 +129,15 @@ The backend is intentionally split so each layer has a clear responsibility boun
 - The frontend dispatches user intent and renders backend snapshots through Tauri commands and `playback://state-changed`
 - Queue state is still shell-derived today, but the ownership boundary is now narrow enough to move queue authority into Rust without changing the visible client contract
 
+### Privacy-Safe Presence Boundary
+
+- Rich Presence should sit downstream of the existing playback snapshot boundary rather than creating a second source of playback truth
+- the Rust/runtime contract should decide what playback identity is externally publishable
+- the first presence payload should stay intentionally narrow: app identity, trusted artist metadata, and coarse playback session timing only
+- presence should use a maintained Discord RPC client library instead of custom raw IPC framing
+- presence should never read directly from filesystem paths, library roots, artwork storage, or queue snapshots
+- explicit/advisory metadata is a separate follow-up concern and should not be inferred inside the presence path
+
 ### Native Output Decision
 
 - Keep the current Tauri playback command and event contract as the public shell boundary
@@ -170,6 +179,12 @@ Planned `v1.2.1` FLAC compatibility slice:
 - keep the normalized track shape unchanged so query, queue, and shell code do not branch on format
 - preserve `relative_path` identity and explicit `extension` metadata so later duplicate-resolution work can distinguish MP3 and FLAC variants cleanly
 - treat embedded artwork, title, artist, album, and duration as the baseline ingest contract for both formats
+
+Planned `v1.2.3` advisory-metadata slice:
+- treat explicit/advisory state as optional normalized metadata rather than as a required library identity field
+- trust source tags and imported provider metadata when present
+- keep absence of an advisory flag neutral instead of guessing from lyrics or filenames
+- surface the value as small shell-facing metadata, not as a new source-provider or analysis subsystem
 
 ### Scan Pipeline Design
 
@@ -249,6 +264,7 @@ Current validation slice:
 
 - keep playback state snapshots and intent commands stable so the shell remains a customizable renderer/controller
 - validate native output behavior and performance separately before claiming a lightweight-runtime win
+- keep future presence integration downstream of playback snapshots so desktop presence updates cannot distort playback authority
 
 Current frontend playback baseline:
 
