@@ -29,6 +29,7 @@ pub struct PlaybackSnapshot {
     pub track_title: Option<String>,
     pub track_artist: Option<String>,
     pub track_album: Option<String>,
+    pub track_advisory: Option<bool>,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -73,6 +74,7 @@ struct ActivePlaybackTrack {
     title: String,
     artist: Option<String>,
     album: Option<String>,
+    advisory: Option<bool>,
     duration_seconds: u32,
     local_path: String,
     extension: String,
@@ -339,6 +341,7 @@ impl PlaybackRuntime {
                 track_title: Some(track.title.clone()),
                 track_artist: track.artist.clone(),
                 track_album: track.album.clone(),
+                track_advisory: track.advisory,
             },
             None => PlaybackSnapshot {
                 status_label: self.status_label.clone(),
@@ -351,6 +354,7 @@ impl PlaybackRuntime {
                 track_title: None,
                 track_artist: None,
                 track_album: None,
+                track_advisory: None,
             },
         }
     }
@@ -363,6 +367,7 @@ impl PlaybackRuntime {
             title: track.title,
             artist: track.artist,
             album: track.album,
+            advisory: track.advisory,
             duration_seconds: track.duration_seconds.unwrap_or(0.0).round() as u32,
             local_path: track.local_path,
             extension: track.extension,
@@ -736,6 +741,7 @@ mod tests {
             title: "Alpha".to_owned(),
             artist: Some("North".to_owned()),
             album: Some("Signals".to_owned()),
+            advisory: Some(true),
             duration_seconds: Some(182.0),
             local_path: "/tmp/alpha.mp3".to_owned(),
             extension: "mp3".to_owned(),
@@ -744,6 +750,7 @@ mod tests {
         assert_eq!(loaded.playback.status_label, "Ready");
         assert_eq!(loaded.playback.output_owner, "rust");
         assert_eq!(loaded.playback.track_title.as_deref(), Some("Alpha"));
+        assert_eq!(loaded.playback.track_advisory, Some(true));
         assert_eq!(loaded.source.local_path, "/tmp/alpha.mp3");
         assert_eq!(loaded.source.extension, "mp3");
 
@@ -764,6 +771,7 @@ mod tests {
             title: "Signal".to_owned(),
             artist: Some("North".to_owned()),
             album: Some("Frames".to_owned()),
+            advisory: Some(false),
             duration_seconds: Some(192.0),
             local_path: "/tmp/signal.flac".to_owned(),
             extension: "flac".to_owned(),
@@ -777,6 +785,7 @@ mod tests {
 
         let snapshot = runtime.snapshot();
         assert_eq!(snapshot.track_id.as_deref(), Some("track-flac"));
+        assert_eq!(snapshot.track_advisory, Some(false));
         assert_eq!(snapshot.duration_seconds, 192);
         assert_eq!(snapshot.output_owner, "rust");
     }
@@ -789,6 +798,7 @@ mod tests {
             title: "Alpha".to_owned(),
             artist: Some("North".to_owned()),
             album: Some("Signals".to_owned()),
+            advisory: None,
             duration_seconds: Some(182.0),
             local_path: "/tmp/alpha.mp3".to_owned(),
             extension: "mp3".to_owned(),

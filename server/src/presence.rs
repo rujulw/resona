@@ -323,6 +323,7 @@ mod tests {
             track_title: Some(track_title.to_owned()),
             track_artist: artist.map(str::to_owned),
             track_album: Some("Signals".to_owned()),
+            track_advisory: None,
         }
     }
 

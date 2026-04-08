@@ -6,6 +6,8 @@ pub const LIBRARY_QUERY_INDEXES_MIGRATION: &str =
     include_str!("../../db/migrations/0002_library_query_indexes.sql");
 pub const FLAC_TRACK_SUPPORT_MIGRATION: &str =
     include_str!("../../db/migrations/0003_flac_track_support.sql");
+pub const EXPLICIT_ADVISORY_METADATA_MIGRATION: &str =
+    include_str!("../../db/migrations/0004_explicit_advisory_metadata.sql");
 
 pub const TABLE_LIBRARY_ROOTS: &str = "library_roots";
 pub const TABLE_TRACKS: &str = "tracks";

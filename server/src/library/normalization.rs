@@ -128,6 +128,7 @@ pub(crate) fn normalize_track(
             .genre
             .as_deref()
             .and_then(|value| preferred_label(Some(value), None)),
+        advisory: metadata_fields.advisory,
         track_number: metadata_fields.track_number,
         disc_number: metadata_fields.disc_number,
         duration_seconds: metadata_fields.duration_seconds,
@@ -233,6 +234,7 @@ struct AudioMetadata {
     album: Option<String>,
     album_artist: Option<String>,
     genre: Option<String>,
+    advisory: Option<bool>,
     track_number: Option<i64>,
     disc_number: Option<i64>,
     duration_seconds: Option<f64>,
@@ -270,6 +272,9 @@ fn read_mp3_metadata(file_path: &Path) -> Result<AudioMetadata, ScanError> {
             .and_then(|value| value.album_artist())
             .map(str::to_owned),
         genre: tag.as_ref().and_then(|value| value.genre()).map(str::to_owned),
+        advisory: tag
+            .as_ref()
+            .and_then(read_mp3_advisory_metadata),
         track_number: tag.as_ref().and_then(|value| value.track()).map(i64::from),
         disc_number: tag.as_ref().and_then(|value| value.disc()).map(i64::from),
         duration_seconds,
@@ -380,11 +385,49 @@ fn apply_flac_vorbis_comments(block: &[u8], metadata: &mut AudioMetadata) {
             "ALBUM" => metadata.album = Some(value.to_owned()),
             "ALBUMARTIST" | "ALBUM_ARTIST" => metadata.album_artist = Some(value.to_owned()),
             "GENRE" => metadata.genre = Some(value.to_owned()),
+            "ITUNESADVISORY" | "ADVISORY" | "PARENTALADVISORY" | "PARENTAL ADVISORY" => {
+                if metadata.advisory.is_none() {
+                    metadata.advisory = parse_advisory_value(value);
+                }
+            }
             "TRACKNUMBER" => metadata.track_number = parse_integer_prefix(value),
             "DISCNUMBER" => metadata.disc_number = parse_integer_prefix(value),
             _ => {}
         }
     }
+}
+
+fn read_mp3_advisory_metadata(tag: &Tag) -> Option<bool> {
+    tag.extended_texts()
+        .find_map(|entry| {
+            let normalized_description = entry
+                .description
+                .chars()
+                .filter(|character| character.is_ascii_alphanumeric())
+                .collect::<String>()
+                .to_ascii_uppercase();
+
+            match normalized_description.as_str() {
+                "ITUNESADVISORY" | "ADVISORY" | "PARENTALADVISORY" => {
+                    parse_advisory_value(&entry.value)
+                }
+                _ => None,
+            }
+        })
+        .or_else(|| tag.genre().and_then(parse_genre_advisory_hint))
+}
+
+fn parse_advisory_value(value: &str) -> Option<bool> {
+    let normalized = value.trim().to_ascii_lowercase();
+    match normalized.as_str() {
+        "1" | "true" | "yes" | "explicit" | "advisory" => Some(true),
+        "0" | "2" | "false" | "no" | "clean" | "inoffensive" => Some(false),
+        _ => None,
+    }
+}
+
+fn parse_genre_advisory_hint(_value: &str) -> Option<bool> {
+    None
 }
 
 fn parse_flac_picture(block: &[u8]) -> Option<EmbeddedArtwork> {

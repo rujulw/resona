@@ -68,6 +68,7 @@ type DeferredLibraryPage = {
     title: string;
     artist: string | null;
     album: string | null;
+    advisory?: boolean | null;
     durationSeconds: number | null;
     artworkKey: string | null;
     relativePath: string;
@@ -93,7 +94,8 @@ describe("app shell smoke checks", () => {
       trackId: string | null;
       trackTitle: string | null;
       trackArtist: string | null;
-    trackAlbum: string | null;
+      trackAlbum: string | null;
+      trackAdvisory?: boolean | null;
   };
   let playbackStateListener:
     | ((playback: {
@@ -107,6 +109,7 @@ describe("app shell smoke checks", () => {
         trackTitle: string | null;
         trackArtist: string | null;
         trackAlbum: string | null;
+        trackAdvisory?: boolean | null;
       }) => void)
     | undefined;
 
@@ -134,6 +137,7 @@ describe("app shell smoke checks", () => {
       trackTitle: null,
       trackArtist: null,
       trackAlbum: null,
+      trackAdvisory: null,
     };
     playbackStateListener = undefined;
     vi.stubGlobal(
@@ -599,6 +603,162 @@ describe("app shell smoke checks", () => {
       expect(
         screen.getByRole("button", { name: "Select Alpha" }).getAttribute("aria-pressed"),
       ).toBe("true");
+      expect(screen.getByRole("button", { name: "Pause playback" })).toBeTruthy();
+    });
+  });
+
+  it("renders advisory E badges in the library and playback bar", async () => {
+    window.history.replaceState({}, "", "/tracks");
+
+    queryLibraryMock.mockResolvedValueOnce({
+      items: [
+        {
+          id: "track-1",
+          title: "Alpha",
+          artist: "North",
+          album: "Signals",
+          advisory: true,
+          durationSeconds: 182,
+          artworkKey: "alpha-cover.png",
+          relativePath: "alpha.mp3",
+          sourceStatus: "local-only",
+          cacheState: "none",
+          analysisStatus: "pending",
+          indexedAt: "1700000000",
+        },
+      ],
+      nextCursor: null,
+      total: 1,
+      pageSize: 200,
+    });
+    loadPlaybackTrackMock.mockImplementationOnce(async (trackId: string) => ({
+      playback: (() => {
+        mockBackendPlayback = {
+          statusLabel: "Ready",
+          transportLabel: "Ready",
+          progressSeconds: 0,
+          durationSeconds: 182,
+          isPlaying: false,
+          outputOwner: "rust",
+          trackId,
+          trackTitle: "Alpha",
+          trackArtist: "North",
+          trackAlbum: "Signals",
+          trackAdvisory: true,
+        };
+        playbackStateListener?.(mockBackendPlayback);
+        return mockBackendPlayback;
+      })(),
+      source: {
+        trackId,
+        localPath: `/Users/rujulw/Music/${trackId}.mp3`,
+        assetUrl: `asset://localhost/${trackId}.mp3`,
+      },
+    }));
+
+    const { default: App } = await import("./App");
+    render(<App />);
+
+    await screen.findByRole("button", { name: "Select Alpha" });
+    expect(screen.getAllByText("E").length).toBe(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "Select Alpha" }));
+
+    await waitFor(() => {
+      expect(screen.getAllByText("E").length).toBeGreaterThanOrEqual(2);
+      expect(screen.getByRole("button", { name: "Pause playback" })).toBeTruthy();
+    });
+  });
+
+  it("smoke-covers explicit metadata shell rendering without badging clean or unknown tracks", async () => {
+    window.history.replaceState({}, "", "/tracks");
+
+    queryLibraryMock.mockResolvedValueOnce({
+      items: [
+        {
+          id: "track-1",
+          title: "Alpha",
+          artist: "North",
+          album: "Signals",
+          advisory: true,
+          durationSeconds: 182,
+          artworkKey: "alpha-cover.png",
+          relativePath: "alpha.mp3",
+          sourceStatus: "local-only",
+          cacheState: "none",
+          analysisStatus: "pending",
+          indexedAt: "1700000000",
+        },
+        {
+          id: "track-2",
+          title: "Bravo",
+          artist: "South",
+          album: "Horizons",
+          advisory: false,
+          durationSeconds: 205,
+          artworkKey: "bravo-cover.png",
+          relativePath: "bravo.mp3",
+          sourceStatus: "local-only",
+          cacheState: "none",
+          analysisStatus: "pending",
+          indexedAt: "1700000100",
+        },
+        {
+          id: "track-3",
+          title: "Charlie",
+          artist: "East",
+          album: "Quiet",
+          advisory: null,
+          durationSeconds: 199,
+          artworkKey: null,
+          relativePath: "charlie.mp3",
+          sourceStatus: "local-only",
+          cacheState: "none",
+          analysisStatus: "pending",
+          indexedAt: "1700000200",
+        },
+      ],
+      nextCursor: null,
+      total: 3,
+      pageSize: 200,
+    });
+    loadPlaybackTrackMock.mockImplementationOnce(async (trackId: string) => ({
+      playback: (() => {
+        mockBackendPlayback = {
+          statusLabel: "Ready",
+          transportLabel: "Ready",
+          progressSeconds: 0,
+          durationSeconds: 182,
+          isPlaying: false,
+          outputOwner: "rust",
+          trackId,
+          trackTitle: "Alpha",
+          trackArtist: "North",
+          trackAlbum: "Signals",
+          trackAdvisory: true,
+        };
+        playbackStateListener?.(mockBackendPlayback);
+        return mockBackendPlayback;
+      })(),
+      source: {
+        trackId,
+        localPath: `/Users/rujulw/Music/${trackId}.mp3`,
+        assetUrl: `asset://localhost/${trackId}.mp3`,
+      },
+    }));
+
+    const { default: App } = await import("./App");
+    render(<App />);
+
+    await screen.findByRole("button", { name: "Select Alpha" });
+    expect(screen.getAllByText("E")).toHaveLength(1);
+    expect(screen.getByText("Bravo")).toBeTruthy();
+    expect(screen.getByText("Charlie")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Select Alpha" }));
+
+    await waitFor(() => {
+      expect(screen.getAllByText("E")).toHaveLength(2);
       expect(screen.getByRole("button", { name: "Pause playback" })).toBeTruthy();
     });
   });

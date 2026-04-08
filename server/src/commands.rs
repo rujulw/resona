@@ -435,6 +435,9 @@ mod tests {
     use std::sync::atomic::{AtomicU64, Ordering};
     use std::time::{SystemTime, UNIX_EPOCH};
 
+    use id3::frame::ExtendedText;
+    use id3::{Tag, TagLike, Version};
+
     use super::{
         bootstrap_app, build_shell_state, build_shell_state_with_playback,
         complete_playback_with_runtime, describe_playback_contract,
@@ -470,12 +473,53 @@ mod tests {
         }
     }
 
+    fn write_test_mp3(
+        file_path: &std::path::Path,
+        title: Option<&str>,
+        album: Option<&str>,
+        artist: Option<&str>,
+        advisory: Option<bool>,
+    ) {
+        if let Some(parent) = file_path.parent() {
+            std::fs::create_dir_all(parent).expect("parent directories should be created");
+        }
+
+        std::fs::File::create(file_path).expect("tagged mp3 file should be created");
+
+        let mut tag = Tag::new();
+        if let Some(title) = title {
+            tag.set_title(title);
+        }
+        if let Some(album) = album {
+            tag.set_album(album);
+        }
+        if let Some(artist) = artist {
+            tag.set_artist(artist);
+        }
+        if let Some(advisory) = advisory {
+            tag.add_frame(ExtendedText {
+                description: "ITUNESADVISORY".to_owned(),
+                value: if advisory { "1" } else { "2" }.to_owned(),
+            });
+        }
+
+        tag.write_to_path(file_path, Version::Id3v24)
+            .expect("id3 tag should write");
+
+        std::fs::OpenOptions::new()
+            .append(true)
+            .open(file_path)
+            .and_then(|mut file| file.write_all(b"\xFF\xFB\x90\x64"))
+            .expect("mp3 bytes should append");
+    }
+
     fn write_test_flac(
         file_path: &std::path::Path,
         title: Option<&str>,
         album: Option<&str>,
         artist: Option<&str>,
         include_artwork: bool,
+        advisory: Option<bool>,
     ) {
         if let Some(parent) = file_path.parent() {
             std::fs::create_dir_all(parent).expect("parent directories should be created");
@@ -489,7 +533,7 @@ mod tests {
         bytes.extend_from_slice(&(streaminfo.len() as u32).to_be_bytes()[1..]);
         bytes.extend_from_slice(&streaminfo);
 
-        let comments = build_test_flac_comments(title, album, artist);
+        let comments = build_test_flac_comments(title, album, artist, advisory);
         bytes.push(if include_artwork { 4 } else { 0x84 });
         bytes.extend_from_slice(&(comments.len() as u32).to_be_bytes()[1..]);
         bytes.extend_from_slice(&comments);
@@ -520,6 +564,7 @@ mod tests {
         title: Option<&str>,
         album: Option<&str>,
         artist: Option<&str>,
+        advisory: Option<bool>,
     ) -> Vec<u8> {
         let mut comments = Vec::new();
         let vendor = b"resona-command-test";
@@ -535,6 +580,12 @@ mod tests {
         }
         if let Some(artist) = artist {
             entries.push(format!("ARTIST={artist}"));
+        }
+        if let Some(advisory) = advisory {
+            entries.push(format!(
+                "ITUNESADVISORY={}",
+                if advisory { "1" } else { "2" }
+            ));
         }
         entries.push("TRACKNUMBER=4".to_owned());
         entries.push("DISCNUMBER=1".to_owned());
@@ -936,6 +987,7 @@ mod tests {
             Some("Frames"),
             Some("North"),
             true,
+            Some(true),
         );
 
         let summary = scan_local_library_with_database(
@@ -964,6 +1016,7 @@ mod tests {
         assert_eq!(flac_track.title, "Signal");
         assert_eq!(flac_track.artist.as_deref(), Some("North"));
         assert_eq!(flac_track.album.as_deref(), Some("Frames"));
+        assert_eq!(flac_track.advisory, Some(true));
         assert_eq!(flac_track.extension, "flac");
         assert!(flac_track.duration_seconds.is_some_and(|value| value > 2.9 && value < 3.1));
         assert!(flac_track.artwork_key.is_some());
@@ -976,6 +1029,7 @@ mod tests {
         .expect("load should succeed");
         assert_eq!(payload.playback.track_title.as_deref(), Some("Signal"));
         assert_eq!(payload.playback.track_album.as_deref(), Some("Frames"));
+        assert_eq!(payload.playback.track_advisory, Some(true));
         assert_eq!(payload.source.extension, "flac");
         assert!(payload.source.local_path.ends_with("signal.flac"));
 
@@ -987,5 +1041,80 @@ mod tests {
         assert_eq!(completed.status_label, "Ended");
         assert_eq!(completed.track_title.as_deref(), Some("Signal"));
         assert_eq!(completed.output_owner, "rust");
+    }
+
+    #[test]
+    fn explicit_metadata_smoke_covers_ingest_and_playback_render_contract() {
+        let database_state = test_database_state();
+        let playback_runtime_state = PlaybackRuntimeState::default();
+        let root = std::env::temp_dir().join(unique_test_suffix("resona-explicit-smoke"));
+
+        std::fs::create_dir_all(root.join("disc")).expect("directories should be created");
+        write_test_mp3(
+            &root.join("disc").join("alpha.mp3"),
+            Some("Alpha"),
+            Some("Signals"),
+            Some("North"),
+            Some(true),
+        );
+        write_test_mp3(
+            &root.join("disc").join("bravo.mp3"),
+            Some("Bravo"),
+            Some("Horizons"),
+            Some("South"),
+            Some(false),
+        );
+        std::fs::File::create(root.join("disc").join("charlie.mp3"))
+            .expect("neutral mp3 track should be created");
+
+        let summary = scan_local_library_with_database(
+            &database_state.app_database,
+            &root.display().to_string(),
+            Some("explicit-smoke"),
+        )
+        .expect("scan should succeed");
+        assert_eq!(summary.discovered_tracks, 3);
+
+        let page = query_library_with_database(
+            &database_state.app_database,
+            Some(10),
+            None,
+            None,
+            Some("title".to_owned()),
+            Some("asc".to_owned()),
+        )
+        .expect("query should succeed");
+
+        let alpha = page
+            .items
+            .iter()
+            .find(|item| item.title == "Alpha")
+            .expect("explicit track should be indexed");
+        let bravo = page
+            .items
+            .iter()
+            .find(|item| item.title == "Bravo")
+            .expect("clean track should be indexed");
+        let charlie = page
+            .items
+            .iter()
+            .find(|item| item.title == "charlie")
+            .expect("neutral track should be indexed");
+
+        assert_eq!(alpha.advisory, Some(true));
+        assert_eq!(bravo.advisory, Some(false));
+        assert_eq!(charlie.advisory, None);
+
+        let payload = load_playback_track_with_database(
+            &database_state.app_database,
+            &playback_runtime_state,
+            &alpha.id,
+        )
+        .expect("load should succeed");
+
+        assert_eq!(payload.playback.track_title.as_deref(), Some("Alpha"));
+        assert_eq!(payload.playback.track_artist.as_deref(), Some("North"));
+        assert_eq!(payload.playback.track_album.as_deref(), Some("Signals"));
+        assert_eq!(payload.playback.track_advisory, Some(true));
     }
 }

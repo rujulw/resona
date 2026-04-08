@@ -4,6 +4,7 @@ import type { MouseEvent } from "react";
 import type { PlaybackShellState } from "../../desktop";
 import type { TrackListItem } from "../../desktop";
 import { formatDuration } from "../../utils/format";
+import { AdvisoryBadge } from "../ui/AdvisoryBadge";
 import { ArtworkTile } from "../ui/ArtworkTile";
 
 export function PlaybackBar({
@@ -63,9 +64,14 @@ export function PlaybackBar({
           roundedClassName="rounded-sm"
         />
         <div className="grid min-w-0 flex-1 gap-0.5">
-          <strong className="truncate text-sm font-medium text-[#f2f2f2]">
-            {activeTrack?.title ?? playback.trackTitle ?? "Nothing playing"}
-          </strong>
+          <div className="flex min-w-0 items-center gap-2">
+            <strong className="truncate text-sm font-medium text-[#f2f2f2]">
+              {activeTrack?.title ?? playback.trackTitle ?? "Nothing playing"}
+            </strong>
+            <AdvisoryBadge
+              advisory={activeTrack?.advisory ?? playback.trackAdvisory}
+            />
+          </div>
           <span className="truncate text-sm text-[#8f8f8f]">
             {activeTrack?.artist ?? playback.trackArtist ?? ""}
           </span>

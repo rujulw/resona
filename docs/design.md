@@ -72,6 +72,25 @@ The explicit/advisory tag feature should be treated as a neighboring but separat
 - degrade gracefully when no advisory signal is available
 - keep the UI small, closer to an inline badge than a new filtering mode
 
+Design rules for that advisory slice:
+
+- treat advisory state as optional listening context rather than as a core library-identity field
+- preserve trusted source truth when present, even if some files in the library do not carry the same tag
+- keep the default UX neutral when advisory metadata is missing instead of pretending missing metadata means clean content
+- avoid turning the badge into a dominant visual treatment that competes with title, artist, or playback state
+
+Trusted sources for the first pass:
+
+- embedded local audio tags that explicitly declare advisory/parental-warning content
+- future provider imports only when the upstream provider exposes an explicit/advisory field directly
+
+Explicitly rejected fallback ideas:
+
+- no lyric parsing
+- no filename or folder-name heuristics
+- no genre-based assumptions
+- no text-pattern guessing from titles or album names
+
 ### Queue
 
 Queue management should be explicit and deterministic. Users should always understand what plays next and why. The current baseline derives next-up behavior from the playback-order snapshot created when playback starts, so searching or filtering the tracks view does not silently redefine the queue. The active queue view should also give the current track enough visual weight to feel like a player, including larger artwork for the now-playing item.

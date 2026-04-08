@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use id3::frame::{Picture, PictureType};
+use id3::frame::{ExtendedText, Picture, PictureType};
 use id3::{Tag, TagLike, Version};
 
 use crate::database::AppDatabase;
@@ -46,6 +46,7 @@ fn write_test_mp3(
     album: Option<&str>,
     artist: Option<&str>,
     include_artwork: bool,
+    advisory: Option<bool>,
 ) {
     if let Some(parent) = file_path.parent() {
         fs::create_dir_all(parent).expect("parent directories should be created");
@@ -69,6 +70,12 @@ fn write_test_mp3(
             picture_type: PictureType::CoverFront,
             description: "cover".to_owned(),
             data: vec![137, 80, 78, 71, 13, 10, 26, 10, 1, 2, 3, 4],
+        });
+    }
+    if let Some(advisory) = advisory {
+        tag.add_frame(ExtendedText {
+            description: "ITUNESADVISORY".to_owned(),
+            value: if advisory { "1" } else { "2" }.to_owned(),
         });
     }
 
@@ -108,6 +115,7 @@ fn write_test_flac(
     album: Option<&str>,
     artist: Option<&str>,
     include_artwork: bool,
+    advisory: Option<bool>,
 ) {
     if let Some(parent) = file_path.parent() {
         fs::create_dir_all(parent).expect("parent directories should be created");
@@ -121,7 +129,7 @@ fn write_test_flac(
     bytes.extend_from_slice(&(streaminfo.len() as u32).to_be_bytes()[1..]);
     bytes.extend_from_slice(&streaminfo);
 
-    let comments = build_test_flac_comments(title, album, artist);
+    let comments = build_test_flac_comments(title, album, artist, advisory);
     bytes.push(if include_artwork { 4 } else { 0x84 });
     bytes.extend_from_slice(&(comments.len() as u32).to_be_bytes()[1..]);
     bytes.extend_from_slice(&comments);
@@ -150,6 +158,7 @@ fn build_test_flac_comments(
     title: Option<&str>,
     album: Option<&str>,
     artist: Option<&str>,
+    advisory: Option<bool>,
 ) -> Vec<u8> {
     let mut comments = Vec::new();
     let vendor = b"resona-test";
@@ -165,6 +174,12 @@ fn build_test_flac_comments(
     }
     if let Some(artist) = artist {
         entries.push(format!("ARTIST={artist}"));
+    }
+    if let Some(advisory) = advisory {
+        entries.push(format!(
+            "ITUNESADVISORY={}",
+            if advisory { "1" } else { "2" }
+        ));
     }
     entries.push("TRACKNUMBER=7".to_owned());
     entries.push("DISCNUMBER=1".to_owned());
@@ -236,6 +251,7 @@ fn normalizes_track_with_audio_duration_fallback_and_embedded_artwork() {
         Some("Frames"),
         Some("North"),
         true,
+        Some(true),
     );
 
     let track = normalize_track(&root, &file_path, "library-root").expect("track should normalize");
@@ -243,6 +259,7 @@ fn normalizes_track_with_audio_duration_fallback_and_embedded_artwork() {
     assert_eq!(track.title, "Signal");
     assert_eq!(track.album.as_deref(), Some("Frames"));
     assert_eq!(track.artist.as_deref(), Some("North"));
+    assert_eq!(track.advisory, Some(true));
     assert!(track.duration_seconds.is_some());
     assert!(track.duration_seconds.expect("duration should exist") > 0.0);
     assert!(track
@@ -266,6 +283,7 @@ fn normalizes_flac_track_with_metadata_duration_and_artwork() {
         Some("Frames"),
         Some("North"),
         true,
+        Some(false),
     );
 
     let track = normalize_track(&root, &file_path, "library-root").expect("track should normalize");
@@ -273,6 +291,7 @@ fn normalizes_flac_track_with_metadata_duration_and_artwork() {
     assert_eq!(track.title, "Signal");
     assert_eq!(track.album.as_deref(), Some("Frames"));
     assert_eq!(track.artist.as_deref(), Some("North"));
+    assert_eq!(track.advisory, Some(false));
     assert_eq!(track.extension, "flac");
     assert_eq!(track.track_number, Some(7));
     assert_eq!(track.disc_number, Some(1));
@@ -355,6 +374,7 @@ fn scan_persists_artwork_key_and_writes_artwork_asset() {
         Some("Sleeve"),
         Some("South"),
         true,
+        Some(true),
     );
     let database_path = root.join("library.sqlite3");
     let database = AppDatabase::initialize_at(&database_path).expect("db should initialize");
@@ -365,16 +385,17 @@ fn scan_persists_artwork_key_and_writes_artwork_asset() {
         .expect("scan should persist");
 
     let connection = database.connect().expect("connection should open");
-    let (artwork_key, duration_seconds): (Option<String>, Option<f64>) = connection
+    let (artwork_key, duration_seconds, advisory): (Option<String>, Option<f64>, Option<bool>) = connection
         .query_row(
-            "SELECT artwork_key, duration_seconds FROM tracks LIMIT 1",
+            "SELECT artwork_key, duration_seconds, advisory FROM tracks LIMIT 1",
             [],
-            |row| Ok((row.get(0)?, row.get(1)?)),
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
         )
         .expect("track metadata should load");
 
     let artwork_key = artwork_key.expect("artwork key should be stored");
     assert!(duration_seconds.is_some_and(|value| value > 0.0));
+    assert_eq!(advisory, Some(true));
     assert!(database
         .app_data_dir()
         .join("artwork")
@@ -528,6 +549,7 @@ fn query_library_searches_album_and_artist_metadata() {
         Some("Night Drive"),
         Some("North"),
         false,
+        Some(true),
     );
     write_test_mp3(
         &root.join("south/bravo.mp3"),
@@ -535,6 +557,7 @@ fn query_library_searches_album_and_artist_metadata() {
         Some("Daylight"),
         Some("South"),
         false,
+        Some(false),
     );
     let database_path = root.join("library.sqlite3");
     let database = AppDatabase::initialize_at(&database_path).expect("db should initialize");
@@ -565,8 +588,10 @@ fn query_library_searches_album_and_artist_metadata() {
 
     assert_eq!(artist_page.total, 1);
     assert_eq!(artist_page.items[0].title, "Bravo");
+    assert_eq!(artist_page.items[0].advisory, Some(false));
     assert_eq!(album_page.total, 1);
     assert_eq!(album_page.items[0].title, "Alpha");
+    assert_eq!(album_page.items[0].advisory, Some(true));
 }
 
 #[test]

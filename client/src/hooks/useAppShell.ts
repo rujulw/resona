@@ -135,6 +135,8 @@ export function useAppShell() {
             trackTitle: playback.trackTitle ?? existing.playback.trackTitle ?? null,
             trackArtist: playback.trackArtist ?? existing.playback.trackArtist ?? null,
             trackAlbum: playback.trackAlbum ?? existing.playback.trackAlbum ?? null,
+            trackAdvisory:
+              playback.trackAdvisory ?? existing.playback.trackAdvisory ?? null,
           },
         };
       });
