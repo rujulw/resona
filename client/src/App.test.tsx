@@ -670,6 +670,99 @@ describe("app shell smoke checks", () => {
     });
   });
 
+  it("smoke-covers explicit metadata shell rendering without badging clean or unknown tracks", async () => {
+    window.history.replaceState({}, "", "/tracks");
+
+    queryLibraryMock.mockResolvedValueOnce({
+      items: [
+        {
+          id: "track-1",
+          title: "Alpha",
+          artist: "North",
+          album: "Signals",
+          advisory: true,
+          durationSeconds: 182,
+          artworkKey: "alpha-cover.png",
+          relativePath: "alpha.mp3",
+          sourceStatus: "local-only",
+          cacheState: "none",
+          analysisStatus: "pending",
+          indexedAt: "1700000000",
+        },
+        {
+          id: "track-2",
+          title: "Bravo",
+          artist: "South",
+          album: "Horizons",
+          advisory: false,
+          durationSeconds: 205,
+          artworkKey: "bravo-cover.png",
+          relativePath: "bravo.mp3",
+          sourceStatus: "local-only",
+          cacheState: "none",
+          analysisStatus: "pending",
+          indexedAt: "1700000100",
+        },
+        {
+          id: "track-3",
+          title: "Charlie",
+          artist: "East",
+          album: "Quiet",
+          advisory: null,
+          durationSeconds: 199,
+          artworkKey: null,
+          relativePath: "charlie.mp3",
+          sourceStatus: "local-only",
+          cacheState: "none",
+          analysisStatus: "pending",
+          indexedAt: "1700000200",
+        },
+      ],
+      nextCursor: null,
+      total: 3,
+      pageSize: 200,
+    });
+    loadPlaybackTrackMock.mockImplementationOnce(async (trackId: string) => ({
+      playback: (() => {
+        mockBackendPlayback = {
+          statusLabel: "Ready",
+          transportLabel: "Ready",
+          progressSeconds: 0,
+          durationSeconds: 182,
+          isPlaying: false,
+          outputOwner: "rust",
+          trackId,
+          trackTitle: "Alpha",
+          trackArtist: "North",
+          trackAlbum: "Signals",
+          trackAdvisory: true,
+        };
+        playbackStateListener?.(mockBackendPlayback);
+        return mockBackendPlayback;
+      })(),
+      source: {
+        trackId,
+        localPath: `/Users/rujulw/Music/${trackId}.mp3`,
+        assetUrl: `asset://localhost/${trackId}.mp3`,
+      },
+    }));
+
+    const { default: App } = await import("./App");
+    render(<App />);
+
+    await screen.findByRole("button", { name: "Select Alpha" });
+    expect(screen.getAllByText("E")).toHaveLength(1);
+    expect(screen.getByText("Bravo")).toBeTruthy();
+    expect(screen.getByText("Charlie")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Select Alpha" }));
+
+    await waitFor(() => {
+      expect(screen.getAllByText("E")).toHaveLength(2);
+      expect(screen.getByRole("button", { name: "Pause playback" })).toBeTruthy();
+    });
+  });
+
   it("moves active-track state with previous and next transport controls", async () => {
     window.history.replaceState({}, "", "/tracks");
 
