@@ -2,6 +2,7 @@ mod commands;
 mod database;
 mod library;
 mod playback;
+mod presence;
 
 use commands::{
     bootstrap_app, complete_playback, describe_playback_contract, get_shell_state,
@@ -11,16 +12,20 @@ use commands::{
 };
 use database::AppDatabase;
 use playback::PlaybackRuntimeState;
+use presence::{register_global_presence, PresenceRuntimeState};
 
 pub fn run() {
     let app_database =
         AppDatabase::initialize_default().expect("failed to initialize resona database");
     let playback_runtime_state = PlaybackRuntimeState::default();
+    let presence_runtime_state = PresenceRuntimeState::default();
+    register_global_presence(presence_runtime_state.clone());
 
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .manage(DatabaseState { app_database })
         .manage(playback_runtime_state.clone())
+        .manage(presence_runtime_state)
         .setup(move |app| {
             playback_runtime_state.register_app_handle(app.handle().clone());
             Ok(())
