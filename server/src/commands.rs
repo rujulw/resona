@@ -476,6 +476,7 @@ mod tests {
         album: Option<&str>,
         artist: Option<&str>,
         include_artwork: bool,
+        advisory: Option<bool>,
     ) {
         if let Some(parent) = file_path.parent() {
             std::fs::create_dir_all(parent).expect("parent directories should be created");
@@ -489,7 +490,7 @@ mod tests {
         bytes.extend_from_slice(&(streaminfo.len() as u32).to_be_bytes()[1..]);
         bytes.extend_from_slice(&streaminfo);
 
-        let comments = build_test_flac_comments(title, album, artist);
+        let comments = build_test_flac_comments(title, album, artist, advisory);
         bytes.push(if include_artwork { 4 } else { 0x84 });
         bytes.extend_from_slice(&(comments.len() as u32).to_be_bytes()[1..]);
         bytes.extend_from_slice(&comments);
@@ -520,6 +521,7 @@ mod tests {
         title: Option<&str>,
         album: Option<&str>,
         artist: Option<&str>,
+        advisory: Option<bool>,
     ) -> Vec<u8> {
         let mut comments = Vec::new();
         let vendor = b"resona-command-test";
@@ -535,6 +537,12 @@ mod tests {
         }
         if let Some(artist) = artist {
             entries.push(format!("ARTIST={artist}"));
+        }
+        if let Some(advisory) = advisory {
+            entries.push(format!(
+                "ITUNESADVISORY={}",
+                if advisory { "1" } else { "2" }
+            ));
         }
         entries.push("TRACKNUMBER=4".to_owned());
         entries.push("DISCNUMBER=1".to_owned());
@@ -936,6 +944,7 @@ mod tests {
             Some("Frames"),
             Some("North"),
             true,
+            Some(true),
         );
 
         let summary = scan_local_library_with_database(
@@ -964,6 +973,7 @@ mod tests {
         assert_eq!(flac_track.title, "Signal");
         assert_eq!(flac_track.artist.as_deref(), Some("North"));
         assert_eq!(flac_track.album.as_deref(), Some("Frames"));
+        assert_eq!(flac_track.advisory, Some(true));
         assert_eq!(flac_track.extension, "flac");
         assert!(flac_track.duration_seconds.is_some_and(|value| value > 2.9 && value < 3.1));
         assert!(flac_track.artwork_key.is_some());
@@ -976,6 +986,7 @@ mod tests {
         .expect("load should succeed");
         assert_eq!(payload.playback.track_title.as_deref(), Some("Signal"));
         assert_eq!(payload.playback.track_album.as_deref(), Some("Frames"));
+        assert_eq!(payload.playback.track_advisory, Some(true));
         assert_eq!(payload.source.extension, "flac");
         assert!(payload.source.local_path.ends_with("signal.flac"));
 

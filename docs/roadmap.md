@@ -64,6 +64,7 @@ Current milestone progress:
 - The shell now renders playback progress and completion from backend-driven state changes instead of frontend-owned media lifecycle callbacks
 - Native playback smoke coverage now exercises launch, play, seek, pause, and completion through backend and shell tests
 - The next patch-release slice after FLAC is scoped as privacy-safe desktop presence, with a managed Discord RPC client and explicit/advisory metadata treated as a separate follow-up patch
+- The advisory-metadata follow-up should trust only source-declared explicit fields and keep missing values neutral instead of inferring from lyrics or filenames
 
 ## Milestone 5: Cache and Remote Media
 

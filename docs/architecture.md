@@ -185,6 +185,18 @@ Planned `v1.2.3` advisory-metadata slice:
 - trust source tags and imported provider metadata when present
 - keep absence of an advisory flag neutral instead of guessing from lyrics or filenames
 - surface the value as small shell-facing metadata, not as a new source-provider or analysis subsystem
+- preserve a three-state model in practice: advisory, non-advisory when explicitly declared, or unknown when metadata is absent
+- keep advisory parsing inside metadata normalization rather than inside playback, presence, or query-side heuristics
+
+Planned trusted-source rules:
+- local MP3/FLAC ingest should only persist advisory state when the source metadata explicitly provides it
+- future remote/provider import should map advisory state only from provider-native explicit fields, not from transformed prose descriptions
+- conflicting sources should prefer the track source currently chosen as canonical library metadata rather than trying to merge guesses across files
+
+Planned fallback rules:
+- missing advisory metadata should remain unset
+- unset advisory metadata should not be converted into a false clean value
+- advisory state should never be synthesized from lyrics, filenames, folder names, queue context, or presence payloads
 
 ### Scan Pipeline Design
 

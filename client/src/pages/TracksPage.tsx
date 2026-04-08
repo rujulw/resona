@@ -1,5 +1,6 @@
 import type { ScanState, TracksQueryState, TracksState } from "../types/app";
 import { ArtworkTile } from "../components/ui/ArtworkTile";
+import { AdvisoryBadge } from "../components/ui/AdvisoryBadge";
 import { formatDuration } from "../utils/format";
 
 export function TracksPage({
@@ -116,9 +117,12 @@ export function TracksPage({
                 />
                 <div className="grid min-w-0 gap-1">
                   <span className="truncate text-sm text-[#f2f2f2]">{track.title}</span>
-                  <span className="truncate text-xs text-[#8f8f8f]">
-                    {track.artist ?? "unknown artist"}
-                  </span>
+                  <div className="flex min-w-0 items-center gap-2">
+                    <AdvisoryBadge advisory={track.advisory} />
+                    <span className="truncate text-xs text-[#8f8f8f]">
+                      {track.artist ?? "unknown artist"}
+                    </span>
+                  </div>
                 </div>
               </div>
               <span className="truncate text-sm text-[#d4d4d4]">

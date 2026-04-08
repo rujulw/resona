@@ -196,6 +196,7 @@ impl LocalLibraryScanner {
               t.title,
               t.artist,
               t.album,
+              t.advisory,
               t.duration_seconds,
               ts.local_path,
               t.extension
@@ -214,9 +215,10 @@ impl LocalLibraryScanner {
                     title: row.get(1)?,
                     artist: row.get(2)?,
                     album: row.get(3)?,
-                    duration_seconds: row.get(4)?,
-                    local_path: row.get(5)?,
-                    extension: row.get(6)?,
+                    advisory: row.get(4)?,
+                    duration_seconds: row.get(5)?,
+                    local_path: row.get(6)?,
+                    extension: row.get(7)?,
                 })
             })
             .optional()
@@ -379,10 +381,10 @@ fn upsert_track(
         "
         INSERT INTO tracks (
           id, library_root_id, relative_path, file_name, extension, title, artist, album,
-          album_artist, genre, track_number, disc_number, duration_seconds, file_size_bytes,
-          artwork_key, content_hash, imported_at, indexed_at, updated_at
+          album_artist, genre, advisory, track_number, disc_number, duration_seconds,
+          file_size_bytes, artwork_key, content_hash, imported_at, indexed_at, updated_at
         )
-        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?18)
+        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20)
         ON CONFLICT(id) DO UPDATE SET
           library_root_id = excluded.library_root_id,
           relative_path = excluded.relative_path,
@@ -393,6 +395,7 @@ fn upsert_track(
           album = excluded.album,
           album_artist = excluded.album_artist,
           genre = excluded.genre,
+          advisory = excluded.advisory,
           track_number = excluded.track_number,
           disc_number = excluded.disc_number,
           duration_seconds = excluded.duration_seconds,
@@ -413,6 +416,7 @@ fn upsert_track(
             track.album,
             track.album_artist,
             track.genre,
+            track.advisory,
             track.track_number,
             track.disc_number,
             track.duration_seconds,
@@ -420,6 +424,7 @@ fn upsert_track(
             track.artwork_key,
             track.content_hash,
             imported_at,
+            now,
             now,
         ],
     )?;

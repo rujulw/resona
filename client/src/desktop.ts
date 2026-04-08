@@ -36,6 +36,7 @@ export type PlaybackShellState = {
   trackTitle?: string | null;
   trackArtist?: string | null;
   trackAlbum?: string | null;
+  trackAdvisory?: boolean | null;
 };
 
 export type PlaybackCommandContract = {
@@ -104,6 +105,7 @@ export type TrackListItem = {
   title: string;
   artist: string | null;
   album: string | null;
+  advisory?: boolean | null;
   durationSeconds: number | null;
   artworkKey: string | null;
   relativePath: string;
@@ -158,6 +160,7 @@ const browserShellStatePayload: ShellStatePayload = {
     trackTitle: null,
     trackArtist: null,
     trackAlbum: null,
+    trackAdvisory: null,
   },
 };
 

@@ -215,6 +215,31 @@ Local setup for the first desktop presence pass:
 - use a track that already has trusted artist metadata, because artist is the only listening identity exposed in the first slice
 - do not use a Discord client secret; the first presence pass only needs the public application client id
 
+### `v1.2.3` Trusted Advisory Metadata Scope
+
+The patch after desktop presence should add explicit/advisory metadata carefully as a narrow metadata-normalization feature, not as a new recommendation, lyrics, or content-analysis subsystem.
+
+Trusted sources for the first advisory slice:
+- local source tags that explicitly mark a track as advisory or parental-warning content
+- imported provider metadata later, when that provider already exposes an explicit/advisory field directly
+- normalized truth should prefer source-declared advisory values over UI guesses or inferred text patterns
+
+Fallback rules:
+- if a trusted source marks the track advisory, preserve and surface that value
+- if trusted metadata is absent, keep the advisory state unknown/empty rather than defaulting to clean or explicit
+- do not infer explicitness from lyrics, filenames, folder names, genres, or punctuation heuristics
+- do not let advisory metadata participate in track identity, duplicate resolution, or playback routing
+
+UI contract for the first slice:
+- advisory state should surface as a small badge near track identity, not as a new primary navigation mode
+- absence of an advisory badge should mean metadata was unavailable or neutral, not that `resona` proved the track is clean
+
+Out of scope for `v1.2.3`:
+- lyric scanning or text classification
+- moderation-style content scoring
+- parental-control policy engines
+- advisory-driven auto-skip, mute, or queue filtering rules
+
 ## Engineering Notes
 
 The local-library scanner is one of the main systems-oriented pieces in the MVP. It is intentionally designed to show more than basic CRUD work:
