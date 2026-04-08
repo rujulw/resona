@@ -47,6 +47,31 @@ That remains the direction for later refinement: keep playback output in Rust wh
 
 The product goal is "more local libraries work immediately," not "surface audio-format complexity in the UI."
 
+### Presence and Advisory Metadata
+
+`v1.2.2` should add desktop Rich Presence as a restrained utility feature, not as a social redesign. The app should be able to report lightweight playback activity to Discord without compromising the privacy expectations of a local-first music library.
+
+Design rules for the first presence slice:
+
+- presence should reflect currently active playback only
+- presence should stay readable and minimal rather than trying to mirror the full playback bar
+- the default payload should reveal as little local-library context as possible
+- the first implementation should use a maintained Discord RPC client library instead of a custom raw IPC transport
+
+What the first presence UI/contract should not do:
+
+- expose local file names or filesystem structure
+- publish album titles, cover art, queue contents, or library-root names
+- create user-facing account or friend surfaces inside `resona`
+- imply that `resona` is becoming a collaborative or socially networked product
+
+The explicit/advisory tag feature should be treated as a neighboring but separate slice in `v1.2.3`:
+
+- only trust explicit/advisory signals that come from source metadata
+- do not try to infer explicitness from lyrics or heuristic text analysis
+- degrade gracefully when no advisory signal is available
+- keep the UI small, closer to an inline badge than a new filtering mode
+
 ### Queue
 
 Queue management should be explicit and deterministic. Users should always understand what plays next and why. The current baseline derives next-up behavior from the playback-order snapshot created when playback starts, so searching or filtering the tracks view does not silently redefine the queue. The active queue view should also give the current track enough visual weight to feel like a player, including larger artwork for the now-playing item.

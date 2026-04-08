@@ -11,6 +11,7 @@ use std::time::Duration;
 use tauri::{AppHandle, Emitter};
 
 use crate::library::ResolvedPlaybackTrack;
+use crate::presence::sync_presence_with_snapshot;
 
 pub const PLAYBACK_STATE_CHANGED_EVENT: &str = "playback://state-changed";
 pub const PLAYBACK_QUEUE_CHANGED_EVENT: &str = "playback://queue-changed";
@@ -320,6 +321,7 @@ pub fn emit_playback_state(
     app_handle: &AppHandle,
     snapshot: &PlaybackSnapshot,
 ) -> Result<(), tauri::Error> {
+    sync_presence_with_snapshot(snapshot);
     app_handle.emit(PLAYBACK_STATE_CHANGED_EVENT, snapshot.clone())
 }
 
