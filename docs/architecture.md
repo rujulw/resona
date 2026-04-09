@@ -59,6 +59,12 @@ The current Rust structure is organized around service ownership rather than aro
 - Owns the in-memory playback runtime for loaded-track and play/pause authority
 - Owns the current native local-output path, with `symphonia` and `cpal` still planned as the deeper decode/device stack
 
+### `playlists`
+
+- Owns the local playlist design contract for the `v1.3.0` milestone
+- Defines playlist persistence shape, ordering rules, duplicate-entry behavior, and queue handoff semantics before CRUD/UI work lands
+- Keeps playlist identity separate from playback queue identity so saved playlists and transient playback state do not collapse into one model
+
 ### `library`
 
 - Owns local filesystem scan orchestration and normalized track ingestion
@@ -128,6 +134,14 @@ The backend is intentionally split so each layer has a clear responsibility boun
 - Local desktop playback output now runs through the Rust playback runtime instead of a frontend-owned `Audio` element
 - The frontend dispatches user intent and renders backend snapshots through Tauri commands and `playback://state-changed`
 - Queue state is still shell-derived today, but the ownership boundary is now narrow enough to move queue authority into Rust without changing the visible client contract
+
+### Planned Playlist Boundary
+
+- SQLite should store playlist metadata in `playlists` and ordered membership in `playlist_entries`
+- Playlist entry identity should be separate from track identity so the same track can appear more than once when the user or a later importer intends it
+- Ordering should be determined only by a dense zero-based `position` field within each playlist
+- Queue handoff should copy playlist order into the backend playback queue as a snapshot, not create a live mirrored binding between the playlist and active queue
+- The first local-only milestone can cascade deleted local tracks out of playlist entries; unmatched import states belong to the later Spotify-import branch instead of this foundation slice
 
 ### Privacy-Safe Presence Boundary
 

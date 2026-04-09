@@ -79,7 +79,9 @@ impl PresenceDriver for DiscordPresenceDriver {
     }
 
     fn clear(&mut self) -> Result<(), String> {
-        self.client.clear_activity().map_err(|error| error.to_string())
+        self.client
+            .clear_activity()
+            .map_err(|error| error.to_string())
     }
 }
 
@@ -256,8 +258,8 @@ fn same_path(left: &Path, right: &Path) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{
-        candidate_dotenv_paths, read_discord_client_id_from_dotenv, PresenceDriver, PresencePayload,
-        PresenceRuntime, PresenceRuntimeState,
+        candidate_dotenv_paths, read_discord_client_id_from_dotenv, PresenceDriver,
+        PresencePayload, PresenceRuntime, PresenceRuntimeState,
     };
     use crate::playback::PlaybackSnapshot;
     use std::fs;
@@ -350,28 +352,24 @@ mod tests {
         assert_eq!(active.state, "North");
         assert!(active.start_timestamp > 0);
 
-        assert!(
-            PresencePayload::from_snapshot(&snapshot_with_artist(
-                "track-1",
-                "Alpha",
-                false,
-                Some("North"),
-            ))
-            .is_none()
-        );
-        assert!(
-            PresencePayload::from_snapshot(&snapshot_with_artist("track-1", "Alpha", true, None))
-                .is_none()
-        );
-        assert!(
-            PresencePayload::from_snapshot(&snapshot_with_artist(
-                "track-1",
-                "Alpha",
-                true,
-                Some("   "),
-            ))
-            .is_none()
-        );
+        assert!(PresencePayload::from_snapshot(&snapshot_with_artist(
+            "track-1",
+            "Alpha",
+            false,
+            Some("North"),
+        ))
+        .is_none());
+        assert!(PresencePayload::from_snapshot(&snapshot_with_artist(
+            "track-1", "Alpha", true, None
+        ))
+        .is_none());
+        assert!(PresencePayload::from_snapshot(&snapshot_with_artist(
+            "track-1",
+            "Alpha",
+            true,
+            Some("   "),
+        ))
+        .is_none());
     }
 
     #[test]
@@ -379,7 +377,12 @@ mod tests {
         let actions = Arc::new(Mutex::new(Vec::new()));
         let runtime = test_runtime_state(Arc::clone(&actions));
 
-        runtime.sync_snapshot(&snapshot_with_artist("track-1", "Alpha", true, Some("North")));
+        runtime.sync_snapshot(&snapshot_with_artist(
+            "track-1",
+            "Alpha",
+            true,
+            Some("North"),
+        ));
 
         let actions = actions.lock().expect("actions lock should not be poisoned");
         assert_eq!(actions.len(), 2);
@@ -393,9 +396,24 @@ mod tests {
         let actions = Arc::new(Mutex::new(Vec::new()));
         let runtime = test_runtime_state(Arc::clone(&actions));
 
-        runtime.sync_snapshot(&snapshot_with_artist("track-1", "Alpha", true, Some("North")));
-        runtime.sync_snapshot(&snapshot_with_artist("track-1", "Alpha", true, Some("North")));
-        runtime.sync_snapshot(&snapshot_with_artist("track-1", "Alpha", false, Some("North")));
+        runtime.sync_snapshot(&snapshot_with_artist(
+            "track-1",
+            "Alpha",
+            true,
+            Some("North"),
+        ));
+        runtime.sync_snapshot(&snapshot_with_artist(
+            "track-1",
+            "Alpha",
+            true,
+            Some("North"),
+        ));
+        runtime.sync_snapshot(&snapshot_with_artist(
+            "track-1",
+            "Alpha",
+            false,
+            Some("North"),
+        ));
 
         let actions = actions.lock().expect("actions lock should not be poisoned");
         assert_eq!(actions.len(), 4);
@@ -410,8 +428,18 @@ mod tests {
         let actions = Arc::new(Mutex::new(Vec::new()));
         let runtime = test_runtime_state(Arc::clone(&actions));
 
-        runtime.sync_snapshot(&snapshot_with_artist("track-1", "Alpha", true, Some("North")));
-        runtime.sync_snapshot(&snapshot_with_artist("track-2", "Beta", true, Some("North")));
+        runtime.sync_snapshot(&snapshot_with_artist(
+            "track-1",
+            "Alpha",
+            true,
+            Some("North"),
+        ));
+        runtime.sync_snapshot(&snapshot_with_artist(
+            "track-2",
+            "Beta",
+            true,
+            Some("North"),
+        ));
 
         let actions = actions.lock().expect("actions lock should not be poisoned");
         assert_eq!(actions.len(), 4);

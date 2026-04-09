@@ -65,6 +65,8 @@ Current milestone progress:
 - Native playback smoke coverage now exercises launch, play, seek, pause, and completion through backend and shell tests
 - The next patch-release slice after FLAC is scoped as privacy-safe desktop presence, with a managed Discord RPC client and explicit/advisory metadata treated as a separate follow-up patch
 - The advisory-metadata follow-up should trust only source-declared explicit fields and keep missing values neutral instead of inferring from lyrics or filenames
+- The next minor release after advisory metadata is `v1.3.0`, which should add first-class local playlists with persisted ordering and backend queue handoff
+- Playlist foundations should define storage and ordering contracts before CRUD/UI work so Spotify import and smart playlists can reuse the same model later
 
 ## Milestone 5: Cache and Remote Media
 

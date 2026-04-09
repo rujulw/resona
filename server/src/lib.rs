@@ -2,11 +2,12 @@ mod commands;
 mod database;
 mod library;
 mod playback;
+mod playlists;
 mod presence;
 
 use commands::{
-    bootstrap_app, complete_playback, describe_playback_contract, get_shell_state,
-    load_playback_track, playback_action, query_library, report_playback_error,
+    bootstrap_app, complete_playback, describe_playback_contract, describe_playlist_contract,
+    get_shell_state, load_playback_track, playback_action, query_library, report_playback_error,
     resolve_artwork_source, resolve_track_playback_source, scan_local_library, seek_playback,
     sync_playback_timing, DatabaseState,
 };
@@ -34,6 +35,7 @@ pub fn run() {
             bootstrap_app,
             complete_playback,
             describe_playback_contract,
+            describe_playlist_contract,
             get_shell_state,
             load_playback_track,
             report_playback_error,

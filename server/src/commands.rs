@@ -10,6 +10,7 @@ use crate::playback::{
     emit_playback_state, playback_contract, LoadedPlaybackTrackPayload, PlaybackContract,
     PlaybackRuntimeState, PlaybackSnapshot,
 };
+use crate::playlists::{playlist_contract, PlaylistContract};
 
 pub struct DatabaseState {
     pub app_database: AppDatabase,
@@ -96,6 +97,11 @@ pub fn get_shell_state(
 #[tauri::command]
 pub fn describe_playback_contract() -> PlaybackContract {
     playback_contract()
+}
+
+#[tauri::command]
+pub fn describe_playlist_contract() -> PlaylistContract {
+    playlist_contract()
 }
 
 #[cfg(test)]
@@ -440,7 +446,7 @@ mod tests {
 
     use super::{
         bootstrap_app, build_shell_state, build_shell_state_with_playback,
-        complete_playback_with_runtime, describe_playback_contract,
+        complete_playback_with_runtime, describe_playback_contract, describe_playlist_contract,
         load_playback_track_with_database, playback_action_with_runtime, playback_state_for_action,
         query_library_with_database, report_playback_error_with_runtime,
         resolve_track_playback_source_with_database, scan_local_library_with_database,
@@ -675,6 +681,20 @@ mod tests {
         assert_eq!(payload.commands[0].name, "load_playback_track");
         assert_eq!(payload.commands[3].name, "sync_playback_timing");
         assert_eq!(payload.events[0].name, "playback://state-changed");
+    }
+
+    #[test]
+    fn playlist_contract_exposes_local_ordering_and_queue_handoff_boundary() {
+        let payload = describe_playlist_contract();
+
+        assert_eq!(payload.ordering_mode, "dense-zero-based-position");
+        assert_eq!(payload.duplicate_policy, "allowed-as-distinct-entries");
+        assert_eq!(
+            payload.queue_handoff.mode,
+            "replace-backend-queue-from-playlist-order"
+        );
+        assert_eq!(payload.planned_commands.len(), 4);
+        assert_eq!(payload.planned_commands[2].name, "replace_playlist_entries");
     }
 
     #[test]
@@ -950,8 +970,7 @@ mod tests {
         assert!(playing.is_playing);
         assert_eq!(playing.output_owner, "rust");
 
-        let timed =
-            sync_playback_timing_with_runtime(&playback_runtime_state, Some(0), Some(182));
+        let timed = sync_playback_timing_with_runtime(&playback_runtime_state, Some(0), Some(182));
         assert_eq!(timed.duration_seconds, 182);
 
         let seeked = seek_playback_with_runtime(&playback_runtime_state, 61);
@@ -1018,7 +1037,9 @@ mod tests {
         assert_eq!(flac_track.album.as_deref(), Some("Frames"));
         assert_eq!(flac_track.advisory, Some(true));
         assert_eq!(flac_track.extension, "flac");
-        assert!(flac_track.duration_seconds.is_some_and(|value| value > 2.9 && value < 3.1));
+        assert!(flac_track
+            .duration_seconds
+            .is_some_and(|value| value > 2.9 && value < 3.1));
         assert!(flac_track.artwork_key.is_some());
 
         let payload = load_playback_track_with_database(
