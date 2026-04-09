@@ -4,7 +4,11 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const bootstrapAppMock = vi.fn();
+const createPlaylistMock = vi.fn();
+const deletePlaylistMock = vi.fn();
+const getPlaylistMock = vi.fn();
 const getShellStateMock = vi.fn();
+const listPlaylistsMock = vi.fn();
 const loadPlaybackTrackMock = vi.fn();
 const queryLibraryMock = vi.fn();
 const pickLibraryDirectoryMock = vi.fn();
@@ -14,11 +18,18 @@ const subscribePlaybackStateMock = vi.fn();
 const resolveArtworkSourceMock = vi.fn();
 const resolveTrackPlaybackSourceMock = vi.fn();
 const scanLocalLibraryMock = vi.fn();
+const updatePlaylistMock = vi.fn();
+const addTrackToPlaylistMock = vi.fn();
 const mockAudioInstances: MockAudio[] = [];
 
 vi.mock("./desktop", () => ({
+  addTrackToPlaylist: (...args: unknown[]) => addTrackToPlaylistMock(...args),
   bootstrapApp: () => bootstrapAppMock(),
+  createPlaylist: (...args: unknown[]) => createPlaylistMock(...args),
+  deletePlaylist: (...args: unknown[]) => deletePlaylistMock(...args),
+  getPlaylist: (...args: unknown[]) => getPlaylistMock(...args),
   getShellState: () => getShellStateMock(),
+  listPlaylists: () => listPlaylistsMock(),
   loadPlaybackTrack: (...args: unknown[]) => loadPlaybackTrackMock(...args),
   pickLibraryDirectory: (...args: unknown[]) => pickLibraryDirectoryMock(...args),
   queryLibrary: (...args: unknown[]) => queryLibraryMock(...args),
@@ -28,6 +39,7 @@ vi.mock("./desktop", () => ({
   resolveArtworkSource: (...args: unknown[]) => resolveArtworkSourceMock(...args),
   resolveTrackPlaybackSource: (...args: unknown[]) => resolveTrackPlaybackSourceMock(...args),
   scanLocalLibrary: (...args: unknown[]) => scanLocalLibraryMock(...args),
+  updatePlaylist: (...args: unknown[]) => updatePlaylistMock(...args),
 }));
 
 class MockAudio extends EventTarget {
@@ -115,7 +127,11 @@ describe("app shell smoke checks", () => {
 
   beforeEach(() => {
     bootstrapAppMock.mockReset();
+    createPlaylistMock.mockReset();
+    deletePlaylistMock.mockReset();
+    getPlaylistMock.mockReset();
     getShellStateMock.mockReset();
+    listPlaylistsMock.mockReset();
     loadPlaybackTrackMock.mockReset();
     queryLibraryMock.mockReset();
     pickLibraryDirectoryMock.mockReset();
@@ -125,6 +141,8 @@ describe("app shell smoke checks", () => {
     resolveArtworkSourceMock.mockReset();
     resolveTrackPlaybackSourceMock.mockReset();
     scanLocalLibraryMock.mockReset();
+    updatePlaylistMock.mockReset();
+    addTrackToPlaylistMock.mockReset();
     mockAudioInstances.length = 0;
     mockBackendPlayback = {
       statusLabel: "Nothing playing",
@@ -186,6 +204,42 @@ describe("app shell smoke checks", () => {
       return () => {
         playbackStateListener = undefined;
       };
+    });
+    listPlaylistsMock.mockResolvedValue([
+      {
+        id: "playlist-1",
+        name: "Desk Set",
+        description: "focused hours",
+        entryCount: 1,
+        createdAt: "1700000100",
+        updatedAt: "1700000100",
+      },
+    ]);
+    getPlaylistMock.mockResolvedValue({
+      playlist: {
+        id: "playlist-1",
+        name: "Desk Set",
+        description: "focused hours",
+        entryCount: 1,
+        createdAt: "1700000100",
+        updatedAt: "1700000100",
+      },
+      entries: [
+        {
+          entryId: "playlist-entry-1",
+          playlistId: "playlist-1",
+          trackId: "track-1",
+          position: 0,
+          addedAt: "1700000100",
+          updatedAt: "1700000100",
+          title: "Alpha",
+          artist: "North",
+          album: "Signals",
+          artworkKey: "alpha-cover.png",
+          extension: "mp3",
+          durationSeconds: 182,
+        },
+      ],
     });
     queryLibraryMock.mockResolvedValue({
       items: [
@@ -291,6 +345,65 @@ describe("app shell smoke checks", () => {
       assetUrl: `asset://localhost/${artworkKey}`,
     }));
     pickLibraryDirectoryMock.mockResolvedValue("/Users/rujulw/Music");
+    createPlaylistMock.mockImplementation(async (name: string) => ({
+      id: "playlist-2",
+      name,
+      description: null,
+      entryCount: 0,
+      createdAt: "1700000200",
+      updatedAt: "1700000200",
+    }));
+    updatePlaylistMock.mockImplementation(
+      async (playlistId: string, name: string, description?: string | null) => ({
+        id: playlistId,
+        name,
+        description: description ?? null,
+        entryCount: 1,
+        createdAt: "1700000100",
+        updatedAt: "1700000200",
+      }),
+    );
+    deletePlaylistMock.mockResolvedValue(undefined);
+    addTrackToPlaylistMock.mockImplementation(async (playlistId: string, track: { id: string; title: string; artist: string | null; album: string | null; artworkKey: string | null; durationSeconds: number | null; extension?: string }) => ({
+      playlist: {
+        id: playlistId,
+        name: "Desk Set",
+        description: "focused hours",
+        entryCount: 2,
+        createdAt: "1700000100",
+        updatedAt: "1700000300",
+      },
+      entries: [
+        {
+          entryId: "playlist-entry-1",
+          playlistId,
+          trackId: "track-1",
+          position: 0,
+          addedAt: "1700000100",
+          updatedAt: "1700000100",
+          title: "Alpha",
+          artist: "North",
+          album: "Signals",
+          artworkKey: "alpha-cover.png",
+          extension: "mp3",
+          durationSeconds: 182,
+        },
+        {
+          entryId: "playlist-entry-2",
+          playlistId,
+          trackId: track.id,
+          position: 1,
+          addedAt: "1700000300",
+          updatedAt: "1700000300",
+          title: track.title,
+          artist: track.artist,
+          album: track.album,
+          artworkKey: track.artworkKey,
+          extension: track.extension,
+          durationSeconds: track.durationSeconds,
+        },
+      ],
+    }));
 
     window.history.replaceState({}, "", "/");
   });
@@ -313,6 +426,7 @@ describe("app shell smoke checks", () => {
     expect(bootstrapAppMock).toHaveBeenCalledTimes(1);
     expect(getShellStateMock).toHaveBeenCalledTimes(1);
     expect(queryLibraryMock).toHaveBeenCalledTimes(1);
+    expect(listPlaylistsMock).toHaveBeenCalledTimes(1);
   });
 
   it("renders the tracks route inside the fixed shell", async () => {
@@ -330,6 +444,52 @@ describe("app shell smoke checks", () => {
       expect(screen.getByAltText("Alpha artwork")).toBeTruthy();
     });
     expect(screen.getByText("Nothing playing")).toBeTruthy();
+  });
+
+  it("renders playlist detail flows for rename delete and add-track", async () => {
+    window.history.replaceState({}, "", "/playlists/playlist-1");
+    const promptMock = vi.spyOn(window, "prompt").mockReturnValue("Late Shift");
+    const confirmMock = vi.spyOn(window, "confirm").mockReturnValue(true);
+    const { default: App } = await import("./App");
+
+    render(<App />);
+
+    await screen.findByText("Save details");
+    expect(getPlaylistMock).toHaveBeenCalledWith("playlist-1");
+
+    fireEvent.change(screen.getByLabelText("name"), {
+      target: { value: "Night Drive" },
+    });
+    fireEvent.change(screen.getByLabelText("description"), {
+      target: { value: "after midnight" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /save details/i }));
+
+    await waitFor(() => {
+      expect(updatePlaylistMock).toHaveBeenCalledWith(
+        "playlist-1",
+        "Night Drive",
+        "after midnight",
+      );
+    });
+
+    fireEvent.click(screen.getAllByRole("button", { name: /add/i })[0]);
+    await waitFor(() => {
+      expect(addTrackToPlaylistMock).toHaveBeenCalled();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /delete playlist/i }));
+    await waitFor(() => {
+      expect(deletePlaylistMock).toHaveBeenCalledWith("playlist-1");
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /new/i }));
+    await waitFor(() => {
+      expect(createPlaylistMock).toHaveBeenCalledWith("Late Shift");
+    });
+
+    promptMock.mockRestore();
+    confirmMock.mockRestore();
   });
 
   it("drives search and header sort controls through the tracks query contract", async () => {

@@ -116,6 +116,36 @@ export type TrackListItem = {
   indexedAt: string;
 };
 
+export type PlaylistSummary = {
+  id: string;
+  name: string;
+  description: string | null;
+  entryCount: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type PlaylistEntryItem = {
+  entryId: string;
+  playlistId: string;
+  trackId: string;
+  position: number;
+  addedAt: string;
+  updatedAt: string;
+  title: string;
+  artist: string | null;
+  album: string | null;
+  advisory?: boolean | null;
+  artworkKey: string | null;
+  extension?: string;
+  durationSeconds: number | null;
+};
+
+export type PlaylistDetail = {
+  playlist: PlaylistSummary;
+  entries: PlaylistEntryItem[];
+};
+
 export type LibraryPagePayload = {
   items: TrackListItem[];
   nextCursor: string | null;
@@ -237,6 +267,10 @@ const browserPlaybackContractPayload: PlaybackContractPayload = {
   ],
 };
 
+let browserPlaylistCounter = 0;
+let browserPlaylistEntryCounter = 0;
+const browserPlaylists = new Map<string, PlaylistDetail>();
+
 export async function bootstrapApp(): Promise<BootstrapPayload> {
   try {
     return await invoke<BootstrapPayload>("bootstrap_app");
@@ -295,6 +329,137 @@ export async function describePlaybackContract(): Promise<PlaybackContractPayloa
     return await invoke<PlaybackContractPayload>("describe_playback_contract");
   } catch {
     return browserPlaybackContractPayload;
+  }
+}
+
+export async function listPlaylists(): Promise<PlaylistSummary[]> {
+  try {
+    return await invoke<PlaylistSummary[]>("list_playlists");
+  } catch {
+    return Array.from(browserPlaylists.values())
+      .map((detail) => detail.playlist)
+      .sort((left, right) => left.name.localeCompare(right.name));
+  }
+}
+
+export async function getPlaylist(playlistId: string): Promise<PlaylistDetail | null> {
+  try {
+    return await invoke<PlaylistDetail>("get_playlist", {
+      playlistId,
+    });
+  } catch {
+    return browserPlaylists.get(playlistId) ?? null;
+  }
+}
+
+export async function createPlaylist(
+  name: string,
+  description?: string | null,
+): Promise<PlaylistSummary> {
+  try {
+    return await invoke<PlaylistSummary>("create_playlist", {
+      name,
+      description: description?.trim() ? description : null,
+    });
+  } catch {
+    browserPlaylistCounter += 1;
+    const now = `${Date.now()}`;
+    const playlist: PlaylistSummary = {
+      id: `browser-playlist-${browserPlaylistCounter}`,
+      name: name.trim(),
+      description: description?.trim() ? description.trim() : null,
+      entryCount: 0,
+      createdAt: now,
+      updatedAt: now,
+    };
+    browserPlaylists.set(playlist.id, {
+      playlist,
+      entries: [],
+    });
+    return playlist;
+  }
+}
+
+export async function updatePlaylist(
+  playlistId: string,
+  name: string,
+  description?: string | null,
+): Promise<PlaylistSummary> {
+  try {
+    return await invoke<PlaylistSummary>("update_playlist", {
+      playlistId,
+      name,
+      description: description?.trim() ? description : null,
+    });
+  } catch {
+    const existing = browserPlaylists.get(playlistId);
+    if (!existing) {
+      throw new Error(`playlist ${playlistId} was not found`);
+    }
+
+    const updatedSummary: PlaylistSummary = {
+      ...existing.playlist,
+      name: name.trim(),
+      description: description?.trim() ? description.trim() : null,
+      updatedAt: `${Date.now()}`,
+    };
+    browserPlaylists.set(playlistId, {
+      ...existing,
+      playlist: updatedSummary,
+    });
+    return updatedSummary;
+  }
+}
+
+export async function deletePlaylist(playlistId: string): Promise<void> {
+  try {
+    await invoke("delete_playlist", { playlistId });
+  } catch {
+    browserPlaylists.delete(playlistId);
+  }
+}
+
+export async function addTrackToPlaylist(
+  playlistId: string,
+  track: TrackListItem,
+): Promise<PlaylistDetail> {
+  try {
+    return await invoke<PlaylistDetail>("add_track_to_playlist", {
+      playlistId,
+      trackId: track.id,
+    });
+  } catch {
+    const existing = browserPlaylists.get(playlistId);
+    if (!existing) {
+      throw new Error(`playlist ${playlistId} was not found`);
+    }
+
+    browserPlaylistEntryCounter += 1;
+    const nextEntry = {
+      entryId: `browser-playlist-entry-${browserPlaylistEntryCounter}`,
+      playlistId,
+      trackId: track.id,
+      position: existing.entries.length,
+      addedAt: `${Date.now()}`,
+      updatedAt: `${Date.now()}`,
+      title: track.title,
+      artist: track.artist,
+      album: track.album,
+      advisory: track.advisory ?? null,
+      artworkKey: track.artworkKey,
+      extension: track.extension,
+      durationSeconds: track.durationSeconds,
+    };
+    const detail: PlaylistDetail = {
+      playlist: {
+        ...existing.playlist,
+        entryCount: existing.entries.length + 1,
+        updatedAt: `${Date.now()}`,
+      },
+      entries: [...existing.entries, nextEntry],
+    };
+    browserPlaylists.set(playlistId, detail);
+    return detail;
   }
 }
 

@@ -200,6 +200,61 @@ describe("desktop bootstrap bridge", () => {
     expect(payload.events[0].name).toBe("playback://state-changed");
   });
 
+  it("loads playlists through the command bridge", async () => {
+    invokeMock.mockResolvedValueOnce([
+      {
+        id: "playlist-1",
+        name: "Desk Set",
+        description: "focused hours",
+        entryCount: 1,
+        createdAt: "1700000100",
+        updatedAt: "1700000100",
+      },
+    ]);
+
+    const { listPlaylists } = await import("./desktop");
+    const payload = await listPlaylists();
+
+    expect(invokeMock).toHaveBeenCalledWith("list_playlists");
+    expect(payload[0].name).toBe("Desk Set");
+  });
+
+  it("creates and updates playlists through the command bridge", async () => {
+    invokeMock
+      .mockResolvedValueOnce({
+        id: "playlist-1",
+        name: "Desk Set",
+        description: null,
+        entryCount: 0,
+        createdAt: "1700000100",
+        updatedAt: "1700000100",
+      })
+      .mockResolvedValueOnce({
+        id: "playlist-1",
+        name: "Night Drive",
+        description: "after midnight",
+        entryCount: 0,
+        createdAt: "1700000100",
+        updatedAt: "1700000200",
+      });
+
+    const { createPlaylist, updatePlaylist } = await import("./desktop");
+    const created = await createPlaylist("Desk Set");
+    const updated = await updatePlaylist("playlist-1", "Night Drive", "after midnight");
+
+    expect(invokeMock).toHaveBeenNthCalledWith(1, "create_playlist", {
+      name: "Desk Set",
+      description: null,
+    });
+    expect(invokeMock).toHaveBeenNthCalledWith(2, "update_playlist", {
+      playlistId: "playlist-1",
+      name: "Night Drive",
+      description: "after midnight",
+    });
+    expect(created.id).toBe("playlist-1");
+    expect(updated.name).toBe("Night Drive");
+  });
+
   it("subscribes to backend playback state events", async () => {
     const unlisten = vi.fn();
     let handler:

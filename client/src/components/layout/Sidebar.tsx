@@ -1,24 +1,28 @@
-import { Home, ListMusic, ListOrdered, Settings2 } from "lucide-react";
+import { FolderHeart, Home, ListMusic, ListOrdered, Settings2 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 
 import { primaryRoutes } from "../../constants/routes";
+import type { PlaylistSummary } from "../../desktop";
 
 const routeIcons = {
   home: Home,
   tracks: ListMusic,
+  playlists: FolderHeart,
   queue: ListOrdered,
   settings: Settings2,
 } as const;
 
 export function Sidebar({
   appName,
+  playlists,
   runtimeLabel,
 }: {
   appName: string;
+  playlists: PlaylistSummary[];
   runtimeLabel: string;
 }) {
   return (
-    <aside className="grid content-start gap-6 border-r border-white/6 bg-[#171717] px-4 py-5">
+    <aside className="grid content-start gap-6 overflow-y-auto border-r border-white/6 bg-[#171717] px-4 py-5">
       <div className="grid gap-1">
         <h1 className="m-0 text-3xl font-medium tracking-[-0.04em] text-[#f2f2f2]">
           {appName}
@@ -53,6 +57,32 @@ export function Sidebar({
             );
           })}
         </nav>
+      </section>
+
+      <section className="grid gap-3">
+        {playlists.length > 0 ? (
+          <nav className="grid gap-1.5" aria-label="playlists">
+            {playlists.map((playlist) => (
+              <NavLink
+                key={playlist.id}
+                to={`/playlists/${playlist.id}`}
+                className={({ isActive }) =>
+                  [
+                    "rounded-2xl border px-3 py-3 transition-colors",
+                    isActive
+                      ? "border-[#d1ab67]/40 bg-[#241f17] text-[#f4e2b9]"
+                      : "border-transparent bg-white/[0.03] text-[#d4d4d4] hover:border-white/8 hover:bg-white/[0.05] hover:text-[#f2f2f2]",
+                  ].join(" ")
+                }
+              >
+                <span className="block truncate text-sm">{playlist.name}</span>
+                <span className="mt-1 block text-xs text-[#8f8f8f]">
+                  {playlist.entryCount} track{playlist.entryCount === 1 ? "" : "s"}
+                </span>
+              </NavLink>
+            ))}
+          </nav>
+        ) : null}
       </section>
     </aside>
   );

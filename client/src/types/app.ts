@@ -1,6 +1,8 @@
 import type {
   BootstrapPayload,
   LibraryRow,
+  PlaylistDetail,
+  PlaylistSummary,
   PlaybackShellState,
   TrackListItem,
 } from "../desktop";
@@ -54,3 +56,26 @@ export type TracksQueryState = {
   sortKey: "title" | "artist" | "album" | "indexed_at";
   sortDirection: "asc" | "desc";
 };
+
+export type PlaylistsState =
+  | {
+      status: "loading";
+      items: PlaylistSummary[];
+      activePlaylistId: string | null;
+      activePlaylist: PlaylistDetail | null;
+      message?: string;
+    }
+  | {
+      status: "ready";
+      items: PlaylistSummary[];
+      activePlaylistId: string | null;
+      activePlaylist: PlaylistDetail | null;
+      message?: string;
+    }
+  | {
+      status: "error";
+      items: PlaylistSummary[];
+      activePlaylistId: string | null;
+      activePlaylist: PlaylistDetail | null;
+      message: string;
+    };

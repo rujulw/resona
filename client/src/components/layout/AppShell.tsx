@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 
 import type { BootstrapPayload, TrackListItem } from "../../desktop";
 import type {
+  PlaylistsState,
   QueueState,
   ScanState,
   ShellState,
@@ -11,12 +12,14 @@ import type {
 import { PlaybackBar } from "./PlaybackBar";
 import { Sidebar } from "./Sidebar";
 import { HomePage } from "../../pages/HomePage";
+import { PlaylistsPage } from "../../pages/PlaylistsPage";
 import { QueuePage } from "../../pages/QueuePage";
 import { SettingsPage } from "../../pages/SettingsPage";
 import { TracksPage } from "../../pages/TracksPage";
 
 export function AppShell({
   payload,
+  playlistsState,
   queueState,
   shellState,
   tracksState,
@@ -24,6 +27,11 @@ export function AppShell({
   libraryPath,
   scanState,
   onPickLibraryDirectory,
+  onPlaylistCreate,
+  onPlaylistDelete,
+  onPlaylistRename,
+  onPlaylistSelect,
+  onPlaylistTrackAdd,
   onPlaybackAction,
   onPlaybackSeek,
   onTrackSelect,
@@ -34,6 +42,7 @@ export function AppShell({
   onTracksAlbumHeaderSort,
 }: {
   payload: BootstrapPayload;
+  playlistsState: PlaylistsState;
   queueState: QueueState;
   shellState: ShellState;
   tracksState: TracksState;
@@ -41,6 +50,11 @@ export function AppShell({
   libraryPath: string;
   scanState: ScanState;
   onPickLibraryDirectory: () => void;
+  onPlaylistCreate: (name: string) => Promise<string | null>;
+  onPlaylistDelete: (playlistId: string) => void;
+  onPlaylistRename: (playlistId: string, name: string, description?: string | null) => void;
+  onPlaylistSelect: (playlistId: string) => void;
+  onPlaylistTrackAdd: (playlistId: string, track: TrackListItem) => void;
   onPlaybackAction: (action: "previous" | "toggle" | "next") => void;
   onPlaybackSeek: (positionSeconds: number) => void;
   onTrackSelect: (track: TrackListItem) => void;
@@ -55,6 +69,7 @@ export function AppShell({
       <main className="grid h-screen grid-cols-[248px_minmax(0,1fr)] grid-rows-[minmax(0,1fr)_auto] overflow-hidden bg-[#121212] text-[#e5e5e5]">
         <Sidebar
           appName={payload.appName}
+          playlists={playlistsState.items}
           runtimeLabel={`${payload.runtime.desktopShell} desktop shell`}
         />
 
@@ -84,6 +99,34 @@ export function AppShell({
                   onTracksSearchSubmit={onTracksSearchSubmit}
                   onTracksTitleHeaderSort={onTracksTitleHeaderSort}
                   onTracksAlbumHeaderSort={onTracksAlbumHeaderSort}
+                />
+              }
+            />
+            <Route
+              path="/playlists"
+              element={
+                <PlaylistsPage
+                  playlistsState={playlistsState}
+                  tracksState={tracksState}
+                  onCreatePlaylist={onPlaylistCreate}
+                  onPlaylistDelete={onPlaylistDelete}
+                  onPlaylistRename={onPlaylistRename}
+                  onPlaylistSelect={onPlaylistSelect}
+                  onTrackAdd={onPlaylistTrackAdd}
+                />
+              }
+            />
+            <Route
+              path="/playlists/:playlistId"
+              element={
+                <PlaylistsPage
+                  playlistsState={playlistsState}
+                  tracksState={tracksState}
+                  onCreatePlaylist={onPlaylistCreate}
+                  onPlaylistDelete={onPlaylistDelete}
+                  onPlaylistRename={onPlaylistRename}
+                  onPlaylistSelect={onPlaylistSelect}
+                  onTrackAdd={onPlaylistTrackAdd}
                 />
               }
             />
