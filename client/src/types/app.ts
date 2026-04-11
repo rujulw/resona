@@ -3,6 +3,7 @@ import type {
   LibraryRow,
   PlaylistDetail,
   PlaylistSummary,
+  PlaybackQueueSnapshot,
   PlaybackShellState,
   TrackListItem,
 } from "../desktop";
@@ -48,6 +49,7 @@ export type QueueState = {
   activeTrack: TrackListItem | null;
   upcomingTracks: TrackListItem[];
   totalTracks: number;
+  sourceLabel?: string;
 };
 
 export type TracksQueryState = {
@@ -63,6 +65,7 @@ export type PlaylistsState =
       items: PlaylistSummary[];
       activePlaylistId: string | null;
       activePlaylist: PlaylistDetail | null;
+      playbackQueue: PlaybackQueueSnapshot | null;
       message?: string;
     }
   | {
@@ -70,6 +73,7 @@ export type PlaylistsState =
       items: PlaylistSummary[];
       activePlaylistId: string | null;
       activePlaylist: PlaylistDetail | null;
+      playbackQueue: PlaybackQueueSnapshot | null;
       message?: string;
     }
   | {
@@ -77,5 +81,6 @@ export type PlaylistsState =
       items: PlaylistSummary[];
       activePlaylistId: string | null;
       activePlaylist: PlaylistDetail | null;
+      playbackQueue: PlaybackQueueSnapshot | null;
       message: string;
     };

@@ -120,6 +120,7 @@ export type PlaylistSummary = {
   id: string;
   name: string;
   description: string | null;
+  artworkKey: string | null;
   entryCount: number;
   createdAt: string;
   updatedAt: string;
@@ -144,6 +145,19 @@ export type PlaylistEntryItem = {
 export type PlaylistDetail = {
   playlist: PlaylistSummary;
   entries: PlaylistEntryItem[];
+};
+
+export type PlaybackQueueSnapshot = {
+  trackIds: string[];
+  activeTrackId: string | null;
+  sourceLabel: string;
+};
+
+export type PlaylistPlaybackHandoffPayload = {
+  playback: PlaybackShellState;
+  queue: PlaybackQueueSnapshot;
+  playlistId: string;
+  activeEntryId: string;
 };
 
 export type LibraryPagePayload = {
@@ -271,10 +285,25 @@ let browserPlaylistCounter = 0;
 let browserPlaylistEntryCounter = 0;
 const browserPlaylists = new Map<string, PlaylistDetail>();
 
+function isBrowserPreviewRuntime(): boolean {
+  if (typeof globalThis === "undefined") {
+    return true;
+  }
+
+  return !("__TAURI_INTERNALS__" in globalThis) && !("__TAURI__" in globalThis);
+}
+
+function rethrowInDesktopRuntime(error: unknown): never {
+  throw error;
+}
+
 export async function bootstrapApp(): Promise<BootstrapPayload> {
   try {
     return await invoke<BootstrapPayload>("bootstrap_app");
-  } catch {
+  } catch (error) {
+    if (!isBrowserPreviewRuntime()) {
+      rethrowInDesktopRuntime(error);
+    }
     return browserBootstrapPayload;
   }
 }
@@ -282,7 +311,10 @@ export async function bootstrapApp(): Promise<BootstrapPayload> {
 export async function getShellState(): Promise<ShellStatePayload> {
   try {
     return await invoke<ShellStatePayload>("get_shell_state");
-  } catch {
+  } catch (error) {
+    if (!isBrowserPreviewRuntime()) {
+      rethrowInDesktopRuntime(error);
+    }
     return browserShellStatePayload;
   }
 }
@@ -305,7 +337,10 @@ export async function loadPlaybackTrack(
         assetUrl: convertFileSrc(payload.source.localPath),
       },
     };
-  } catch {
+  } catch (error) {
+    if (!isBrowserPreviewRuntime()) {
+      rethrowInDesktopRuntime(error);
+    }
     const source = await resolveTrackPlaybackSource(trackId);
     if (!source) {
       return null;
@@ -327,7 +362,10 @@ export async function loadPlaybackTrack(
 export async function describePlaybackContract(): Promise<PlaybackContractPayload> {
   try {
     return await invoke<PlaybackContractPayload>("describe_playback_contract");
-  } catch {
+  } catch (error) {
+    if (!isBrowserPreviewRuntime()) {
+      rethrowInDesktopRuntime(error);
+    }
     return browserPlaybackContractPayload;
   }
 }
@@ -335,7 +373,10 @@ export async function describePlaybackContract(): Promise<PlaybackContractPayloa
 export async function listPlaylists(): Promise<PlaylistSummary[]> {
   try {
     return await invoke<PlaylistSummary[]>("list_playlists");
-  } catch {
+  } catch (error) {
+    if (!isBrowserPreviewRuntime()) {
+      rethrowInDesktopRuntime(error);
+    }
     return Array.from(browserPlaylists.values())
       .map((detail) => detail.playlist)
       .sort((left, right) => left.name.localeCompare(right.name));
@@ -347,7 +388,10 @@ export async function getPlaylist(playlistId: string): Promise<PlaylistDetail | 
     return await invoke<PlaylistDetail>("get_playlist", {
       playlistId,
     });
-  } catch {
+  } catch (error) {
+    if (!isBrowserPreviewRuntime()) {
+      rethrowInDesktopRuntime(error);
+    }
     return browserPlaylists.get(playlistId) ?? null;
   }
 }
@@ -355,19 +399,25 @@ export async function getPlaylist(playlistId: string): Promise<PlaylistDetail | 
 export async function createPlaylist(
   name: string,
   description?: string | null,
+  artworkPath?: string | null,
 ): Promise<PlaylistSummary> {
   try {
     return await invoke<PlaylistSummary>("create_playlist", {
       name,
       description: description?.trim() ? description : null,
+      artworkPath: artworkPath?.trim() ? artworkPath : null,
     });
-  } catch {
+  } catch (error) {
+    if (!isBrowserPreviewRuntime()) {
+      rethrowInDesktopRuntime(error);
+    }
     browserPlaylistCounter += 1;
     const now = `${Date.now()}`;
     const playlist: PlaylistSummary = {
       id: `browser-playlist-${browserPlaylistCounter}`,
       name: name.trim(),
       description: description?.trim() ? description.trim() : null,
+      artworkKey: artworkPath?.trim() ? `browser-playlist-artwork-${browserPlaylistCounter}` : null,
       entryCount: 0,
       createdAt: now,
       updatedAt: now,
@@ -384,14 +434,19 @@ export async function updatePlaylist(
   playlistId: string,
   name: string,
   description?: string | null,
+  artworkPath?: string | null,
 ): Promise<PlaylistSummary> {
   try {
     return await invoke<PlaylistSummary>("update_playlist", {
       playlistId,
       name,
       description: description?.trim() ? description : null,
+      artworkPath: artworkPath?.trim() ? artworkPath : null,
     });
-  } catch {
+  } catch (error) {
+    if (!isBrowserPreviewRuntime()) {
+      rethrowInDesktopRuntime(error);
+    }
     const existing = browserPlaylists.get(playlistId);
     if (!existing) {
       throw new Error(`playlist ${playlistId} was not found`);
@@ -401,6 +456,9 @@ export async function updatePlaylist(
       ...existing.playlist,
       name: name.trim(),
       description: description?.trim() ? description.trim() : null,
+      artworkKey: artworkPath?.trim()
+        ? `browser-playlist-artwork-${playlistId}`
+        : existing.playlist.artworkKey,
       updatedAt: `${Date.now()}`,
     };
     browserPlaylists.set(playlistId, {
@@ -414,7 +472,10 @@ export async function updatePlaylist(
 export async function deletePlaylist(playlistId: string): Promise<void> {
   try {
     await invoke("delete_playlist", { playlistId });
-  } catch {
+  } catch (error) {
+    if (!isBrowserPreviewRuntime()) {
+      rethrowInDesktopRuntime(error);
+    }
     browserPlaylists.delete(playlistId);
   }
 }
@@ -428,7 +489,10 @@ export async function addTrackToPlaylist(
       playlistId,
       trackId: track.id,
     });
-  } catch {
+  } catch (error) {
+    if (!isBrowserPreviewRuntime()) {
+      rethrowInDesktopRuntime(error);
+    }
     const existing = browserPlaylists.get(playlistId);
     if (!existing) {
       throw new Error(`playlist ${playlistId} was not found`);
@@ -463,6 +527,134 @@ export async function addTrackToPlaylist(
   }
 }
 
+export async function movePlaylistEntry(
+  playlistId: string,
+  entryId: string,
+  targetPosition: number,
+): Promise<PlaylistDetail> {
+  try {
+    return await invoke<PlaylistDetail>("move_playlist_entry", {
+      playlistId,
+      entryId,
+      targetPosition,
+    });
+  } catch (error) {
+    if (!isBrowserPreviewRuntime()) {
+      rethrowInDesktopRuntime(error);
+    }
+    const existing = browserPlaylists.get(playlistId);
+    if (!existing) {
+      throw new Error(`playlist ${playlistId} was not found`);
+    }
+
+    const nextEntries = [...existing.entries];
+    const currentIndex = nextEntries.findIndex((entry) => entry.entryId === entryId);
+    if (currentIndex < 0) {
+      throw new Error(`playlist entry ${entryId} was not found`);
+    }
+
+    const [movedEntry] = nextEntries.splice(currentIndex, 1);
+    const boundedTarget = Math.max(0, Math.min(targetPosition, nextEntries.length));
+    nextEntries.splice(boundedTarget, 0, movedEntry);
+    const detail: PlaylistDetail = {
+      playlist: {
+        ...existing.playlist,
+        updatedAt: `${Date.now()}`,
+      },
+      entries: nextEntries.map((entry, index) => ({
+        ...entry,
+        position: index,
+      })),
+    };
+    browserPlaylists.set(playlistId, detail);
+    return detail;
+  }
+}
+
+export async function removePlaylistEntry(
+  playlistId: string,
+  entryId: string,
+): Promise<PlaylistDetail> {
+  try {
+    return await invoke<PlaylistDetail>("remove_playlist_entry", {
+      playlistId,
+      entryId,
+    });
+  } catch (error) {
+    if (!isBrowserPreviewRuntime()) {
+      rethrowInDesktopRuntime(error);
+    }
+    const existing = browserPlaylists.get(playlistId);
+    if (!existing) {
+      throw new Error(`playlist ${playlistId} was not found`);
+    }
+
+    const nextEntries = existing.entries.filter((entry) => entry.entryId !== entryId);
+    if (nextEntries.length === existing.entries.length) {
+      throw new Error(`playlist entry ${entryId} was not found`);
+    }
+
+    const detail: PlaylistDetail = {
+      playlist: {
+        ...existing.playlist,
+        entryCount: nextEntries.length,
+        updatedAt: `${Date.now()}`,
+      },
+      entries: nextEntries.map((entry, index) => ({
+        ...entry,
+        position: index,
+      })),
+    };
+    browserPlaylists.set(playlistId, detail);
+    return detail;
+  }
+}
+
+export async function handoffPlaylistToQueue(
+  playlistId: string,
+  startEntryId?: string | null,
+): Promise<PlaylistPlaybackHandoffPayload> {
+  try {
+    return await invoke<PlaylistPlaybackHandoffPayload>("handoff_playlist_to_queue", {
+      playlistId,
+      startEntryId: startEntryId ?? null,
+    });
+  } catch (error) {
+    if (!isBrowserPreviewRuntime()) {
+      rethrowInDesktopRuntime(error);
+    }
+    const detail = browserPlaylists.get(playlistId);
+    if (!detail || detail.entries.length === 0) {
+      throw new Error(`playlist ${playlistId} was not found`);
+    }
+
+    const activeEntry =
+      detail.entries.find((entry) => entry.entryId === (startEntryId ?? "")) ?? detail.entries[0];
+
+    return {
+      playback: {
+        ...browserShellStatePayload.playback,
+        statusLabel: "Ready",
+        transportLabel: "Ready",
+        outputOwner: "frontend",
+        trackId: activeEntry.trackId,
+        trackTitle: activeEntry.title,
+        trackArtist: activeEntry.artist,
+        trackAlbum: activeEntry.album,
+        trackAdvisory: activeEntry.advisory ?? null,
+        durationSeconds: activeEntry.durationSeconds ? Math.round(activeEntry.durationSeconds) : 0,
+      },
+      queue: {
+        trackIds: detail.entries.map((entry) => entry.trackId),
+        activeTrackId: activeEntry.trackId,
+        sourceLabel: "playlist-handoff",
+      },
+      playlistId,
+      activeEntryId: activeEntry.entryId,
+    };
+  }
+}
+
 export async function subscribePlaybackState(
   onPlayback: (playback: PlaybackShellState) => void,
 ): Promise<UnlistenPlaybackState> {
@@ -470,7 +662,10 @@ export async function subscribePlaybackState(
     return await listen<PlaybackShellState>("playback://state-changed", (event) => {
       onPlayback(event.payload);
     });
-  } catch {
+  } catch (error) {
+    if (!isBrowserPreviewRuntime()) {
+      rethrowInDesktopRuntime(error);
+    }
     return () => undefined;
   }
 }
@@ -480,7 +675,10 @@ export async function playbackAction(
 ): Promise<PlaybackShellState> {
   try {
     return await invoke<PlaybackShellState>("playback_action", { action });
-  } catch {
+  } catch (error) {
+    if (!isBrowserPreviewRuntime()) {
+      rethrowInDesktopRuntime(error);
+    }
     if (action === "toggle") {
       return {
         ...browserShellStatePayload.playback,
@@ -502,7 +700,10 @@ export async function syncPlaybackTiming(
       progressSeconds: progressSeconds ?? null,
       durationSeconds: durationSeconds ?? null,
     });
-  } catch {
+  } catch (error) {
+    if (!isBrowserPreviewRuntime()) {
+      rethrowInDesktopRuntime(error);
+    }
     return browserShellStatePayload.playback;
   }
 }
@@ -512,7 +713,10 @@ export async function seekPlayback(positionSeconds: number): Promise<PlaybackShe
     return await invoke<PlaybackShellState>("seek_playback", {
       positionSeconds,
     });
-  } catch {
+  } catch (error) {
+    if (!isBrowserPreviewRuntime()) {
+      rethrowInDesktopRuntime(error);
+    }
     return {
       ...browserShellStatePayload.playback,
       outputOwner: "frontend",
@@ -524,7 +728,10 @@ export async function seekPlayback(positionSeconds: number): Promise<PlaybackShe
 export async function completePlayback(): Promise<PlaybackShellState> {
   try {
     return await invoke<PlaybackShellState>("complete_playback");
-  } catch {
+  } catch (error) {
+    if (!isBrowserPreviewRuntime()) {
+      rethrowInDesktopRuntime(error);
+    }
     return {
       ...browserShellStatePayload.playback,
       statusLabel: "Ended",
@@ -541,7 +748,10 @@ export async function reportPlaybackError(
     return await invoke<PlaybackShellState>("report_playback_error", {
       transportLabel: transportLabel ?? null,
     });
-  } catch {
+  } catch (error) {
+    if (!isBrowserPreviewRuntime()) {
+      rethrowInDesktopRuntime(error);
+    }
     return {
       ...browserShellStatePayload.playback,
       statusLabel: "Error",
@@ -576,7 +786,10 @@ export async function queryLibrary(options?: {
       sortKey: options?.sortKey ?? "title",
       sortDirection: options?.sortDirection ?? "asc",
     });
-  } catch {
+  } catch (error) {
+    if (!isBrowserPreviewRuntime()) {
+      rethrowInDesktopRuntime(error);
+    }
     return {
       items: [],
       nextCursor: null,
@@ -602,7 +815,10 @@ export async function resolveTrackPlaybackSource(
       localPath: payload.localPath,
       assetUrl: convertFileSrc(payload.localPath),
     };
-  } catch {
+  } catch (error) {
+    if (!isBrowserPreviewRuntime()) {
+      rethrowInDesktopRuntime(error);
+    }
     return null;
   }
 }
@@ -623,7 +839,10 @@ export async function resolveArtworkSource(
       localPath: payload.localPath,
       assetUrl: convertFileSrc(payload.localPath),
     };
-  } catch {
+  } catch (error) {
+    if (!isBrowserPreviewRuntime()) {
+      rethrowInDesktopRuntime(error);
+    }
     return null;
   }
 }
@@ -637,6 +856,26 @@ export async function pickLibraryDirectory(
     multiple: false,
     recursive: true,
     defaultPath: defaultPath?.trim() ? defaultPath : undefined,
+  });
+
+  return typeof selected === "string" ? selected : null;
+}
+
+export async function pickPlaylistArtwork(
+  defaultPath?: string | null,
+): Promise<string | null> {
+  const selected = await open({
+    title: "Choose playlist cover",
+    directory: false,
+    multiple: false,
+    recursive: false,
+    defaultPath: defaultPath?.trim() ? defaultPath : undefined,
+    filters: [
+      {
+        name: "Images",
+        extensions: ["png", "jpg", "jpeg", "webp"],
+      },
+    ],
   });
 
   return typeof selected === "string" ? selected : null;

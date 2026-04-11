@@ -7,8 +7,8 @@ use crate::library::{
     SortDirection, TrackSortKey,
 };
 use crate::playback::{
-    emit_playback_state, playback_contract, LoadedPlaybackTrackPayload, PlaybackContract,
-    PlaybackRuntimeState, PlaybackSnapshot,
+    emit_playback_queue, emit_playback_state, playback_contract, LoadedPlaybackTrackPayload,
+    PlaybackContract, PlaybackQueueSnapshot, PlaybackRuntimeState, PlaybackSnapshot,
 };
 use crate::playlists::{
     playlist_contract, PlaylistContract, PlaylistDetail, PlaylistEntryRecord, PlaylistStore,
@@ -142,8 +142,14 @@ pub fn create_playlist(
     database_state: State<'_, DatabaseState>,
     name: String,
     description: Option<String>,
+    artwork_path: Option<String>,
 ) -> Result<PlaylistSummary, String> {
-    create_playlist_with_database(&database_state.app_database, &name, description.as_deref())
+    create_playlist_with_database(
+        &database_state.app_database,
+        &name,
+        description.as_deref(),
+        artwork_path.as_deref(),
+    )
         .map_err(|error| error.to_string())
 }
 
@@ -151,8 +157,9 @@ pub fn create_playlist_with_database(
     app_database: &AppDatabase,
     name: &str,
     description: Option<&str>,
+    artwork_path: Option<&str>,
 ) -> Result<PlaylistSummary, crate::playlists::PlaylistError> {
-    PlaylistStore::new(app_database.clone()).create_playlist(name, description)
+    PlaylistStore::new(app_database.clone()).create_playlist(name, description, artwork_path)
 }
 
 #[tauri::command]
@@ -161,12 +168,14 @@ pub fn update_playlist(
     playlist_id: String,
     name: String,
     description: Option<String>,
+    artwork_path: Option<String>,
 ) -> Result<PlaylistSummary, String> {
     update_playlist_with_database(
         &database_state.app_database,
         &playlist_id,
         &name,
         description.as_deref(),
+        artwork_path.as_deref(),
     )
     .map_err(|error| error.to_string())
 }
@@ -176,8 +185,14 @@ pub fn update_playlist_with_database(
     playlist_id: &str,
     name: &str,
     description: Option<&str>,
+    artwork_path: Option<&str>,
 ) -> Result<PlaylistSummary, crate::playlists::PlaylistError> {
-    PlaylistStore::new(app_database.clone()).update_playlist(playlist_id, name, description)
+    PlaylistStore::new(app_database.clone()).update_playlist(
+        playlist_id,
+        name,
+        description,
+        artwork_path,
+    )
 }
 
 #[tauri::command]
@@ -290,6 +305,65 @@ pub struct PlaylistEntryInput {
     pub entry_id: Option<String>,
     pub track_id: String,
     pub position: usize,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PlaylistPlaybackHandoffPayload {
+    pub playback: PlaybackSnapshot,
+    pub queue: PlaybackQueueSnapshot,
+    pub playlist_id: String,
+    pub active_entry_id: String,
+}
+
+#[tauri::command]
+pub fn handoff_playlist_to_queue(
+    app_handle: AppHandle,
+    database_state: State<'_, DatabaseState>,
+    playback_runtime_state: State<'_, PlaybackRuntimeState>,
+    playlist_id: String,
+    start_entry_id: Option<String>,
+) -> Result<PlaylistPlaybackHandoffPayload, String> {
+    let payload = handoff_playlist_to_queue_with_database(
+        &database_state.app_database,
+        &playback_runtime_state,
+        &playlist_id,
+        start_entry_id.as_deref(),
+    )
+    .map_err(|error| error.to_string())?;
+
+    emit_playback_queue(&app_handle, &payload.queue).map_err(|error| error.to_string())?;
+    emit_playback_state(&app_handle, &payload.playback).map_err(|error| error.to_string())?;
+
+    Ok(payload)
+}
+
+pub fn handoff_playlist_to_queue_with_database(
+    app_database: &AppDatabase,
+    playback_runtime_state: &PlaybackRuntimeState,
+    playlist_id: &str,
+    start_entry_id: Option<&str>,
+) -> Result<PlaylistPlaybackHandoffPayload, crate::playlists::PlaylistError> {
+    let handoff = PlaylistStore::new(app_database.clone())
+        .build_queue_handoff(playlist_id, start_entry_id)?;
+    let payload = load_playback_track_with_database(
+        app_database,
+        playback_runtime_state,
+        &handoff.active_track_id,
+    )
+    .map_err(|error| crate::playlists::PlaylistError::InvalidInput(error.to_string()))?;
+    let queue = playback_runtime_state.replace_queue(
+        handoff.track_ids,
+        Some(&handoff.active_track_id),
+        "playlist-handoff",
+    );
+
+    Ok(PlaylistPlaybackHandoffPayload {
+        playback: payload.playback,
+        queue,
+        playlist_id: handoff.playlist_id,
+        active_entry_id: handoff.active_entry_id,
+    })
 }
 
 #[cfg(test)]
@@ -636,7 +710,8 @@ mod tests {
         add_track_to_playlist_with_database, bootstrap_app, build_shell_state,
         build_shell_state_with_playback, complete_playback_with_runtime,
         create_playlist_with_database, delete_playlist_with_database, describe_playback_contract,
-        describe_playlist_contract, get_playlist_with_database, list_playlists_with_database,
+        describe_playlist_contract, get_playlist_with_database,
+        handoff_playlist_to_queue_with_database, list_playlists_with_database,
         load_playback_track_with_database, move_playlist_entry_with_database,
         playback_action_with_runtime, playback_state_for_action, query_library_with_database,
         remove_playlist_entry_with_database, replace_playlist_entries_with_database,
@@ -747,6 +822,18 @@ mod tests {
         std::fs::File::create(file_path)
             .and_then(|mut file| file.write_all(&bytes))
             .expect("test flac should be created");
+    }
+
+    fn write_test_png(file_path: &std::path::Path) {
+        if let Some(parent) = file_path.parent() {
+            std::fs::create_dir_all(parent).expect("parent directories should be created");
+        }
+
+        std::fs::write(
+            file_path,
+            [137, 80, 78, 71, 13, 10, 26, 10, 1, 2, 3, 4],
+        )
+        .expect("png bytes should write");
     }
 
     fn build_test_flac_streaminfo(sample_rate: u32, total_samples: u64) -> Vec<u8> {
@@ -893,16 +980,21 @@ mod tests {
     #[test]
     fn playlist_crud_commands_persist_metadata() {
         let database_state = test_database_state();
+        let artwork_path = std::env::temp_dir().join(unique_test_suffix("resona-playlist-cover"));
+        let artwork_path = artwork_path.with_extension("png");
+        write_test_png(&artwork_path);
 
         let created = create_playlist_with_database(
             &database_state.app_database,
             "  Road   Trip  ",
             Some("  weekend   mix "),
+            Some(artwork_path.to_str().expect("artwork path should be utf-8")),
         )
         .expect("playlist should create");
 
         assert_eq!(created.name, "Road Trip");
         assert_eq!(created.description.as_deref(), Some("weekend mix"));
+        assert!(created.artwork_key.is_some());
         assert_eq!(created.entry_count, 0);
 
         let listed = list_playlists_with_database(&database_state.app_database)
@@ -915,10 +1007,12 @@ mod tests {
             &created.id,
             "Commute",
             None,
+            None,
         )
         .expect("playlist should update");
         assert_eq!(updated.name, "Commute");
         assert_eq!(updated.description, None);
+        assert_eq!(updated.artwork_key, created.artwork_key);
 
         let loaded = get_playlist_with_database(&database_state.app_database, &created.id)
             .expect("playlist should load")
@@ -970,8 +1064,9 @@ mod tests {
         )
         .expect("tracks should query");
 
-        let created = create_playlist_with_database(&database_state.app_database, "Mix", None)
-            .expect("playlist should create");
+        let created =
+            create_playlist_with_database(&database_state.app_database, "Mix", None, None)
+                .expect("playlist should create");
 
         let with_first = add_track_to_playlist_with_database(
             &database_state.app_database,
@@ -1032,6 +1127,85 @@ mod tests {
         assert_eq!(replaced.entries[0].track_id, tracks.items[1].id);
         assert_eq!(replaced.entries[1].track_id, tracks.items[1].id);
         assert_ne!(replaced.entries[0].entry_id, replaced.entries[1].entry_id);
+
+        let _ = with_first;
+    }
+
+    #[test]
+    fn playlist_handoff_replaces_queue_from_playlist_order() {
+        let database_state = test_database_state();
+        let playback_runtime = PlaybackRuntimeState::default();
+        let root = std::env::temp_dir().join(unique_test_suffix("resona-playlist-handoff"));
+
+        write_test_mp3(
+            &root.join("alpha.mp3"),
+            Some("Alpha"),
+            Some("Set A"),
+            Some("A"),
+            None,
+        );
+        write_test_mp3(
+            &root.join("beta.mp3"),
+            Some("Beta"),
+            Some("Set B"),
+            Some("B"),
+            None,
+        );
+
+        scan_local_library_with_database(
+            &database_state.app_database,
+            &root.display().to_string(),
+            Some("playlist-handoff"),
+        )
+        .expect("scan should succeed");
+
+        let tracks = query_library_with_database(
+            &database_state.app_database,
+            Some(10),
+            None,
+            None,
+            Some("title".to_owned()),
+            Some("asc".to_owned()),
+        )
+        .expect("tracks should query");
+
+        let created =
+            create_playlist_with_database(&database_state.app_database, "Desk Set", None, None)
+                .expect("playlist should create");
+        let with_first = add_track_to_playlist_with_database(
+            &database_state.app_database,
+            &created.id,
+            &tracks.items[0].id,
+        )
+        .expect("first track should append");
+        let with_second = add_track_to_playlist_with_database(
+            &database_state.app_database,
+            &created.id,
+            &tracks.items[1].id,
+        )
+        .expect("second track should append");
+
+        let handoff = handoff_playlist_to_queue_with_database(
+            &database_state.app_database,
+            &playback_runtime,
+            &created.id,
+            Some(&with_second.entries[1].entry_id),
+        )
+        .expect("playlist handoff should succeed");
+
+        assert_eq!(
+            handoff.playback.track_id.as_deref(),
+            Some(tracks.items[1].id.as_str())
+        );
+        assert_eq!(handoff.queue.track_ids.len(), 2);
+        assert_eq!(handoff.queue.track_ids[0], tracks.items[0].id);
+        assert_eq!(handoff.queue.track_ids[1], tracks.items[1].id);
+        assert_eq!(
+            handoff.queue.active_track_id.as_deref(),
+            Some(tracks.items[1].id.as_str())
+        );
+        assert_eq!(handoff.queue.source_label, "playlist-handoff");
+        assert_eq!(playback_runtime.queue_snapshot().track_ids.len(), 2);
 
         let _ = with_first;
     }

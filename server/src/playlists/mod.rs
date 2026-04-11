@@ -1,3 +1,5 @@
+use std::fs;
+use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -49,6 +51,7 @@ pub struct PlaylistSummary {
     pub id: String,
     pub name: String,
     pub description: Option<String>,
+    pub artwork_key: Option<String>,
     pub entry_count: usize,
     pub created_at: String,
     pub updated_at: String,
@@ -80,6 +83,14 @@ pub struct PlaylistDetail {
 }
 
 #[derive(Clone, Debug)]
+pub struct PlaylistQueueHandoff {
+    pub playlist_id: String,
+    pub track_ids: Vec<String>,
+    pub active_track_id: String,
+    pub active_entry_id: String,
+}
+
+#[derive(Clone, Debug)]
 pub struct PlaylistEntryRecord {
     pub entry_id: String,
     pub track_id: String,
@@ -91,6 +102,7 @@ pub enum PlaylistError {
     InvalidInput(String),
     NotFound(String),
     Database(DatabaseError),
+    Io(std::io::Error),
     Sqlite(rusqlite::Error),
 }
 
@@ -100,6 +112,7 @@ impl std::fmt::Display for PlaylistError {
             Self::InvalidInput(message) => write!(f, "{message}"),
             Self::NotFound(message) => write!(f, "{message}"),
             Self::Database(error) => write!(f, "{error}"),
+            Self::Io(error) => write!(f, "{error}"),
             Self::Sqlite(error) => write!(f, "{error}"),
         }
     }
@@ -116,6 +129,12 @@ impl From<DatabaseError> for PlaylistError {
 impl From<rusqlite::Error> for PlaylistError {
     fn from(error: rusqlite::Error) -> Self {
         Self::Sqlite(error)
+    }
+}
+
+impl From<std::io::Error> for PlaylistError {
+    fn from(error: std::io::Error) -> Self {
+        Self::Io(error)
     }
 }
 
@@ -137,6 +156,7 @@ impl PlaylistStore {
               playlists.id,
               playlists.name,
               playlists.description,
+              playlists.artwork_key,
               playlists.created_at,
               playlists.updated_at,
               COUNT(playlist_entries.id) AS entry_count
@@ -146,6 +166,7 @@ impl PlaylistStore {
               playlists.id,
               playlists.name,
               playlists.description,
+              playlists.artwork_key,
               playlists.created_at,
               playlists.updated_at
             ORDER BY lower(playlists.name) ASC, playlists.created_at ASC
@@ -157,9 +178,10 @@ impl PlaylistStore {
                 id: row.get(0)?,
                 name: row.get(1)?,
                 description: row.get(2)?,
-                created_at: row.get(3)?,
-                updated_at: row.get(4)?,
-                entry_count: row.get::<_, i64>(5)? as usize,
+                artwork_key: row.get(3)?,
+                created_at: row.get(4)?,
+                updated_at: row.get(5)?,
+                entry_count: row.get::<_, i64>(6)? as usize,
             })
         })?;
 
@@ -180,19 +202,21 @@ impl PlaylistStore {
         &self,
         name: &str,
         description: Option<&str>,
+        artwork_path: Option<&str>,
     ) -> Result<PlaylistSummary, PlaylistError> {
         let normalized_name = normalize_playlist_name(name)?;
         let normalized_description = normalize_optional_text(description);
         let now = timestamp_now();
         let playlist_id = generated_identifier("playlist", &normalized_name);
+        let artwork_key = import_playlist_artwork(self.app_database.app_data_dir(), artwork_path)?;
         let connection = self.app_database.connect()?;
 
         connection.execute(
             "
-            INSERT INTO playlists (id, name, description, created_at, updated_at)
-            VALUES (?1, ?2, ?3, ?4, ?4)
+            INSERT INTO playlists (id, name, description, artwork_key, created_at, updated_at)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?5)
             ",
-            params![playlist_id, normalized_name, normalized_description, now],
+            params![playlist_id, normalized_name, normalized_description, artwork_key, now],
         )?;
 
         load_playlist_summary(&connection, &playlist_id)?.ok_or_else(|| {
@@ -205,18 +229,39 @@ impl PlaylistStore {
         playlist_id: &str,
         name: &str,
         description: Option<&str>,
+        artwork_path: Option<&str>,
     ) -> Result<PlaylistSummary, PlaylistError> {
         let normalized_name = normalize_playlist_name(name)?;
         let normalized_description = normalize_optional_text(description);
         let now = timestamp_now();
         let connection = self.app_database.connect()?;
+        let existing_artwork_key = load_playlist_summary(&connection, playlist_id)?
+            .ok_or_else(|| PlaylistError::NotFound(format!("playlist {playlist_id} was not found")))?
+            .artwork_key;
+        let next_artwork_key = if artwork_path.is_some() {
+            let next_artwork_key =
+                import_playlist_artwork(self.app_database.app_data_dir(), artwork_path)?;
+            remove_playlist_artwork(
+                self.app_database.app_data_dir(),
+                existing_artwork_key.as_deref(),
+            )?;
+            next_artwork_key
+        } else {
+            existing_artwork_key
+        };
         let updated = connection.execute(
             "
             UPDATE playlists
-            SET name = ?2, description = ?3, updated_at = ?4
+            SET name = ?2, description = ?3, artwork_key = ?4, updated_at = ?5
             WHERE id = ?1
             ",
-            params![playlist_id, normalized_name, normalized_description, now],
+            params![
+                playlist_id,
+                normalized_name,
+                normalized_description,
+                next_artwork_key,
+                now
+            ],
         )?;
 
         if updated == 0 {
@@ -232,6 +277,9 @@ impl PlaylistStore {
 
     pub fn delete_playlist(&self, playlist_id: &str) -> Result<(), PlaylistError> {
         let connection = self.app_database.connect()?;
+        let existing_artwork_key = load_playlist_summary(&connection, playlist_id)?
+            .ok_or_else(|| PlaylistError::NotFound(format!("playlist {playlist_id} was not found")))?
+            .artwork_key;
         let deleted = connection.execute("DELETE FROM playlists WHERE id = ?1", [playlist_id])?;
 
         if deleted == 0 {
@@ -240,6 +288,7 @@ impl PlaylistStore {
             )));
         }
 
+        remove_playlist_artwork(self.app_database.app_data_dir(), existing_artwork_key.as_deref())?;
         Ok(())
     }
 
@@ -405,6 +454,49 @@ impl PlaylistStore {
         self.get_playlist(playlist_id)?
             .ok_or_else(|| PlaylistError::NotFound(format!("playlist {playlist_id} was not found")))
     }
+
+    pub fn build_queue_handoff(
+        &self,
+        playlist_id: &str,
+        start_entry_id: Option<&str>,
+    ) -> Result<PlaylistQueueHandoff, PlaylistError> {
+        let detail = self.get_playlist(playlist_id)?.ok_or_else(|| {
+            PlaylistError::NotFound(format!("playlist {playlist_id} was not found"))
+        })?;
+
+        if detail.entries.is_empty() {
+            return Err(PlaylistError::InvalidInput(format!(
+                "playlist {playlist_id} does not contain any entries"
+            )));
+        }
+
+        let active_entry = match start_entry_id {
+            Some(entry_id) => detail
+                .entries
+                .iter()
+                .find(|entry| entry.entry_id == entry_id)
+                .ok_or_else(|| {
+                    PlaylistError::NotFound(format!(
+                        "playlist entry {entry_id} was not found in playlist {playlist_id}"
+                    ))
+                })?,
+            None => detail
+                .entries
+                .first()
+                .expect("entries should not be empty after guard"),
+        };
+
+        Ok(PlaylistQueueHandoff {
+            playlist_id: playlist_id.to_owned(),
+            track_ids: detail
+                .entries
+                .iter()
+                .map(|entry| entry.track_id.clone())
+                .collect(),
+            active_track_id: active_entry.track_id.clone(),
+            active_entry_id: active_entry.entry_id.clone(),
+        })
+    }
 }
 
 pub fn playlist_contract() -> PlaylistContract {
@@ -423,13 +515,13 @@ pub fn playlist_contract() -> PlaylistContract {
             PlaylistCommandContract {
                 name: "create_playlist",
                 summary: "Create a local playlist shell with a user-visible name before entries are added.",
-                request_shape: "{ name, description? }",
+                request_shape: "{ name, description?, artworkPath? }",
                 response_shape: "PlaylistSummary",
             },
             PlaylistCommandContract {
                 name: "update_playlist",
                 summary: "Update playlist metadata without affecting entry order or queue state.",
-                request_shape: "{ playlistId, name, description? }",
+                request_shape: "{ playlistId, name, description?, artworkPath? }",
                 response_shape: "PlaylistSummary",
             },
             PlaylistCommandContract {
@@ -477,6 +569,51 @@ fn normalize_optional_text(value: Option<&str>) -> Option<String> {
     })
 }
 
+fn import_playlist_artwork(
+    app_data_dir: &Path,
+    artwork_path: Option<&str>,
+) -> Result<Option<String>, PlaylistError> {
+    let Some(artwork_path) = normalize_optional_text(artwork_path) else {
+        return Ok(None);
+    };
+    let source_path = Path::new(&artwork_path);
+    if !source_path.exists() {
+        return Err(PlaylistError::InvalidInput(format!(
+            "playlist artwork source {artwork_path} was not found"
+        )));
+    }
+
+    let extension = source_path
+        .extension()
+        .and_then(|value| value.to_str())
+        .map(|value| value.to_ascii_lowercase())
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| "img".to_owned());
+    let artwork_key = format!(
+        "{}.{}",
+        generated_identifier("playlist-artwork", &artwork_path),
+        extension
+    );
+    let artwork_dir = app_data_dir.join("artwork");
+    fs::create_dir_all(&artwork_dir)?;
+    fs::copy(source_path, artwork_dir.join(&artwork_key))?;
+    Ok(Some(artwork_key))
+}
+
+fn remove_playlist_artwork(
+    app_data_dir: &Path,
+    artwork_key: Option<&str>,
+) -> Result<(), PlaylistError> {
+    if let Some(artwork_key) = artwork_key {
+        let artwork_path = app_data_dir.join("artwork").join(artwork_key);
+        if artwork_path.exists() {
+            fs::remove_file(artwork_path)?;
+        }
+    }
+
+    Ok(())
+}
+
 fn timestamp_now() -> String {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -514,6 +651,7 @@ fn load_playlist_summary(
               playlists.id,
               playlists.name,
               playlists.description,
+              playlists.artwork_key,
               playlists.created_at,
               playlists.updated_at,
               COUNT(playlist_entries.id) AS entry_count
@@ -524,6 +662,7 @@ fn load_playlist_summary(
               playlists.id,
               playlists.name,
               playlists.description,
+              playlists.artwork_key,
               playlists.created_at,
               playlists.updated_at
             ",
@@ -533,9 +672,10 @@ fn load_playlist_summary(
                     id: row.get(0)?,
                     name: row.get(1)?,
                     description: row.get(2)?,
-                    created_at: row.get(3)?,
-                    updated_at: row.get(4)?,
-                    entry_count: row.get::<_, i64>(5)? as usize,
+                    artwork_key: row.get(3)?,
+                    created_at: row.get(4)?,
+                    updated_at: row.get(5)?,
+                    entry_count: row.get::<_, i64>(6)? as usize,
                 })
             },
         )
@@ -757,7 +897,7 @@ mod tests {
         );
 
         let created = store
-            .create_playlist("Road Trip", Some("weekend mix"))
+            .create_playlist("Road Trip", Some("weekend mix"), None)
             .expect("playlist should create");
         let playlists = store.list_playlists().expect("playlists should list");
 

@@ -41,6 +41,14 @@ pub struct LoadedPlaybackTrackPayload {
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
+pub struct PlaybackQueueSnapshot {
+    pub track_ids: Vec<String>,
+    pub active_track_id: Option<String>,
+    pub source_label: String,
+}
+
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
 pub struct PlaybackSourcePayload {
     pub track_id: String,
     pub local_path: String,
@@ -54,6 +62,7 @@ pub struct PlaybackRuntimeState {
 
 struct PlaybackRuntime {
     active_track: Option<ActivePlaybackTrack>,
+    queue_track_ids: Vec<String>,
     status_label: String,
     output_owner: String,
     progress_seconds: u32,
@@ -106,6 +115,7 @@ impl Default for PlaybackRuntime {
     fn default() -> Self {
         Self {
             active_track: None,
+            queue_track_ids: Vec::new(),
             status_label: "Nothing playing".to_owned(),
             output_owner: "frontend".to_owned(),
             progress_seconds: 0,
@@ -317,6 +327,29 @@ impl PlaybackRuntimeState {
             .expect("playback runtime lock should not be poisoned");
         runtime.report_error(transport_label)
     }
+
+    pub fn queue_snapshot(&self) -> PlaybackQueueSnapshot {
+        let runtime = self
+            .shared
+            .inner
+            .lock()
+            .expect("playback runtime lock should not be poisoned");
+        runtime.queue_snapshot()
+    }
+
+    pub fn replace_queue(
+        &self,
+        track_ids: Vec<String>,
+        active_track_id: Option<&str>,
+        source_label: &str,
+    ) -> PlaybackQueueSnapshot {
+        let mut runtime = self
+            .shared
+            .inner
+            .lock()
+            .expect("playback runtime lock should not be poisoned");
+        runtime.replace_queue(track_ids, active_track_id, source_label)
+    }
 }
 
 pub fn emit_playback_state(
@@ -325,6 +358,13 @@ pub fn emit_playback_state(
 ) -> Result<(), tauri::Error> {
     sync_presence_with_snapshot(snapshot);
     app_handle.emit(PLAYBACK_STATE_CHANGED_EVENT, snapshot.clone())
+}
+
+pub fn emit_playback_queue(
+    app_handle: &AppHandle,
+    snapshot: &PlaybackQueueSnapshot,
+) -> Result<(), tauri::Error> {
+    app_handle.emit(PLAYBACK_QUEUE_CHANGED_EVENT, snapshot.clone())
 }
 
 impl PlaybackRuntime {
@@ -387,6 +427,45 @@ impl PlaybackRuntime {
                 extension: active_track.extension,
                 local_path: active_track.local_path,
             },
+        }
+    }
+
+    fn queue_snapshot(&self) -> PlaybackQueueSnapshot {
+        PlaybackQueueSnapshot {
+            track_ids: self.queue_track_ids.clone(),
+            active_track_id: self
+                .active_track
+                .as_ref()
+                .map(|track| track.track_id.clone()),
+            source_label: if self.queue_track_ids.is_empty() {
+                "manual-selection".to_owned()
+            } else {
+                "backend-queue".to_owned()
+            },
+        }
+    }
+
+    fn replace_queue(
+        &mut self,
+        track_ids: Vec<String>,
+        active_track_id: Option<&str>,
+        source_label: &str,
+    ) -> PlaybackQueueSnapshot {
+        self.queue_track_ids = track_ids;
+        if let Some(active_track_id) = active_track_id {
+            if !self
+                .queue_track_ids
+                .iter()
+                .any(|track_id| track_id == active_track_id)
+            {
+                self.queue_track_ids.insert(0, active_track_id.to_owned());
+            }
+        }
+
+        PlaybackQueueSnapshot {
+            track_ids: self.queue_track_ids.clone(),
+            active_track_id: active_track_id.map(ToOwned::to_owned),
+            source_label: source_label.to_owned(),
         }
     }
 
