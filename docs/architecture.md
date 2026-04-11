@@ -26,13 +26,13 @@ React UI
 
 ### client
 
-The desktop UI provides library navigation, search, queue control, playback controls, and lightweight insight views. It should remain table-oriented and intentionally minimal, with event-driven updates instead of global library hydration.
+The desktop UI provides library navigation, playlist management, queue control, playback controls, and lightweight insight views. It should remain table-oriented and intentionally minimal, with event-driven updates instead of global library hydration.
 
 Current frontend structure:
 
 - `components/layout`: persistent shell elements such as sidebar, top bar, and playback bar
 - `components/ui`: generic state screens and smaller UI-only pieces
-- `pages`: route-owned screens such as home, tracks, queue, and settings
+- `pages`: route-owned screens such as home, tracks, playlists, queue, and settings
 - `hooks`: app boot and shell state orchestration
 - `types`, `constants`, `utils`: shared client-side contracts and helpers
 
@@ -52,7 +52,7 @@ The current Rust structure is organized around service ownership rather than aro
 
 ### `playback`
 
-- Owns the Rust-side playback contract for the `v1.2.0` release
+- Owns the Rust-side playback contract for the `v1.3.0` release
 - Defines the command surface that mutates backend playback state
 - Defines the event surface that broadcasts playback and queue snapshots back to the frontend shell
 - Keeps playback ownership decisions explicit at the shell boundary
@@ -143,6 +143,13 @@ The backend is intentionally split so each layer has a clear responsibility boun
 - Queue handoff should copy playlist order into the backend playback queue as a snapshot, not create a live mirrored binding between the playlist and active queue
 - The first local-only milestone can cascade deleted local tracks out of playlist entries; unmatched import states belong to the later Spotify-import branch instead of this foundation slice
 
+Current playlist implementation in `v1.3.0`:
+
+- playlist summaries and ordered entries persist in SQLite
+- playlist artwork is stored alongside other app-local artwork assets
+- queue handoff copies playlist order into backend playback state at a moment in time rather than creating a live mirrored binding
+- the frontend playlist page supports dialog-driven creation, saved-order playback starts, keyboard removal, and library-to-playlist add flows
+
 ### Privacy-Safe Presence Boundary
 
 - Rich Presence should sit downstream of the existing playback snapshot boundary rather than creating a second source of playback truth
@@ -188,13 +195,13 @@ Current ingest baseline:
 - Sparse tags fall back more gracefully through cleaned filename titles, album-artist fallback, and parent-folder album fallback
 - System media tools may still show richer metadata over time, but the current `resona` ingest path now closes the biggest duration and artwork gaps from the earlier MVP scanner
 
-Planned `v1.2.1` FLAC compatibility slice:
+Implemented FLAC compatibility slice in `v1.3.0`:
 - expand discovery from MP3-only scanning to mixed MP3 + FLAC local libraries
 - keep the normalized track shape unchanged so query, queue, and shell code do not branch on format
 - preserve `relative_path` identity and explicit `extension` metadata so later duplicate-resolution work can distinguish MP3 and FLAC variants cleanly
 - treat embedded artwork, title, artist, album, and duration as the baseline ingest contract for both formats
 
-Planned `v1.2.3` advisory-metadata slice:
+Implemented advisory-metadata slice in `v1.3.0`:
 - treat explicit/advisory state as optional normalized metadata rather than as a required library identity field
 - trust source tags and imported provider metadata when present
 - keep absence of an advisory flag neutral instead of guessing from lyrics or filenames
@@ -262,13 +269,13 @@ That shape matters for both performance and clarity. The traversal is effectivel
 - Owns queue state, transport controls, buffering state, and transitions
 - Started with a Web Audio-based path in public `v1.0.0` and now uses a Rust-owned playback/runtime model for local desktop output while the shell renders output
 
-Planned `v1.2.1` compatibility rules:
+Current compatibility rules in `v1.3.0`:
 - FLAC should enter through the same indexed local source-resolution path as MP3
 - playback snapshots, transport commands, seek, completion, and queue behavior should remain codec-agnostic at the shell boundary
 - format support should not widen the source-provider model yet; FLAC is still just a local file in this slice
 - remote FLAC, transcoding, ReplayGain, and gapless-album features remain out of scope
 
-Current `v1.2.0` contract:
+Current `v1.3.0` contract:
 
 - Commands:
   `load_playback_track`, `playback_action`, `seek_playback`, `sync_playback_timing`, `complete_playback`, `report_playback_error`, `replace_playback_queue`, and `get_playback_snapshot`
@@ -424,7 +431,7 @@ The current Rust backend now reflects that direction more closely:
 - `commands` owns the Tauri-facing application boundary
 - `library` owns scan, normalization, and query services
 - `database` owns runtime setup, migrations, and schema contracts
-- `playback` now defines the backend playback command and event contract for the `v1.2.0` release
+- `playback` now defines the backend playback command and event contract for the `v1.3.0` release
 
 That separation is still early and can deepen further with repositories, playback services, and analysis services, but the code is no longer relying on one catch-all module per subsystem.
 
