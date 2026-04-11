@@ -587,6 +587,26 @@ describe("app shell smoke checks", () => {
     confirmMock.mockRestore();
   });
 
+  it("smoke-covers the playlist route shell with saved order handoff controls and dialog creation", async () => {
+    window.history.replaceState({}, "", "/playlists/playlist-1");
+    const { default: App } = await import("./App");
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Desk Set" });
+
+    expect(screen.getByText("saved order")).toBeTruthy();
+    expect(screen.getByText("library handoff")).toBeTruthy();
+    expect(screen.getByPlaceholderText("Search title, artist, album")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /create playlist/i })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /play playlist/i })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /delete playlist/i })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /select alpha/i })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: /create playlist/i }));
+    expect(screen.getByRole("dialog", { name: /create playlist/i })).toBeTruthy();
+  });
+
   it("creates a playlist from the empty playlists state without using a native prompt", async () => {
     window.history.replaceState({}, "", "/playlists");
     listPlaylistsMock.mockReset();
