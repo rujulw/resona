@@ -34,7 +34,11 @@ export default function App() {
       scanState={appShell.scanState}
       onPickLibraryDirectory={appShell.handlePickLibraryDirectory}
       onPlaylistCreate={appShell.handlePlaylistCreate}
+      onPlaylistArtworkChange={appShell.handlePlaylistArtworkChange}
       onPlaylistDelete={appShell.handlePlaylistDelete}
+      onPlaylistEntryMove={appShell.handlePlaylistEntryMove}
+      onPlaylistEntryRemove={appShell.handlePlaylistEntryRemove}
+      onPlaylistPlaybackHandoff={appShell.handlePlaylistPlaybackHandoff}
       onPlaylistRename={appShell.handlePlaylistRename}
       onPlaylistSelect={appShell.handlePlaylistSelection}
       onPlaylistTrackAdd={appShell.handlePlaylistTrackAdd}

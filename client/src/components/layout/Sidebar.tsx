@@ -59,6 +59,11 @@ export function Sidebar({
         </nav>
       </section>
 
+      <div
+        aria-hidden="true"
+        className="h-px bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.06)_12%,rgba(255,255,255,0.18)_50%,rgba(255,255,255,0.06)_88%,transparent)]"
+      />
+
       <section className="grid gap-3">
         {playlists.length > 0 ? (
           <nav className="grid gap-1.5" aria-label="playlists">
@@ -68,9 +73,9 @@ export function Sidebar({
                 to={`/playlists/${playlist.id}`}
                 className={({ isActive }) =>
                   [
-                    "rounded-2xl border px-3 py-3 transition-colors",
+                    "rounded-xl border px-3 py-3 transition-colors",
                     isActive
-                      ? "border-[#d1ab67]/40 bg-[#241f17] text-[#f4e2b9]"
+                      ? "border-white/10 bg-[#272727] text-[#f2f2f2]"
                       : "border-transparent bg-white/[0.03] text-[#d4d4d4] hover:border-white/8 hover:bg-white/[0.05] hover:text-[#f2f2f2]",
                   ].join(" ")
                 }

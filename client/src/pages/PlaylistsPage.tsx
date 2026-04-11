@@ -1,24 +1,34 @@
 import { useEffect, useState } from "react";
+import { ArrowDown, ArrowUp, ImagePlus, Play, Plus, Trash2 } from "lucide-react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 
-import type { TrackListItem } from "../desktop";
+import { pickPlaylistArtwork, type TrackListItem } from "../desktop";
 import type { PlaylistsState, TracksState } from "../types/app";
 import { ArtworkTile } from "../components/ui/ArtworkTile";
+import { CreatePlaylistDialog } from "../components/ui/CreatePlaylistDialog";
 import { formatDuration } from "../utils/format";
 
 export function PlaylistsPage({
   playlistsState,
   tracksState,
   onCreatePlaylist,
+  onPlaylistArtworkChange,
   onPlaylistDelete,
-  onPlaylistRename,
+  onPlaylistEntryMove,
+  onPlaylistEntryRemove,
+  onPlaylistPlaybackHandoff,
+  onPlaylistRename: _onPlaylistRename,
   onPlaylistSelect,
   onTrackAdd,
 }: {
   playlistsState: PlaylistsState;
   tracksState: TracksState;
-  onCreatePlaylist: (name: string) => Promise<string | null>;
+  onCreatePlaylist: (name: string, artworkPath?: string | null) => Promise<string | null>;
+  onPlaylistArtworkChange: (playlistId: string, artworkPath: string) => void;
   onPlaylistDelete: (playlistId: string) => void;
+  onPlaylistEntryMove: (playlistId: string, entryId: string, targetPosition: number) => void;
+  onPlaylistEntryRemove: (playlistId: string, entryId: string) => void;
+  onPlaylistPlaybackHandoff: (playlistId: string, startEntryId?: string) => void;
   onPlaylistRename: (playlistId: string, name: string, description?: string | null) => void;
   onPlaylistSelect: (playlistId: string) => void;
   onTrackAdd: (playlistId: string, track: TrackListItem) => void;
@@ -27,8 +37,12 @@ export function PlaylistsPage({
   const navigate = useNavigate();
   const activePlaylistId = playlistId ?? playlistsState.activePlaylistId;
   const activePlaylist = playlistsState.activePlaylist;
-  const [nameDraft, setNameDraft] = useState("");
-  const [descriptionDraft, setDescriptionDraft] = useState("");
+  const [createDraft, setCreateDraft] = useState("");
+  const [createArtworkPath, setCreateArtworkPath] = useState<string | null>(null);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isCreatingPlaylist, setIsCreatingPlaylist] = useState(false);
+  const [librarySearchDraft, setLibrarySearchDraft] = useState("");
+  const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
 
   useEffect(() => {
     if (
@@ -46,9 +60,43 @@ export function PlaylistsPage({
   ]);
 
   useEffect(() => {
-    setNameDraft(activePlaylist?.playlist.name ?? "");
-    setDescriptionDraft(activePlaylist?.playlist.description ?? "");
-  }, [activePlaylist?.playlist.description, activePlaylist?.playlist.name]);
+    if (!selectedEntryId) {
+      return;
+    }
+
+    if (activePlaylist?.entries.some((entry) => entry.entryId === selectedEntryId)) {
+      return;
+    }
+
+    setSelectedEntryId(null);
+  }, [activePlaylist, selectedEntryId]);
+
+  const openCreateDialog = () => {
+    setIsCreateDialogOpen(true);
+  };
+
+  const closeCreateDialog = () => {
+    setCreateDraft("");
+    setCreateArtworkPath(null);
+    setIsCreateDialogOpen(false);
+    setIsCreatingPlaylist(false);
+  };
+
+  const handleCreateSubmit = () => {
+    const nextName = createDraft.trim();
+    if (!nextName || isCreatingPlaylist) {
+      return;
+    }
+
+    setIsCreatingPlaylist(true);
+    void onCreatePlaylist(nextName, createArtworkPath).then((createdPlaylistId) => {
+      setIsCreatingPlaylist(false);
+      if (createdPlaylistId) {
+        closeCreateDialog();
+        navigate(`/playlists/${createdPlaylistId}`);
+      }
+    });
+  };
 
   if (!playlistId && playlistsState.items[0]) {
     return <Navigate to={`/playlists/${playlistsState.items[0].id}`} replace />;
@@ -56,30 +104,37 @@ export function PlaylistsPage({
 
   if (!activePlaylistId) {
     return (
-      <section className="grid h-full place-items-center px-6 py-8">
-        <div className="grid gap-4 rounded-4xl border border-white/6 bg-[#171717] px-8 py-10 text-center">
-          <p className="m-0 text-[11px] tracking-[0.08em] text-[#8f8f8f]">playlists</p>
-          <h2 className="m-0 text-3xl font-medium tracking-[-0.04em] text-[#f2f2f2]">
-            no playlists yet
-          </h2>
-          <button
-            type="button"
-            onClick={() => {
-              const name = window.prompt("Name your playlist");
-              if (name?.trim()) {
-                void onCreatePlaylist(name.trim()).then((createdPlaylistId) => {
-                  if (createdPlaylistId) {
-                    navigate(`/playlists/${createdPlaylistId}`);
-                  }
-                });
-              }
-            }}
-            className="justify-self-center rounded-2xl border border-white/10 bg-white/3 px-4 py-3 text-sm text-[#f2f2f2] transition-colors hover:border-white/15 hover:bg-white/5"
-          >
-            Create playlist
-          </button>
-        </div>
-      </section>
+      <>
+        <section className="grid h-full place-items-center px-6 py-8">
+          <div className="grid gap-4 text-center">
+            <p className="m-0 text-[11px] tracking-[0.08em] text-[#8f8f8f]">playlists</p>
+            <h2 className="m-0 text-4xl font-medium tracking-[-0.04em] text-[#f2f2f2]">
+              no playlists yet
+            </h2>
+            <p className="m-0 text-sm text-[#8f8f8f]">
+              Create the first playlist to start saving an order outside the library table.
+            </p>
+            <button
+              type="button"
+              onClick={openCreateDialog}
+              className="justify-self-center rounded-xl border border-white/10 bg-[#272727] px-4 py-2.5 text-sm text-[#f2f2f2] transition-colors hover:border-white/14 hover:bg-[#303030]"
+            >
+              Create playlist
+            </button>
+          </div>
+        </section>
+
+        <CreatePlaylistDialog
+          isOpen={isCreateDialogOpen}
+          isSubmitting={isCreatingPlaylist}
+          nameDraft={createDraft}
+          selectedArtworkPath={createArtworkPath}
+          onClose={closeCreateDialog}
+          onNameDraftChange={setCreateDraft}
+          onSelectedArtworkPathChange={setCreateArtworkPath}
+          onSubmit={handleCreateSubmit}
+        />
+      </>
     );
   }
 
@@ -105,151 +160,281 @@ export function PlaylistsPage({
   }
 
   const title = activePlaylist.playlist.name;
+  const normalizedLibrarySearch = librarySearchDraft.trim().toLowerCase();
+  const visibleLibraryTracks = tracksState.items.filter((track) => {
+    if (!normalizedLibrarySearch) {
+      return true;
+    }
+
+    return [track.title, track.artist, track.album]
+      .filter(Boolean)
+      .some((value) => value?.toLowerCase().includes(normalizedLibrarySearch));
+  });
 
   return (
-    <div className="grid gap-6 px-6 py-6">
-      <header className="grid gap-5 rounded-4xl border border-white/6 bg-[linear-gradient(145deg,#241e17_0%,#171717_62%,#121212_100%)] p-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="m-0 text-[11px] tracking-[0.08em] text-[#8f8f8f]">playlist</p>
-            <h2 className="mt-2 text-3xl font-medium tracking-[-0.04em] text-[#f2f2f2]">
-              {title}
-            </h2>
-            <p className="mt-2 text-sm text-[#a69b8e]">
-              {activePlaylist.playlist.entryCount} saved track
-              {activePlaylist.playlist.entryCount === 1 ? "" : "s"}
-            </p>
-          </div>
+    <>
+      <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-5 overflow-hidden px-6 py-5">
+        <header className="flex flex-wrap items-start justify-between gap-6 rounded-3xl border border-white/6 bg-[#181818] px-6 py-7">
+          <div className="flex min-w-0 items-start gap-5">
+            <button
+              type="button"
+              onClick={() => {
+                void pickPlaylistArtwork().then((artworkPath) => {
+                  if (artworkPath) {
+                    onPlaylistArtworkChange(activePlaylist.playlist.id, artworkPath);
+                  }
+                });
+              }}
+              className="shrink-0 transition-opacity hover:opacity-90"
+              aria-label="Choose playlist cover"
+            >
+              {activePlaylist.playlist.artworkKey ? (
+                <ArtworkTile
+                  artworkKey={activePlaylist.playlist.artworkKey}
+                  title={title}
+                  sizeClassName="h-36 w-36"
+                  roundedClassName="rounded-sm"
+                  fallbackClassName="bg-white/[0.04]"
+                />
+              ) : (
+                <div className="grid h-36 w-36 place-items-center rounded-sm border border-white/8 bg-white/[0.04] text-[#8f8f8f]">
+                  <ImagePlus className="h-10 w-10" strokeWidth={1.75} />
+                </div>
+              )}
+            </button>
 
-          <button
-            type="button"
-            onClick={() => {
-              if (window.confirm(`Delete ${title}?`)) {
-                navigate("/playlists");
-                onPlaylistDelete(activePlaylist.playlist.id);
-              }
-            }}
-            className="rounded-full border border-[#7d3b37]/50 bg-[#7d3b37]/12 px-4 py-2 text-sm text-[#f0b9b3] transition-colors hover:border-[#7d3b37]/70 hover:bg-[#7d3b37]/18"
-          >
-            Delete playlist
-          </button>
-        </div>
-
-        <form
-          className="grid gap-3 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)_auto]"
-          onSubmit={(event) => {
-            event.preventDefault();
-            if (!nameDraft.trim()) {
-              return;
-            }
-
-            onPlaylistRename(
-              activePlaylist.playlist.id,
-              nameDraft.trim(),
-              descriptionDraft.trim() || null,
-            );
-          }}
-        >
-          <label className="grid gap-2 text-sm text-[#d7d7d7]">
-            <span className="text-[11px] uppercase tracking-[0.14em] text-[#8f8f8f]">name</span>
-            <input
-              value={nameDraft}
-              onChange={(event) => setNameDraft(event.target.value)}
-              className="rounded-2xl border border-white/8 bg-black/20 px-4 py-3 text-sm text-[#f2f2f2] outline-none transition-colors focus:border-[#d1ab67]/45"
-            />
-          </label>
-          <label className="grid gap-2 text-sm text-[#d7d7d7]">
-            <span className="text-[11px] uppercase tracking-[0.14em] text-[#8f8f8f]">
-              description
-            </span>
-            <input
-              value={descriptionDraft}
-              onChange={(event) => setDescriptionDraft(event.target.value)}
-              placeholder="Optional note"
-              className="rounded-2xl border border-white/8 bg-black/20 px-4 py-3 text-sm text-[#f2f2f2] outline-none transition-colors focus:border-[#d1ab67]/45"
-            />
-          </label>
-          <button
-            type="submit"
-            className="self-end rounded-2xl border border-[#d1ab67]/40 bg-[#d1ab67]/14 px-4 py-3 text-sm text-[#f5ddb0] transition-colors hover:border-[#d1ab67]/60 hover:bg-[#d1ab67]/20"
-          >
-            Save details
-          </button>
-        </form>
-      </header>
-
-      <section className="grid gap-4 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-        <div className="rounded-[28px] border border-white/6 bg-[#171717] p-5">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="m-0 text-[11px] tracking-[0.08em] text-[#8f8f8f]">saved order</p>
-              <h3 className="mt-2 text-lg font-medium text-[#f2f2f2]">playlist entries</h3>
-            </div>
-            <p className="m-0 text-sm text-[#8f8f8f]">
-              {activePlaylist.entries.length} total
-            </p>
-          </div>
-
-          {activePlaylist.entries.length > 0 ? (
-            <div className="mt-4 grid gap-3">
-              {activePlaylist.entries.map((entry) => (
-                <article
-                  key={entry.entryId}
-                  className="grid grid-cols-[56px_minmax(0,1fr)_68px] items-center gap-4 rounded-3xl border border-white/6 bg-white/3 px-4 py-4"
-                >
-                  <ArtworkTile
-                    artworkKey={entry.artworkKey}
-                    title={entry.title}
-                    sizeClassName="h-14 w-14"
-                    roundedClassName="rounded-2xl"
-                  />
-                  <div className="grid min-w-0 gap-1">
-                    <span className="truncate text-sm text-[#f2f2f2]">{entry.title}</span>
-                    <span className="truncate text-xs text-[#8f8f8f]">
-                      {[entry.artist ?? "unknown artist", entry.album ?? "unknown album"].join(" • ")}
-                    </span>
-                  </div>
-                  <span className="text-right text-sm text-[#8f8f8f]">
-                    {entry.durationSeconds != null
-                      ? formatDuration(Math.round(entry.durationSeconds))
-                      : "--:--"}
-                  </span>
-                </article>
-              ))}
-            </div>
-          ) : (
-            <div className="mt-4 rounded-3xl border border-dashed border-white/8 bg-white/2 px-5 py-8">
-              <p className="m-0 text-sm text-[#8f8f8f]">
-                This playlist is empty. Use the library panel to start adding tracks.
+            <div className="min-w-0 pt-1">
+              <p className="m-0 text-[11px] tracking-[0.08em] text-[#8f8f8f]">playlist</p>
+              <h2 className="mt-4 truncate text-6xl font-medium tracking-[-0.06em] text-[#f2f2f2]">
+                {title}
+              </h2>
+              <p className="mt-4 text-sm text-[#8f8f8f]">
+                {activePlaylist.playlist.entryCount} saved track
+                {activePlaylist.playlist.entryCount === 1 ? "" : "s"}
               </p>
+              {activePlaylist.playlist.description ? (
+                <p className="mt-2 max-w-2xl text-sm text-[#a5a5a5]">
+                  {activePlaylist.playlist.description}
+                </p>
+              ) : null}
             </div>
-          )}
-        </div>
-
-        <div className="rounded-[28px] border border-white/6 bg-[#171717] p-5">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <p className="m-0 text-[11px] tracking-[0.08em] text-[#8f8f8f]">library handoff</p>
-              <h3 className="mt-2 text-lg font-medium text-[#f2f2f2]">
-                add from indexed tracks
-              </h3>
-            </div>
-            <p className="m-0 max-w-xs text-right text-xs leading-5 text-[#8f8f8f]">
-              The first playlist pass keeps add flows simple: append from the local library, then refine playback handoff next.
-            </p>
           </div>
 
-          {tracksState.status === "loading" ? (
-            <div className="mt-4 rounded-3xl border border-white/6 bg-white/3 px-4 py-6 text-sm text-[#8f8f8f]">
-              Loading indexed tracks...
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={openCreateDialog}
+              aria-label="Create playlist"
+              className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/8 bg-white/[0.03] text-[#d4d4d4] transition-colors hover:border-white/12 hover:bg-white/[0.05] hover:text-[#f2f2f2]"
+            >
+              <Plus className="h-4 w-4" strokeWidth={2} />
+            </button>
+            {activePlaylist.entries.length > 0 ? (
+              <button
+                type="button"
+                onClick={() => onPlaylistPlaybackHandoff(activePlaylist.playlist.id)}
+                aria-label="Play playlist"
+                className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/8 bg-white/[0.03] text-[#d4d4d4] transition-colors hover:border-white/12 hover:bg-white/[0.05] hover:text-[#f2f2f2]"
+              >
+                <Play className="h-4 w-4" strokeWidth={2} />
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => {
+                if (window.confirm(`Delete ${title}?`)) {
+                  navigate("/playlists");
+                  onPlaylistDelete(activePlaylist.playlist.id);
+                }
+              }}
+              aria-label="Delete playlist"
+              className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/8 bg-white/[0.03] text-[#d4d4d4] transition-colors hover:border-white/12 hover:bg-white/[0.05] hover:text-[#f2f2f2]"
+            >
+              <Trash2 className="h-4 w-4" strokeWidth={2} />
+            </button>
+          </div>
+        </header>
+
+        <div className="grid min-h-0 gap-4 overflow-y-auto pb-2">
+          <section className="grid min-h-[62vh] grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-3xl border border-white/6 bg-[#1b1b1b]">
+            <div className="grid grid-cols-[minmax(320px,2fr)_minmax(180px,1.1fr)_96px_112px] gap-4 border-b border-white/6 px-5 py-3 text-[11px] tracking-[0.08em] text-[#8f8f8f]">
+              <span>saved order</span>
+              <span>album</span>
+              <span>duration</span>
+              <span>actions</span>
             </div>
-          ) : tracksState.items.length === 0 ? (
-            <div className="mt-4 rounded-3xl border border-white/6 bg-white/3 px-4 py-6 text-sm text-[#8f8f8f]">
-              Scan a local music folder before adding tracks to playlists.
+
+            <div
+              className="min-h-0 overflow-y-auto"
+              tabIndex={0}
+              onKeyDown={(event) => {
+                if (
+                  (event.key === "Backspace" || event.key === "Delete") &&
+                  selectedEntryId
+                ) {
+                  event.preventDefault();
+                  onPlaylistEntryRemove(activePlaylist.playlist.id, selectedEntryId);
+                }
+              }}
+            >
+              {activePlaylist.entries.length === 0 ? (
+                <div className="grid gap-2 px-5 py-8">
+                  <p className="m-0 text-sm text-[#e5e5e5]">No tracks saved yet.</p>
+                  <p className="m-0 text-sm text-[#8f8f8f]">
+                    Use the library handoff list below to start building the playlist order.
+                  </p>
+                </div>
+              ) : (
+                activePlaylist.entries.map((entry) => (
+                  <article
+                    key={entry.entryId}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Select ${entry.title}`}
+                    aria-pressed={selectedEntryId === entry.entryId}
+                    onClick={() => setSelectedEntryId(entry.entryId)}
+                    onDoubleClick={() =>
+                      onPlaylistPlaybackHandoff(activePlaylist.playlist.id, entry.entryId)
+                    }
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        setSelectedEntryId(entry.entryId);
+                        return;
+                      }
+
+                      if (event.key === "Backspace" || event.key === "Delete") {
+                        event.preventDefault();
+                        onPlaylistEntryRemove(activePlaylist.playlist.id, entry.entryId);
+                      }
+                    }}
+                    className={[
+                      "grid w-full grid-cols-[minmax(320px,2fr)_minmax(180px,1.1fr)_96px_112px] items-center gap-4 border-b border-white/5 px-5 py-3.5 text-left last:border-b-0",
+                      selectedEntryId === entry.entryId ? "bg-white/8" : "hover:bg-white/3",
+                    ].join(" ")}
+                  >
+                    <div className="flex min-w-0 items-center gap-3">
+                      <ArtworkTile
+                        artworkKey={entry.artworkKey}
+                        title={entry.title}
+                        sizeClassName="h-11 w-11"
+                        roundedClassName="rounded-sm"
+                        fallbackClassName="bg-white/[0.04]"
+                      />
+                      <div className="grid min-w-0 gap-1">
+                        <span className="truncate text-sm text-[#f2f2f2]">{entry.title}</span>
+                        <span className="truncate text-xs text-[#8f8f8f]">
+                          {entry.artist ?? "unknown artist"}
+                        </span>
+                      </div>
+                    </div>
+
+                    <span className="truncate text-sm text-[#d4d4d4]">
+                      {entry.album ?? "unknown album"}
+                    </span>
+
+                    <span className="text-sm text-[#8f8f8f]">
+                      {entry.durationSeconds != null
+                        ? formatDuration(Math.round(entry.durationSeconds))
+                        : "--:--"}
+                    </span>
+
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        aria-label={`Play ${entry.title}`}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setSelectedEntryId(entry.entryId);
+                          onPlaylistPlaybackHandoff(activePlaylist.playlist.id, entry.entryId);
+                        }}
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/8 bg-white/[0.03] text-[#d4d4d4] transition-colors hover:border-white/12 hover:bg-white/[0.05] hover:text-[#f2f2f2]"
+                      >
+                        <Play className="h-4 w-4" strokeWidth={2} />
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={`Move ${entry.title} up`}
+                        disabled={entry.position === 0}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setSelectedEntryId(entry.entryId);
+                          onPlaylistEntryMove(
+                            activePlaylist.playlist.id,
+                            entry.entryId,
+                            entry.position - 1,
+                          );
+                        }}
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/8 bg-white/[0.03] text-[#d4d4d4] transition-colors hover:border-white/12 hover:bg-white/[0.05] hover:text-[#f2f2f2] disabled:cursor-not-allowed disabled:opacity-35"
+                      >
+                        <ArrowUp className="h-4 w-4" strokeWidth={2} />
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={`Move ${entry.title} down`}
+                        disabled={entry.position === activePlaylist.entries.length - 1}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setSelectedEntryId(entry.entryId);
+                          onPlaylistEntryMove(
+                            activePlaylist.playlist.id,
+                            entry.entryId,
+                            entry.position + 1,
+                          );
+                        }}
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/8 bg-white/[0.03] text-[#d4d4d4] transition-colors hover:border-white/12 hover:bg-white/[0.05] hover:text-[#f2f2f2] disabled:cursor-not-allowed disabled:opacity-35"
+                      >
+                        <ArrowDown className="h-4 w-4" strokeWidth={2} />
+                      </button>
+                    </div>
+                  </article>
+                ))
+              )}
             </div>
-          ) : (
-            <div className="mt-4 grid max-h-140 gap-2 overflow-y-auto pr-1">
-              {tracksState.items.map((track) => {
+          </section>
+
+          <section className="grid min-h-[44vh] grid-rows-[auto_auto_minmax(0,1fr)] overflow-hidden rounded-3xl border border-white/6 bg-[#1b1b1b]">
+            <label className="block min-w-0 border-b border-white/6 px-5 py-4">
+              <input
+                className="w-full rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3 text-sm text-[#f2f2f2] outline-none placeholder:text-[#6f6f6f]"
+                type="text"
+                value={librarySearchDraft}
+                placeholder="Search title, artist, album"
+                onChange={(event) => {
+                  setLibrarySearchDraft(event.target.value);
+                }}
+              />
+            </label>
+
+            <div className="grid grid-cols-[minmax(320px,2fr)_minmax(180px,1.1fr)_72px] gap-4 border-b border-white/6 px-5 py-3 text-[11px] tracking-[0.08em] text-[#8f8f8f]">
+              <span>library handoff</span>
+              <span>album</span>
+              <span>add</span>
+            </div>
+
+            <div className="min-h-0 overflow-y-auto">
+              {tracksState.status === "loading" ? (
+                <div className="px-5 py-8 text-sm text-[#8f8f8f]">Loading indexed tracks...</div>
+              ) : null}
+
+              {tracksState.status === "error" ? (
+                <div className="px-5 py-8 text-sm text-[#8f8f8f]">{tracksState.message}</div>
+              ) : null}
+
+              {tracksState.status !== "loading" && visibleLibraryTracks.length === 0 ? (
+                <div className="grid gap-2 px-5 py-8">
+                  <p className="m-0 text-sm text-[#e5e5e5]">
+                    {tracksState.items.length === 0 ? "No indexed tracks yet." : "No matching tracks."}
+                  </p>
+                  <p className="m-0 text-sm text-[#8f8f8f]">
+                    {tracksState.items.length === 0
+                      ? "Scan a local music folder before adding tracks to playlists."
+                      : "Try a different title, artist, or album search."}
+                  </p>
+                </div>
+              ) : null}
+
+              {visibleLibraryTracks.map((track) => {
                 const duplicateCount = activePlaylist.entries.filter(
                   (entry) => entry.trackId === track.id,
                 ).length;
@@ -257,33 +442,55 @@ export function PlaylistsPage({
                 return (
                   <div
                     key={track.id}
-                    className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-3xl border border-white/6 bg-white/3 px-4 py-4"
+                    className="grid grid-cols-[minmax(320px,2fr)_minmax(180px,1.1fr)_72px] items-center gap-4 border-b border-white/5 px-5 py-3.5 last:border-b-0"
                   >
-                    <div className="grid min-w-0 gap-1">
-                      <span className="truncate text-sm text-[#f2f2f2]">{track.title}</span>
-                      <span className="truncate text-xs text-[#8f8f8f]">
-                        {[track.artist ?? "unknown artist", track.album ?? "unknown album"].join(" • ")}
-                      </span>
-                      {duplicateCount > 0 ? (
-                        <span className="text-[11px] uppercase tracking-[0.12em] text-[#c8a869]">
-                          already added {duplicateCount}x
+                    <div className="flex min-w-0 items-center gap-3">
+                      <ArtworkTile
+                        artworkKey={track.artworkKey}
+                        title={track.title}
+                        sizeClassName="h-11 w-11"
+                        roundedClassName="rounded-sm"
+                        fallbackClassName="bg-white/[0.04]"
+                      />
+                      <div className="grid min-w-0 gap-1">
+                        <span className="truncate text-sm text-[#f2f2f2]">{track.title}</span>
+                        <span className="truncate text-xs text-[#8f8f8f]">
+                          {track.artist ?? "unknown artist"}
+                          {duplicateCount > 0 ? ` • already added ${duplicateCount}x` : ""}
                         </span>
-                      ) : null}
+                      </div>
                     </div>
+
+                    <span className="truncate text-sm text-[#d4d4d4]">
+                      {track.album ?? "unknown album"}
+                    </span>
+
                     <button
                       type="button"
+                      aria-label={`Add ${track.title} to ${title}`}
                       onClick={() => onTrackAdd(activePlaylist.playlist.id, track)}
-                      className="rounded-full border border-white/10 bg-black/20 px-4 py-2 text-sm text-[#f2f2f2] transition-colors hover:border-[#d1ab67]/40 hover:bg-[#d1ab67]/12 hover:text-[#f5ddb0]"
+                      className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/8 bg-white/[0.03] text-[#d4d4d4] transition-colors hover:border-white/12 hover:bg-white/[0.05] hover:text-[#f2f2f2]"
                     >
-                      Add
+                      <Plus className="h-4 w-4" strokeWidth={2} />
                     </button>
                   </div>
                 );
               })}
             </div>
-          )}
+          </section>
         </div>
-      </section>
-    </div>
+      </div>
+
+      <CreatePlaylistDialog
+        isOpen={isCreateDialogOpen}
+        isSubmitting={isCreatingPlaylist}
+        nameDraft={createDraft}
+        selectedArtworkPath={createArtworkPath}
+        onClose={closeCreateDialog}
+        onNameDraftChange={setCreateDraft}
+        onSelectedArtworkPathChange={setCreateArtworkPath}
+        onSubmit={handleCreateSubmit}
+      />
+    </>
   );
 }

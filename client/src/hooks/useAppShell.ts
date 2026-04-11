@@ -7,8 +7,11 @@ import {
   deletePlaylist,
   getPlaylist,
   getShellState,
+  handoffPlaylistToQueue,
   listPlaylists,
   loadPlaybackTrack,
+  movePlaylistEntry,
+  removePlaylistEntry,
   pickLibraryDirectory,
   playbackAction,
   queryLibrary,
@@ -65,6 +68,7 @@ export function useAppShell() {
     items: [],
     activePlaylistId: null,
     activePlaylist: null,
+    playbackQueue: null,
   });
   const completionHandledRef = useRef<string | null>(null);
 
@@ -113,6 +117,7 @@ export function useAppShell() {
           items: playlists,
           activePlaylistId: playlists[0]?.id ?? null,
           activePlaylist: null,
+          playbackQueue: null,
         });
         mergeTrackCatalog(trackCatalogRef.current, libraryPage.items);
       })
@@ -295,6 +300,7 @@ export function useAppShell() {
           items: playlists,
           activePlaylistId: activePlaylist?.playlist.id ?? fallbackActivePlaylistId,
           activePlaylist,
+          playbackQueue: existingQueueSnapshot(playlistsState),
         });
       })
       .catch((error: unknown) => {
@@ -321,6 +327,7 @@ export function useAppShell() {
           items: playlists,
           activePlaylistId: playlistId,
           activePlaylist,
+          playbackQueue: existingQueueSnapshot(playlistsState),
         });
       })
       .catch((error: unknown) => {
@@ -333,9 +340,9 @@ export function useAppShell() {
       });
   };
 
-  const handlePlaylistCreate = async (name: string) => {
+  const handlePlaylistCreate = async (name: string, artworkPath?: string | null) => {
     try {
-      const playlist = await createPlaylist(name);
+      const playlist = await createPlaylist(name, null, artworkPath);
       refreshPlaylists(playlist.id);
       return playlist.id;
     } catch (error: unknown) {
@@ -353,8 +360,9 @@ export function useAppShell() {
     playlistId: string,
     name: string,
     description?: string | null,
+    artworkPath?: string | null,
   ) => {
-    void updatePlaylist(playlistId, name, description ?? null)
+    void updatePlaylist(playlistId, name, description ?? null, artworkPath ?? null)
       .then((playlist) => {
         refreshPlaylists(playlist.id);
       })
@@ -364,6 +372,31 @@ export function useAppShell() {
           status: "error",
           message:
             error instanceof Error ? error.message : "Failed to update playlist.",
+        }));
+      });
+  };
+
+  const handlePlaylistArtworkChange = (playlistId: string, artworkPath: string) => {
+    const playlistSummary = playlistsState.items.find((item) => item.id === playlistId);
+    if (!playlistSummary) {
+      return;
+    }
+
+    void updatePlaylist(
+      playlistId,
+      playlistSummary.name,
+      playlistSummary.description ?? null,
+      artworkPath,
+    )
+      .then((playlist) => {
+        refreshPlaylists(playlist.id);
+      })
+      .catch((error: unknown) => {
+        setPlaylistsState((existing) => ({
+          ...existing,
+          status: "error",
+          message:
+            error instanceof Error ? error.message : "Failed to update playlist artwork.",
         }));
       });
   };
@@ -394,6 +427,7 @@ export function useAppShell() {
           ),
           activePlaylistId: detail.playlist.id,
           activePlaylist: detail,
+          playbackQueue: existing.playbackQueue,
         }));
       })
       .catch((error: unknown) => {
@@ -402,6 +436,90 @@ export function useAppShell() {
           status: "error",
           message:
             error instanceof Error ? error.message : "Failed to add track to playlist.",
+        }));
+      });
+  };
+
+  const handlePlaylistEntryMove = (
+    playlistId: string,
+    entryId: string,
+    targetPosition: number,
+  ) => {
+    void movePlaylistEntry(playlistId, entryId, targetPosition)
+      .then((detail) => {
+        setPlaylistsState((existing) => ({
+          status: "ready",
+          items: existing.items.map((item) =>
+            item.id === detail.playlist.id ? detail.playlist : item,
+          ),
+          activePlaylistId: detail.playlist.id,
+          activePlaylist: detail,
+          playbackQueue: existing.playbackQueue,
+        }));
+      })
+      .catch((error: unknown) => {
+        setPlaylistsState((existing) => ({
+          ...existing,
+          status: "error",
+          message:
+            error instanceof Error ? error.message : "Failed to reorder playlist.",
+        }));
+      });
+  };
+
+  const handlePlaylistEntryRemove = (playlistId: string, entryId: string) => {
+    void removePlaylistEntry(playlistId, entryId)
+      .then((detail) => {
+        setPlaylistsState((existing) => ({
+          status: "ready",
+          items: existing.items.map((item) =>
+            item.id === detail.playlist.id ? detail.playlist : item,
+          ),
+          activePlaylistId: detail.playlist.id,
+          activePlaylist: detail,
+          playbackQueue: existing.playbackQueue,
+        }));
+      })
+      .catch((error: unknown) => {
+        setPlaylistsState((existing) => ({
+          ...existing,
+          status: "error",
+          message:
+            error instanceof Error ? error.message : "Failed to remove playlist entry.",
+        }));
+      });
+  };
+
+  const handlePlaylistPlaybackHandoff = (playlistId: string, startEntryId?: string) => {
+    void handoffPlaylistToQueue(playlistId, startEntryId ?? null)
+      .then((payload) => {
+        setPlaybackQueueTrackIds(payload.queue.trackIds);
+        setShellState((existing) =>
+          existing
+            ? {
+                ...existing,
+                playback: payload.playback,
+              }
+            : existing,
+        );
+        setTracksState((existing) => ({
+          ...existing,
+          selectedTrackId: payload.playback.trackId ?? existing.selectedTrackId,
+        }));
+        setPlaylistsState((existing) => ({
+          ...existing,
+          playbackQueue: payload.queue,
+        }));
+        void playbackAction("toggle");
+      })
+      .catch((error: unknown) => {
+        setPlaylistsState((existing) => ({
+          ...existing,
+          status: "error",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Failed to hand off playlist to playback.",
         }));
       });
   };
@@ -704,6 +822,7 @@ export function useAppShell() {
     trackCatalogRef.current,
     playbackQueueTrackIds,
     shellState?.playback.trackId ?? tracksState.selectedTrackId,
+    playlistsState.playbackQueue?.sourceLabel,
   );
 
   return {
@@ -719,6 +838,10 @@ export function useAppShell() {
     handlePickLibraryDirectory,
     handlePlaylistCreate,
     handlePlaylistDelete,
+    handlePlaylistArtworkChange,
+    handlePlaylistEntryMove,
+    handlePlaylistEntryRemove,
+    handlePlaylistPlaybackHandoff,
     handlePlaylistRename,
     handlePlaylistSelection,
     handlePlaylistTrackAdd,
@@ -804,12 +927,14 @@ function deriveQueueState(
   trackCatalog: Map<string, TrackListItem>,
   queueTrackIds: string[],
   activeTrackId: string | null | undefined,
+  sourceLabel?: string,
 ): QueueState {
   if (!activeTrackId) {
     return {
       activeTrack: null,
       upcomingTracks: [],
       totalTracks: 0,
+      sourceLabel,
     };
   }
 
@@ -822,6 +947,7 @@ function deriveQueueState(
       activeTrack: trackCatalog.get(activeTrackId) ?? null,
       upcomingTracks: [],
       totalTracks: trackCatalog.has(activeTrackId) ? 1 : 0,
+      sourceLabel,
     };
   }
 
@@ -829,7 +955,12 @@ function deriveQueueState(
     activeTrack: queueItems[activeIndex],
     upcomingTracks: queueItems.slice(activeIndex + 1),
     totalTracks: queueItems.length - activeIndex,
+    sourceLabel,
   };
+}
+
+function existingQueueSnapshot(playlistsState: PlaylistsState) {
+  return playlistsState.playbackQueue ?? null;
 }
 
 function mergeTrackCatalog(

@@ -28,7 +28,11 @@ export function AppShell({
   scanState,
   onPickLibraryDirectory,
   onPlaylistCreate,
+  onPlaylistArtworkChange,
   onPlaylistDelete,
+  onPlaylistEntryMove,
+  onPlaylistEntryRemove,
+  onPlaylistPlaybackHandoff,
   onPlaylistRename,
   onPlaylistSelect,
   onPlaylistTrackAdd,
@@ -50,8 +54,12 @@ export function AppShell({
   libraryPath: string;
   scanState: ScanState;
   onPickLibraryDirectory: () => void;
-  onPlaylistCreate: (name: string) => Promise<string | null>;
+  onPlaylistCreate: (name: string, artworkPath?: string | null) => Promise<string | null>;
+  onPlaylistArtworkChange: (playlistId: string, artworkPath: string) => void;
   onPlaylistDelete: (playlistId: string) => void;
+  onPlaylistEntryMove: (playlistId: string, entryId: string, targetPosition: number) => void;
+  onPlaylistEntryRemove: (playlistId: string, entryId: string) => void;
+  onPlaylistPlaybackHandoff: (playlistId: string, startEntryId?: string) => void;
   onPlaylistRename: (playlistId: string, name: string, description?: string | null) => void;
   onPlaylistSelect: (playlistId: string) => void;
   onPlaylistTrackAdd: (playlistId: string, track: TrackListItem) => void;
@@ -109,7 +117,11 @@ export function AppShell({
                   playlistsState={playlistsState}
                   tracksState={tracksState}
                   onCreatePlaylist={onPlaylistCreate}
+                  onPlaylistArtworkChange={onPlaylistArtworkChange}
                   onPlaylistDelete={onPlaylistDelete}
+                  onPlaylistEntryMove={onPlaylistEntryMove}
+                  onPlaylistEntryRemove={onPlaylistEntryRemove}
+                  onPlaylistPlaybackHandoff={onPlaylistPlaybackHandoff}
                   onPlaylistRename={onPlaylistRename}
                   onPlaylistSelect={onPlaylistSelect}
                   onTrackAdd={onPlaylistTrackAdd}
@@ -123,7 +135,11 @@ export function AppShell({
                   playlistsState={playlistsState}
                   tracksState={tracksState}
                   onCreatePlaylist={onPlaylistCreate}
+                  onPlaylistArtworkChange={onPlaylistArtworkChange}
                   onPlaylistDelete={onPlaylistDelete}
+                  onPlaylistEntryMove={onPlaylistEntryMove}
+                  onPlaylistEntryRemove={onPlaylistEntryRemove}
+                  onPlaylistPlaybackHandoff={onPlaylistPlaybackHandoff}
                   onPlaylistRename={onPlaylistRename}
                   onPlaylistSelect={onPlaylistSelect}
                   onTrackAdd={onPlaylistTrackAdd}

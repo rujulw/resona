@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const bootstrapAppMock = vi.fn();
@@ -8,8 +8,11 @@ const createPlaylistMock = vi.fn();
 const deletePlaylistMock = vi.fn();
 const getPlaylistMock = vi.fn();
 const getShellStateMock = vi.fn();
+const handoffPlaylistToQueueMock = vi.fn();
 const listPlaylistsMock = vi.fn();
 const loadPlaybackTrackMock = vi.fn();
+const movePlaylistEntryMock = vi.fn();
+const removePlaylistEntryMock = vi.fn();
 const queryLibraryMock = vi.fn();
 const pickLibraryDirectoryMock = vi.fn();
 const playbackActionMock = vi.fn();
@@ -29,8 +32,11 @@ vi.mock("./desktop", () => ({
   deletePlaylist: (...args: unknown[]) => deletePlaylistMock(...args),
   getPlaylist: (...args: unknown[]) => getPlaylistMock(...args),
   getShellState: () => getShellStateMock(),
+  handoffPlaylistToQueue: (...args: unknown[]) => handoffPlaylistToQueueMock(...args),
   listPlaylists: () => listPlaylistsMock(),
   loadPlaybackTrack: (...args: unknown[]) => loadPlaybackTrackMock(...args),
+  movePlaylistEntry: (...args: unknown[]) => movePlaylistEntryMock(...args),
+  removePlaylistEntry: (...args: unknown[]) => removePlaylistEntryMock(...args),
   pickLibraryDirectory: (...args: unknown[]) => pickLibraryDirectoryMock(...args),
   queryLibrary: (...args: unknown[]) => queryLibraryMock(...args),
   playbackAction: (...args: unknown[]) => playbackActionMock(...args),
@@ -131,8 +137,11 @@ describe("app shell smoke checks", () => {
     deletePlaylistMock.mockReset();
     getPlaylistMock.mockReset();
     getShellStateMock.mockReset();
+    handoffPlaylistToQueueMock.mockReset();
     listPlaylistsMock.mockReset();
     loadPlaybackTrackMock.mockReset();
+    movePlaylistEntryMock.mockReset();
+    removePlaylistEntryMock.mockReset();
     queryLibraryMock.mockReset();
     pickLibraryDirectoryMock.mockReset();
     playbackActionMock.mockReset();
@@ -404,6 +413,80 @@ describe("app shell smoke checks", () => {
         },
       ],
     }));
+    movePlaylistEntryMock.mockImplementation(async (playlistId: string, entryId: string, targetPosition: number) => ({
+      playlist: {
+        id: playlistId,
+        name: "Desk Set",
+        description: "focused hours",
+        entryCount: 1,
+        createdAt: "1700000100",
+        updatedAt: "1700000400",
+      },
+      entries: [
+        {
+          entryId,
+          playlistId,
+          trackId: "track-1",
+          position: targetPosition,
+          addedAt: "1700000100",
+          updatedAt: "1700000400",
+          title: "Alpha",
+          artist: "North",
+          album: "Signals",
+          artworkKey: "alpha-cover.png",
+          extension: "mp3",
+          durationSeconds: 182,
+        },
+      ],
+    }));
+    removePlaylistEntryMock.mockImplementation(async (playlistId: string, entryId: string) => ({
+      playlist: {
+        id: playlistId,
+        name: "Desk Set",
+        description: "focused hours",
+        artworkKey: null,
+        entryCount: 1,
+        createdAt: "1700000100",
+        updatedAt: "1700000400",
+      },
+      entries: [
+        {
+          entryId: "playlist-entry-2",
+          playlistId,
+          trackId: "track-2",
+          position: 0,
+          addedAt: "1700000100",
+          updatedAt: "1700000400",
+          title: entryId === "playlist-entry-1" ? "Bravo" : "Alpha",
+          artist: entryId === "playlist-entry-1" ? "South" : "North",
+          album: entryId === "playlist-entry-1" ? "Horizons" : "Signals",
+          artworkKey: entryId === "playlist-entry-1" ? "bravo-cover.png" : "alpha-cover.png",
+          extension: "mp3",
+          durationSeconds: 205,
+        },
+      ],
+    }));
+    handoffPlaylistToQueueMock.mockImplementation(async (playlistId: string, startEntryId?: string | null) => ({
+      playback: {
+        statusLabel: "Ready",
+        transportLabel: "Ready",
+        progressSeconds: 0,
+        durationSeconds: 205,
+        isPlaying: false,
+        outputOwner: "rust",
+        trackId: "track-2",
+        trackTitle: "Bravo",
+        trackArtist: "South",
+        trackAlbum: "Horizons",
+      },
+      queue: {
+        trackIds: ["track-1", "track-2"],
+        activeTrackId: "track-2",
+        sourceLabel: "playlist-handoff",
+      },
+      playlistId,
+      activeEntryId: startEntryId ?? "playlist-entry-1",
+    }));
 
     window.history.replaceState({}, "", "/");
   });
@@ -446,36 +529,54 @@ describe("app shell smoke checks", () => {
     expect(screen.getByText("Nothing playing")).toBeTruthy();
   });
 
-  it("renders playlist detail flows for rename delete and add-track", async () => {
+  it("renders playlist detail flows for select delete reorder playback and add-track", async () => {
     window.history.replaceState({}, "", "/playlists/playlist-1");
-    const promptMock = vi.spyOn(window, "prompt").mockReturnValue("Late Shift");
     const confirmMock = vi.spyOn(window, "confirm").mockReturnValue(true);
     const { default: App } = await import("./App");
 
     render(<App />);
 
-    await screen.findByText("Save details");
+    await screen.findByRole("heading", { name: "Desk Set" });
     expect(getPlaylistMock).toHaveBeenCalledWith("playlist-1");
 
-    fireEvent.change(screen.getByLabelText("name"), {
-      target: { value: "Night Drive" },
-    });
-    fireEvent.change(screen.getByLabelText("description"), {
-      target: { value: "after midnight" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: /save details/i }));
-
+    fireEvent.click(screen.getAllByRole("button", { name: /add/i })[1]);
     await waitFor(() => {
-      expect(updatePlaylistMock).toHaveBeenCalledWith(
+      expect(addTrackToPlaylistMock).toHaveBeenCalled();
+    });
+    await screen.findByLabelText(/play bravo/i);
+
+    fireEvent.click(screen.getByLabelText(/play bravo/i));
+    await waitFor(() => {
+      expect(handoffPlaylistToQueueMock).toHaveBeenCalledWith(
         "playlist-1",
-        "Night Drive",
-        "after midnight",
+        "playlist-entry-2",
       );
     });
 
-    fireEvent.click(screen.getAllByRole("button", { name: /add/i })[0]);
+    fireEvent.doubleClick(screen.getByRole("button", { name: /select alpha/i }));
     await waitFor(() => {
-      expect(addTrackToPlaylistMock).toHaveBeenCalled();
+      expect(handoffPlaylistToQueueMock).toHaveBeenCalledWith(
+        "playlist-1",
+        "playlist-entry-1",
+      );
+    });
+
+    fireEvent.click(screen.getByLabelText(/move alpha down/i));
+    await waitFor(() => {
+      expect(movePlaylistEntryMock).toHaveBeenCalled();
+    });
+
+    const alphaRow = screen.getByRole("button", { name: /select alpha/i });
+    fireEvent.click(alphaRow);
+    expect(alphaRow.getAttribute("aria-pressed")).toBe("true");
+    fireEvent.keyDown(alphaRow, {
+      key: "Backspace",
+    });
+    await waitFor(() => {
+      expect(removePlaylistEntryMock).toHaveBeenCalledWith(
+        "playlist-1",
+        "playlist-entry-1",
+      );
     });
 
     fireEvent.click(screen.getByRole("button", { name: /delete playlist/i }));
@@ -483,13 +584,188 @@ describe("app shell smoke checks", () => {
       expect(deletePlaylistMock).toHaveBeenCalledWith("playlist-1");
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /new/i }));
-    await waitFor(() => {
-      expect(createPlaylistMock).toHaveBeenCalledWith("Late Shift");
+    confirmMock.mockRestore();
+  });
+
+  it("creates a playlist from the empty playlists state without using a native prompt", async () => {
+    window.history.replaceState({}, "", "/playlists");
+    listPlaylistsMock.mockReset();
+    getPlaylistMock.mockReset();
+    createPlaylistMock.mockReset();
+
+    listPlaylistsMock
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        {
+          id: "playlist-2",
+          name: "Late Night Mix",
+          description: null,
+          entryCount: 0,
+          createdAt: "1700000200",
+          updatedAt: "1700000200",
+        },
+      ]);
+    getPlaylistMock.mockResolvedValue({
+      playlist: {
+        id: "playlist-2",
+        name: "Late Night Mix",
+        description: null,
+        entryCount: 0,
+        createdAt: "1700000200",
+        updatedAt: "1700000200",
+      },
+      entries: [],
+    });
+    createPlaylistMock.mockResolvedValue({
+      id: "playlist-2",
+      name: "Late Night Mix",
+      description: null,
+      entryCount: 0,
+      createdAt: "1700000200",
+      updatedAt: "1700000200",
     });
 
-    promptMock.mockRestore();
-    confirmMock.mockRestore();
+    const { default: App } = await import("./App");
+    render(<App />);
+
+    await screen.findByText("no playlists yet");
+
+    fireEvent.click(screen.getByRole("button", { name: /create playlist/i }));
+    const createDialog = screen.getByRole("dialog", { name: /create playlist/i });
+    fireEvent.change(within(createDialog).getByLabelText("playlist name"), {
+      target: { value: "Late Night Mix" },
+    });
+    fireEvent.click(within(createDialog).getByRole("button", { name: /^create playlist$/i }));
+
+    await waitFor(() => {
+      expect(createPlaylistMock).toHaveBeenCalledWith("Late Night Mix", null, null);
+      expect(getPlaylistMock).toHaveBeenCalledWith("playlist-2");
+    });
+  });
+
+  it("creates a playlist from the playlist detail view", async () => {
+    window.history.replaceState({}, "", "/playlists/playlist-1");
+    createPlaylistMock.mockReset();
+    listPlaylistsMock.mockReset();
+    getPlaylistMock.mockReset();
+
+    listPlaylistsMock
+      .mockResolvedValueOnce([
+        {
+          id: "playlist-1",
+          name: "Road Trip",
+          description: null,
+          entryCount: 1,
+          createdAt: "1700000000",
+          updatedAt: "1700000000",
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          id: "playlist-1",
+          name: "Road Trip",
+          description: null,
+          entryCount: 1,
+          createdAt: "1700000000",
+          updatedAt: "1700000000",
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          id: "playlist-1",
+          name: "Road Trip",
+          description: null,
+          entryCount: 1,
+          createdAt: "1700000000",
+          updatedAt: "1700000000",
+        },
+        {
+          id: "playlist-2",
+          name: "Late Night Mix",
+          description: null,
+          entryCount: 0,
+          createdAt: "1700000200",
+          updatedAt: "1700000200",
+        },
+      ])
+      .mockResolvedValue([
+        {
+          id: "playlist-1",
+          name: "Road Trip",
+          description: null,
+          entryCount: 1,
+          createdAt: "1700000000",
+          updatedAt: "1700000000",
+        },
+        {
+          id: "playlist-2",
+          name: "Late Night Mix",
+          description: null,
+          entryCount: 0,
+          createdAt: "1700000200",
+          updatedAt: "1700000200",
+        },
+      ]);
+    getPlaylistMock
+      .mockResolvedValueOnce({
+        playlist: {
+          id: "playlist-1",
+          name: "Road Trip",
+          description: null,
+          entryCount: 1,
+          createdAt: "1700000000",
+          updatedAt: "1700000000",
+        },
+        entries: [
+          {
+            entryId: "playlist-entry-1",
+            playlistId: "playlist-1",
+            trackId: "track-1",
+            position: 0,
+            title: "Northbound",
+            artist: "Sample Artist",
+            album: "Signals",
+            artworkKey: null,
+            durationSeconds: 215,
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        playlist: {
+          id: "playlist-2",
+          name: "Late Night Mix",
+          description: null,
+          entryCount: 0,
+          createdAt: "1700000200",
+          updatedAt: "1700000200",
+        },
+        entries: [],
+      });
+    createPlaylistMock.mockResolvedValue({
+      id: "playlist-2",
+      name: "Late Night Mix",
+      description: null,
+      entryCount: 0,
+      createdAt: "1700000200",
+      updatedAt: "1700000200",
+    });
+
+    const { default: App } = await import("./App");
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Road Trip" });
+
+    fireEvent.click(screen.getByRole("button", { name: /create playlist/i }));
+    const createDialog = screen.getByRole("dialog", { name: /create playlist/i });
+    fireEvent.change(within(createDialog).getByLabelText("playlist name"), {
+      target: { value: "Late Night Mix" },
+    });
+    fireEvent.click(within(createDialog).getByRole("button", { name: /^create playlist$/i }));
+
+    await waitFor(() => {
+      expect(createPlaylistMock).toHaveBeenCalledWith("Late Night Mix", null, null);
+      expect(getPlaylistMock).toHaveBeenCalledWith("playlist-2");
+    });
   });
 
   it("drives search and header sort controls through the tracks query contract", async () => {

@@ -7,11 +7,13 @@ export function ArtworkTile({
   title,
   sizeClassName,
   roundedClassName = "rounded-md",
+  fallbackClassName = "bg-gradient-to-br from-white/12 to-transparent",
 }: {
   artworkKey: string | null | undefined;
   title: string;
   sizeClassName: string;
   roundedClassName?: string;
+  fallbackClassName?: string;
 }) {
   const [artworkUrl, setArtworkUrl] = useState<string | null>(null);
 
@@ -46,7 +48,7 @@ export function ArtworkTile({
     />
   ) : (
     <div
-      className={`${sizeClassName} ${roundedClassName} shrink-0 border border-white/8 bg-gradient-to-br from-white/12 to-transparent`}
+      className={`${sizeClassName} ${roundedClassName} ${fallbackClassName} shrink-0 border border-white/8`}
       aria-hidden="true"
     />
   );
