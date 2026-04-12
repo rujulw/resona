@@ -22,12 +22,14 @@ describe("desktop bootstrap bridge", () => {
     invokeMock.mockReset();
     openMock.mockReset();
     listenMock.mockReset();
+    delete (globalThis as typeof globalThis & { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
+    delete (globalThis as typeof globalThis & { __TAURI__?: unknown }).__TAURI__;
   });
 
   it("loads bootstrap metadata from the command bridge", async () => {
     invokeMock.mockResolvedValueOnce({
       appName: "resona",
-      appVersion: "1.2.0",
+      appVersion: "1.3.0",
       windowTitle: "resona",
       platform: "macos",
       runtime: {
@@ -200,6 +202,137 @@ describe("desktop bootstrap bridge", () => {
     expect(payload.events[0].name).toBe("playback://state-changed");
   });
 
+  it("loads playlists through the command bridge", async () => {
+    invokeMock.mockResolvedValueOnce([
+      {
+        id: "playlist-1",
+        name: "Desk Set",
+        description: "focused hours",
+        artworkKey: null,
+        entryCount: 1,
+        createdAt: "1700000100",
+        updatedAt: "1700000100",
+      },
+    ]);
+
+    const { listPlaylists } = await import("./desktop");
+    const payload = await listPlaylists();
+
+    expect(invokeMock).toHaveBeenCalledWith("list_playlists");
+    expect(payload[0].name).toBe("Desk Set");
+  });
+
+  it("creates and updates playlists through the command bridge", async () => {
+    invokeMock
+      .mockResolvedValueOnce({
+        id: "playlist-1",
+        name: "Desk Set",
+        description: null,
+        artworkKey: null,
+        entryCount: 0,
+        createdAt: "1700000100",
+        updatedAt: "1700000100",
+      })
+      .mockResolvedValueOnce({
+        id: "playlist-1",
+        name: "Night Drive",
+        description: "after midnight",
+        artworkKey: "playlist-cover.png",
+        entryCount: 0,
+        createdAt: "1700000100",
+        updatedAt: "1700000200",
+      });
+
+    const { createPlaylist, updatePlaylist } = await import("./desktop");
+    const created = await createPlaylist("Desk Set");
+    const updated = await updatePlaylist(
+      "playlist-1",
+      "Night Drive",
+      "after midnight",
+      "/Users/rujulw/Pictures/night-drive.png",
+    );
+
+    expect(invokeMock).toHaveBeenNthCalledWith(1, "create_playlist", {
+      name: "Desk Set",
+      description: null,
+      artworkPath: null,
+    });
+    expect(invokeMock).toHaveBeenNthCalledWith(2, "update_playlist", {
+      playlistId: "playlist-1",
+      name: "Night Drive",
+      description: "after midnight",
+      artworkPath: "/Users/rujulw/Pictures/night-drive.png",
+    });
+    expect(created.id).toBe("playlist-1");
+    expect(updated.name).toBe("Night Drive");
+    expect(updated.artworkKey).toBe("playlist-cover.png");
+  });
+
+  it("does not hide playlist creation failures in the desktop runtime", async () => {
+    invokeMock.mockRejectedValueOnce(new Error("no such table: playlists"));
+    (globalThis as typeof globalThis & { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ =
+      {};
+
+    const { createPlaylist } = await import("./desktop");
+
+    await expect(createPlaylist("Desk Set")).rejects.toThrow("no such table: playlists");
+  });
+
+  it("moves playlist entries through the command bridge", async () => {
+    invokeMock.mockResolvedValueOnce({
+      playlist: {
+        id: "playlist-1",
+        name: "Desk Set",
+        description: null,
+        entryCount: 2,
+        createdAt: "1700000100",
+        updatedAt: "1700000200",
+      },
+      entries: [],
+    });
+
+    const { movePlaylistEntry } = await import("./desktop");
+    await movePlaylistEntry("playlist-1", "entry-2", 0);
+
+    expect(invokeMock).toHaveBeenCalledWith("move_playlist_entry", {
+      playlistId: "playlist-1",
+      entryId: "entry-2",
+      targetPosition: 0,
+    });
+  });
+
+  it("hands off playlist playback through the command bridge", async () => {
+    invokeMock.mockResolvedValueOnce({
+      playback: {
+        statusLabel: "Ready",
+        transportLabel: "Ready",
+        progressSeconds: 0,
+        durationSeconds: 182,
+        isPlaying: false,
+        trackId: "track-2",
+        trackTitle: "Bravo",
+        trackArtist: "South",
+        trackAlbum: "Horizons",
+      },
+      queue: {
+        trackIds: ["track-1", "track-2"],
+        activeTrackId: "track-2",
+        sourceLabel: "playlist-handoff",
+      },
+      playlistId: "playlist-1",
+      activeEntryId: "entry-2",
+    });
+
+    const { handoffPlaylistToQueue } = await import("./desktop");
+    const payload = await handoffPlaylistToQueue("playlist-1", "entry-2");
+
+    expect(invokeMock).toHaveBeenCalledWith("handoff_playlist_to_queue", {
+      playlistId: "playlist-1",
+      startEntryId: "entry-2",
+    });
+    expect(payload.queue.activeTrackId).toBe("track-2");
+  });
+
   it("subscribes to backend playback state events", async () => {
     const unlisten = vi.fn();
     let handler:
@@ -297,5 +430,27 @@ describe("desktop bootstrap bridge", () => {
       defaultPath: "/Users/rujulw",
     });
     expect(payload).toBe("/Users/rujulw/Music");
+  });
+
+  it("opens a native image picker for playlist covers", async () => {
+    openMock.mockResolvedValueOnce("/Users/rujulw/Pictures/cover.png");
+
+    const { pickPlaylistArtwork } = await import("./desktop");
+    const payload = await pickPlaylistArtwork("/Users/rujulw/Pictures");
+
+    expect(openMock).toHaveBeenCalledWith({
+      title: "Choose playlist cover",
+      directory: false,
+      multiple: false,
+      recursive: false,
+      defaultPath: "/Users/rujulw/Pictures",
+      filters: [
+        {
+          name: "Images",
+          extensions: ["png", "jpg", "jpeg", "webp"],
+        },
+      ],
+    });
+    expect(payload).toBe("/Users/rujulw/Pictures/cover.png");
   });
 });

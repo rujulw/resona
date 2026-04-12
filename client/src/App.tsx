@@ -25,6 +25,7 @@ export default function App() {
   return (
     <AppShell
       payload={appShell.bootstrapState.payload}
+      playlistsState={appShell.playlistsState}
       queueState={appShell.queueState}
       shellState={appShell.shellState}
       tracksState={appShell.tracksState}
@@ -32,6 +33,15 @@ export default function App() {
       libraryPath={appShell.libraryPath}
       scanState={appShell.scanState}
       onPickLibraryDirectory={appShell.handlePickLibraryDirectory}
+      onPlaylistCreate={appShell.handlePlaylistCreate}
+      onPlaylistArtworkChange={appShell.handlePlaylistArtworkChange}
+      onPlaylistDelete={appShell.handlePlaylistDelete}
+      onPlaylistEntryMove={appShell.handlePlaylistEntryMove}
+      onPlaylistEntryRemove={appShell.handlePlaylistEntryRemove}
+      onPlaylistPlaybackHandoff={appShell.handlePlaylistPlaybackHandoff}
+      onPlaylistRename={appShell.handlePlaylistRename}
+      onPlaylistSelect={appShell.handlePlaylistSelection}
+      onPlaylistTrackAdd={appShell.handlePlaylistTrackAdd}
       onPlaybackAction={appShell.handlePlaybackAction}
       onPlaybackSeek={appShell.handlePlaybackSeek}
       onTrackSelect={appShell.handleTrackSelection}

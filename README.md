@@ -10,12 +10,15 @@ Build a private, performance-first music player that feels closer to a system ut
 
 - Select a local music folder through the desktop app instead of entering raw filesystem paths
 - Recursively discover MP3 files in the selected folder and nested subfolders
+- Index FLAC alongside MP3 in the same local-first library flow
 - Persist track metadata in SQLite
 - Browse large libraries in a scrollable tracks table with search and header-driven sorting
 - Search tracks quickly without loading the full library into React state as one giant boot payload
 - Play indexed local tracks with persistent transport controls and progress sync
 - Manage queue, play/pause, previous, next, and restart-on-previous behavior
 - Render embedded artwork across the library table, queue page, and playback bar
+- Surface trusted advisory metadata and privacy-safe Discord Rich Presence
+- Create, artwork, reorder, and play back first-class local playlists with persisted ordering
 - Keep playback queue behavior stable even when the tracks route is filtered by search
 
 ## Non-Goals
@@ -78,7 +81,7 @@ Build a private, performance-first music player that feels closer to a system ut
 - Desktop shell: Tauri
 - Core engine: Rust
 - Database: SQLite
-- Audio path: frontend-owned Web Audio in public `v1.0.0`, with backend-owned playback state and native Rust local desktop output in `v1.2.0`
+- Audio path: frontend-owned Web Audio in public `v1.0.0`, with backend-owned playback state, native Rust local desktop output, and first-class playlists in `v1.3.0`
 - Remote storage: Atlas integration deferred until `v3.0.0`
 - Analysis engine: `timbre` integration deferred until `v2.0.0`
 
@@ -97,6 +100,13 @@ Build a private, performance-first music player that feels closer to a system ut
 - Local indexed MP3 files now play through a Rust-native output path behind the existing playback runtime
 - Transport controls now handle play, pause, previous, next, restart-on-previous, seek, and backend-driven progress updates
 - The queue route reflects a stable next-up flow derived from playback order rather than the currently filtered tracks table
+
+## Current Playlist Baseline
+
+- Local playlists are now persisted in SQLite instead of being treated like a temporary saved filter
+- Playlist entry identity is separate from track identity, so duplicate tracks can be intentionally preserved as distinct saved-order rows
+- Playlist pages now support dialog-based creation, custom cover artwork, reorder controls, entry removal, and queue handoff from either the full playlist or a chosen row
+- Saved-order rows now support selection, keyboard removal, and double-click playback from the playlist's own ordering context
 
 ## Current Playback Contract
 
@@ -157,9 +167,9 @@ The current ingest baseline now goes beyond tag-only metadata:
 - Track rows also fall back more gracefully when tags are sparse by cleaning file-stem titles and using album-artist / parent-folder metadata when available
 - The tracks table now renders artwork tiles for indexed items, and the queue view now shows larger cover art for the active track
 
-### `v1.2.1` FLAC Compatibility Scope
+### FLAC Compatibility
 
-The next patch release should expand the local-first engine from MP3-only handling to a mixed MP3 + FLAC library without widening product scope beyond local desktop playback.
+The current release includes mixed MP3 + FLAC local-library support without widening product scope beyond local desktop playback.
 
 Compatibility goals:
 - allow recursive scan and indexing of `.flac` files alongside `.mp3`
@@ -175,18 +185,18 @@ Metadata and ingest rules:
 
 Playback rules:
 - native desktop playback should accept FLAC anywhere the runtime already accepts indexed local MP3 tracks
-- source resolution should remain `local -> cache -> remote`, with FLAC entering only through the local path in `v1.2.1`
+- source resolution should remain `local -> cache -> remote`, with FLAC entering only through the local path
 - transport, seek, completion, queue progression, and snapshot events should behave the same regardless of MP3 or FLAC source format
 
-Out of scope for `v1.2.1`:
+Out of scope:
 - remote FLAC streaming
 - format-specific transcoding
 - ReplayGain, cue sheets, gapless-album logic, or audiophile device UX
 - duplicate-resolution UI between MP3 and FLAC copies of the same release
 
-### `v1.2.2` Privacy-Safe Presence Scope
+### Privacy-Safe Presence
 
-The next patch after FLAC should add desktop Discord Rich Presence carefully, without turning `resona` into a social product or leaking library details from a private local-first app.
+The current release includes a privacy-safe desktop Discord Rich Presence slice without turning `resona` into a social product or leaking library details from a private local-first app.
 
 Presence goals:
 - publish lightweight now-playing state to Discord while desktop playback is active
@@ -215,9 +225,9 @@ Local setup for the first desktop presence pass:
 - use a track that already has trusted artist metadata, because artist is the only listening identity exposed in the first slice
 - do not use a Discord client secret; the first presence pass only needs the public application client id
 
-### `v1.2.3` Trusted Advisory Metadata Scope
+### Trusted Advisory Metadata
 
-The patch after desktop presence should add explicit/advisory metadata carefully as a narrow metadata-normalization feature, not as a new recommendation, lyrics, or content-analysis subsystem.
+The current release includes explicit/advisory metadata as a narrow metadata-normalization feature, not as a new recommendation, lyrics, or content-analysis subsystem.
 
 Trusted sources for the first advisory slice:
 - local source tags that explicitly mark a track as advisory or parental-warning content
@@ -234,7 +244,7 @@ UI contract for the first slice:
 - advisory state should surface as a small badge near track identity, not as a new primary navigation mode
 - absence of an advisory badge should mean metadata was unavailable or neutral, not that `resona` proved the track is clean
 
-Out of scope for `v1.2.3`:
+Out of scope:
 - lyric scanning or text classification
 - moderation-style content scoring
 - parental-control policy engines

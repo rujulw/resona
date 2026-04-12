@@ -9,6 +9,7 @@ resona aims to become a high-performance music system for private libraries, bal
 - Local music libraries can be imported through a folder picker and indexed recursively
 - Track metadata is persisted and queryable through SQLite
 - Users can search, browse, queue, and play tracks reliably
+- Users can manage first-class local playlists with persisted ordering and playback handoff
 - The first public release stays local-first and open source
 - The application remains open source while integrating private user-controlled storage
 
@@ -59,12 +60,18 @@ Current milestone progress:
 - The queue route now reflects stable next-up behavior from playback order rather than from the filtered tracks table
 - Embedded artwork now renders in the tracks view, queue view, and playback bar
 - Release-hardening fixes now guard against stale playback-source and overlapping library-query races
-- `v1.2.0` now has an explicit Rust-side playback command and event contract
+- `v1.3.0` now has an explicit Rust-side playback command and event contract
 - Rust now owns local playback output for indexed desktop files behind the existing playback runtime
 - The shell now renders playback progress and completion from backend-driven state changes instead of frontend-owned media lifecycle callbacks
 - Native playback smoke coverage now exercises launch, play, seek, pause, and completion through backend and shell tests
-- The next patch-release slice after FLAC is scoped as privacy-safe desktop presence, with a managed Discord RPC client and explicit/advisory metadata treated as a separate follow-up patch
-- The advisory-metadata follow-up should trust only source-declared explicit fields and keep missing values neutral instead of inferring from lyrics or filenames
+- Privacy-safe desktop presence now ships with a managed Discord RPC client and explicit/advisory metadata remains source-trusted rather than heuristically inferred
+- `v1.3.0` now adds first-class local playlists with persisted ordering and backend queue handoff
+- Playlist foundations now define storage and ordering contracts that Spotify import and smart playlists can reuse later
+
+Current release status:
+
+- `v1.3.0` now ships the local-first playback baseline, FLAC compatibility, privacy-safe Rich Presence, trusted advisory metadata, and first-class playlists in one coherent desktop release
+- The next release work should build on that baseline with playlist editing polish, drag-reorder, Spotify import, artist/album pages, and timbre-driven insight surfaces
 
 ## Milestone 5: Cache and Remote Media
 

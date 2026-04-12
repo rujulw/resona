@@ -295,7 +295,9 @@ fn normalizes_flac_track_with_metadata_duration_and_artwork() {
     assert_eq!(track.extension, "flac");
     assert_eq!(track.track_number, Some(7));
     assert_eq!(track.disc_number, Some(1));
-    assert!(track.duration_seconds.is_some_and(|value| value > 1.9 && value < 2.1));
+    assert!(track
+        .duration_seconds
+        .is_some_and(|value| value > 1.9 && value < 2.1));
     assert!(track
         .artwork_key
         .as_deref()
@@ -385,13 +387,14 @@ fn scan_persists_artwork_key_and_writes_artwork_asset() {
         .expect("scan should persist");
 
     let connection = database.connect().expect("connection should open");
-    let (artwork_key, duration_seconds, advisory): (Option<String>, Option<f64>, Option<bool>) = connection
-        .query_row(
-            "SELECT artwork_key, duration_seconds, advisory FROM tracks LIMIT 1",
-            [],
-            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
-        )
-        .expect("track metadata should load");
+    let (artwork_key, duration_seconds, advisory): (Option<String>, Option<f64>, Option<bool>) =
+        connection
+            .query_row(
+                "SELECT artwork_key, duration_seconds, advisory FROM tracks LIMIT 1",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .expect("track metadata should load");
 
     let artwork_key = artwork_key.expect("artwork key should be stored");
     assert!(duration_seconds.is_some_and(|value| value > 0.0));

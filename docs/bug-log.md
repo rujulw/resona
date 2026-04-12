@@ -1,6 +1,6 @@
 # Bug Log
 
-## 2026-04-03 - Added smoke coverage for backend-owned playback sync in `v1.2.0`
+## 2026-04-03 - Added smoke coverage for backend-owned playback sync in `v1.3.0`
 - Status: fixed
 - Severity: medium
 - Symptom: after shifting playback authority into Rust, the repo still lacked a tight smoke-check layer proving the backend timing/seek/completion/error path and the frontend playback-bar rendering path stayed aligned.
@@ -12,7 +12,29 @@
   - `server/src/playback/mod.rs`
   - `client/src/App.test.tsx`
 - Linked commit/PR: pending
-- Notes: this closes a release-readiness gap for `v1.2.0` by checking the current backend-owned playback model at both the Rust and shell layers.
+- Notes: this closes a release-readiness gap for `v1.3.0` by checking the current backend-owned playback model at both the Rust and shell layers.
+
+## 2026-04-11 - Closed playlist release-readiness gaps before the `v1.3.0` push
+- Status: fixed
+- Severity: medium
+- Symptom: the repo had first-class playlist persistence and queue handoff, but the release surface still lacked aligned version metadata, playlist smoke coverage for the current shell, and release-check documentation that matched the actual product.
+- Root cause: playlist implementation outpaced the repository metadata and release docs, leaving `v1.2.x` references and older smoke expectations in place even after the playlist route matured.
+- Fix: updated repository metadata to `1.3.0`, added playlist-route smoke coverage for saved-order and dialog creation flows, and refreshed release documentation to treat playlists as part of the current baseline instead of future scope.
+- Verification: `npx vitest run src/App.test.tsx` passed with the playlist smoke suite and `npm run build` passed for the `v1.3.0` client bundle.
+- Files touched:
+  - `client/src/App.test.tsx`
+  - `client/src/desktop.ts`
+  - `client/package.json`
+  - `client/package-lock.json`
+  - `server/Cargo.toml`
+  - `server/tauri.conf.json`
+  - `README.md`
+  - `docs/architecture.md`
+  - `docs/design.md`
+  - `docs/roadmap.md`
+  - `release-smoke-checklist.md`
+- Linked commit/PR: pending
+- Notes: this ties the release narrative to the actual shipped playlist feature set instead of leaving playlists described as “next up.”
 
 ## 2026-04-03 - Avoided split playback authority between React and the backend runtime
 - Status: fixed

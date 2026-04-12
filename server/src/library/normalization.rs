@@ -98,21 +98,28 @@ pub(crate) fn normalize_track(
         "flac" => read_flac_metadata(file_path)?,
         _ => AudioMetadata::default(),
     };
-    let normalized_title =
-        preferred_label(metadata_fields.title.as_deref(), Some(cleaned_file_title.as_str()))
-            .unwrap_or_else(|| "Unknown Track".to_owned());
-    let normalized_album_artist =
-        preferred_label(metadata_fields.album_artist.as_deref(), None);
+    let normalized_title = preferred_label(
+        metadata_fields.title.as_deref(),
+        Some(cleaned_file_title.as_str()),
+    )
+    .unwrap_or_else(|| "Unknown Track".to_owned());
+    let normalized_album_artist = preferred_label(metadata_fields.album_artist.as_deref(), None);
     let normalized_artist = preferred_label(
         metadata_fields.artist.as_deref(),
         normalized_album_artist.as_deref(),
     );
-    let normalized_album =
-        preferred_label(metadata_fields.album.as_deref(), parent_folder_label.as_deref());
-    let artwork_key = metadata_fields
-        .artwork
-        .as_ref()
-        .map(|artwork| build_artwork_key(library_root_id, &relative_path, &artwork.mime_type, &artwork.data));
+    let normalized_album = preferred_label(
+        metadata_fields.album.as_deref(),
+        parent_folder_label.as_deref(),
+    );
+    let artwork_key = metadata_fields.artwork.as_ref().map(|artwork| {
+        build_artwork_key(
+            library_root_id,
+            &relative_path,
+            &artwork.mime_type,
+            &artwork.data,
+        )
+    });
     let artwork_bytes = metadata_fields.artwork.map(|artwork| artwork.data);
 
     Ok(NormalizedTrack {
@@ -264,17 +271,27 @@ fn read_mp3_metadata(file_path: &Path) -> Result<AudioMetadata, ScanError> {
         });
 
     Ok(AudioMetadata {
-        title: tag.as_ref().and_then(|value| value.title()).map(str::to_owned),
-        artist: tag.as_ref().and_then(|value| value.artist()).map(str::to_owned),
-        album: tag.as_ref().and_then(|value| value.album()).map(str::to_owned),
+        title: tag
+            .as_ref()
+            .and_then(|value| value.title())
+            .map(str::to_owned),
+        artist: tag
+            .as_ref()
+            .and_then(|value| value.artist())
+            .map(str::to_owned),
+        album: tag
+            .as_ref()
+            .and_then(|value| value.album())
+            .map(str::to_owned),
         album_artist: tag
             .as_ref()
             .and_then(|value| value.album_artist())
             .map(str::to_owned),
-        genre: tag.as_ref().and_then(|value| value.genre()).map(str::to_owned),
-        advisory: tag
+        genre: tag
             .as_ref()
-            .and_then(read_mp3_advisory_metadata),
+            .and_then(|value| value.genre())
+            .map(str::to_owned),
+        advisory: tag.as_ref().and_then(read_mp3_advisory_metadata),
         track_number: tag.as_ref().and_then(|value| value.track()).map(i64::from),
         disc_number: tag.as_ref().and_then(|value| value.disc()).map(i64::from),
         duration_seconds,
@@ -437,7 +454,9 @@ fn parse_flac_picture(block: &[u8]) -> Option<EmbeddedArtwork> {
     if offset + mime_length > block.len() {
         return None;
     }
-    let mime_type = std::str::from_utf8(&block[offset..offset + mime_length]).ok()?.to_owned();
+    let mime_type = std::str::from_utf8(&block[offset..offset + mime_length])
+        .ok()?
+        .to_owned();
     offset += mime_length;
 
     let description_length = read_be_u32(block, &mut offset)? as usize;

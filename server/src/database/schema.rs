@@ -8,12 +8,18 @@ pub const FLAC_TRACK_SUPPORT_MIGRATION: &str =
     include_str!("../../db/migrations/0003_flac_track_support.sql");
 pub const EXPLICIT_ADVISORY_METADATA_MIGRATION: &str =
     include_str!("../../db/migrations/0004_explicit_advisory_metadata.sql");
+pub const LOCAL_PLAYLISTS_FOUNDATION_MIGRATION: &str =
+    include_str!("../../db/migrations/0005_local_playlists_foundation.sql");
+pub const PLAYLIST_ARTWORK_MIGRATION: &str =
+    include_str!("../../db/migrations/0006_playlist_artwork.sql");
 
 pub const TABLE_LIBRARY_ROOTS: &str = "library_roots";
 pub const TABLE_TRACKS: &str = "tracks";
 pub const TABLE_TRACK_SOURCES: &str = "track_sources";
 pub const TABLE_CACHE_ENTRIES: &str = "cache_entries";
 pub const TABLE_ANALYSIS_RESULTS: &str = "analysis_results";
+pub const TABLE_PLAYLISTS: &str = "playlists";
+pub const TABLE_PLAYLIST_ENTRIES: &str = "playlist_entries";
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SourceMode {
@@ -90,9 +96,11 @@ impl AnalysisStatus {
 #[cfg(test)]
 mod tests {
     use super::{
-        AnalysisStatus, CacheState, SourceMode, TrackSourceStatus, INITIAL_SCHEMA_MIGRATION,
-        TABLE_ANALYSIS_RESULTS, TABLE_CACHE_ENTRIES, TABLE_LIBRARY_ROOTS, TABLE_TRACKS,
-        TABLE_TRACK_SOURCES,
+        AnalysisStatus, CacheState, SourceMode, TrackSourceStatus,
+        EXPLICIT_ADVISORY_METADATA_MIGRATION, INITIAL_SCHEMA_MIGRATION,
+        LOCAL_PLAYLISTS_FOUNDATION_MIGRATION, PLAYLIST_ARTWORK_MIGRATION,
+        TABLE_ANALYSIS_RESULTS, TABLE_CACHE_ENTRIES, TABLE_LIBRARY_ROOTS, TABLE_PLAYLISTS,
+        TABLE_PLAYLIST_ENTRIES, TABLE_TRACKS, TABLE_TRACK_SOURCES,
     };
 
     #[test]
@@ -106,6 +114,14 @@ mod tests {
         ] {
             assert!(INITIAL_SCHEMA_MIGRATION.contains(table));
         }
+    }
+
+    #[test]
+    fn later_migrations_declare_playlist_and_advisory_extensions() {
+        assert!(LOCAL_PLAYLISTS_FOUNDATION_MIGRATION.contains(TABLE_PLAYLISTS));
+        assert!(LOCAL_PLAYLISTS_FOUNDATION_MIGRATION.contains(TABLE_PLAYLIST_ENTRIES));
+        assert!(EXPLICIT_ADVISORY_METADATA_MIGRATION.contains("advisory"));
+        assert!(PLAYLIST_ARTWORK_MIGRATION.contains("artwork_key"));
     }
 
     #[test]

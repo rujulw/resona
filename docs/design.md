@@ -28,7 +28,7 @@ The working library view is a focused tracks table with an inline search field, 
 
 Playback controls live in a persistent bottom bar with clear transport actions, current track identity, progress, and source or cache status. Core actions should be available with minimal pointer movement, and the selected track in the library should immediately become the active shell track.
 
-The current `v1.2.0` release treats the shell as a playback renderer/controller rather than the playback authority. Rust owns the transport snapshot, timing updates, completion state, error labels, and local desktop output for native playback.
+The current `v1.3.0` release treats the shell as a playback renderer/controller rather than the playback authority. Rust owns the transport snapshot, timing updates, completion state, error labels, local desktop output for native playback, and the queue-handoff boundary used by playlists.
 
 Track loading, play/pause, seek, ended, and playback-error transitions now move through backend commands and come back through named playback events instead of through local React state writes.
 
@@ -38,7 +38,7 @@ That remains the direction for later refinement: keep playback output in Rust wh
 
 ### Format Compatibility
 
-`v1.2.1` should add FLAC support as a compatibility expansion, not as a UI redesign. A mixed MP3 + FLAC library should still feel like one coherent local collection:
+The FLAC support now in `v1.3.0` is a compatibility expansion, not a UI redesign. A mixed MP3 + FLAC library should still feel like one coherent local collection:
 
 - the tracks table should not split the library into codec-specific views
 - playback controls should behave identically for MP3 and FLAC tracks
@@ -49,7 +49,7 @@ The product goal is "more local libraries work immediately," not "surface audio-
 
 ### Presence and Advisory Metadata
 
-`v1.2.2` should add desktop Rich Presence as a restrained utility feature, not as a social redesign. The app should be able to report lightweight playback activity to Discord without compromising the privacy expectations of a local-first music library.
+The desktop Rich Presence now in `v1.3.0` is a restrained utility feature, not a social redesign. The app should be able to report lightweight playback activity to Discord without compromising the privacy expectations of a local-first music library.
 
 Design rules for the first presence slice:
 
@@ -65,7 +65,7 @@ What the first presence UI/contract should not do:
 - create user-facing account or friend surfaces inside `resona`
 - imply that `resona` is becoming a collaborative or socially networked product
 
-The explicit/advisory tag feature should be treated as a neighboring but separate slice in `v1.2.3`:
+The explicit/advisory tag feature in `v1.3.0` remains a neighboring but separate slice:
 
 - only trust explicit/advisory signals that come from source metadata
 - do not try to infer explicitness from lyrics or heuristic text analysis
@@ -95,6 +95,17 @@ Explicitly rejected fallback ideas:
 
 Queue management should be explicit and deterministic. Users should always understand what plays next and why. The current baseline derives next-up behavior from the playback-order snapshot created when playback starts, so searching or filtering the tracks view does not silently redefine the queue. The active queue view should also give the current track enough visual weight to feel like a player, including larger artwork for the now-playing item.
 
+### Playlists
+
+Playlists in `v1.3.0` should feel like a first-class saved listening surface rather than a thin library filter. The playlist route should preserve the same low-glare desktop utility tone as the tracks route while adding just enough structure to support saved ordering, cover artwork, and deliberate playback handoff.
+
+Design rules for the current playlist slice:
+
+- playlist creation should happen in a dialog instead of an always-open in-page editor
+- saved order should read like a durable ordered table, not like a temporary queue shadow
+- library handoff should feel like an adjacent acquisition surface rather than a separate workflow
+- saved-order selection should support keyboard removal and precise playback starting points without overwhelming the layout with heavy editing chrome
+
 ### Insights
 
 Track insights from timbre should appear in secondary detail surfaces such as a side panel or detail drawer. Insight availability should never interrupt the core listening flow.
@@ -122,14 +133,14 @@ Track insights from timbre should appear in secondary detail surfaces such as a 
 - The analysis subsystem is planned to be fused from the local `~/dev/timbre` project behind an internal service boundary after v1 ships
 - Local library onboarding should use a desktop directory picker and recursive MP3 discovery instead of asking the user to paste filesystem paths
 - Local library onboarding should expand to recursive MP3 + FLAC discovery without changing the visible library workflow
-- Public `v1.0.0` used a Web Audio path for faster delivery, while `v1.2.0` moves playback authority and local desktop output into Rust
+- Public `v1.0.0` used a Web Audio path for faster delivery, while `v1.3.0` now reflects the Rust-owned playback authority and local desktop output model
 - Further native-output refinement can deepen the Rust-local stack around `symphonia` decode and `cpal` device output while preserving the existing shell-facing playback contract
 - Playback-critical source resolution and library persistence flows are owned by Rust to reduce frontend complexity
 - Format support should remain additive: new local codecs should fit the same normalization, query, and playback shell contracts instead of creating format-specific app modes
 - The app remains open source even when used with private Atlas-backed media libraries
 - The desktop client should use a persistent routed shell so home, tracks, queue, and settings share the same navigation and playback frame
 - The playback bar and queue route should both read from the same active-track state so transport and next-up behavior cannot drift apart
-- The `v1.2.0` playback contract moves command authority to Rust through a narrow Tauri contract and pushes playback snapshots back to the shell through named events
+- The `v1.3.0` playback contract moves command authority to Rust through a narrow Tauri contract and pushes playback snapshots back to the shell through named events
 - The shell should consume backend playback snapshots through `playback://state-changed` rather than inventing separate client-only transport truth
 - The shell should remain a renderer/controller rather than reclaiming playback state locally
 - The tracks route should feel like one uninterrupted library surface, even if the backend continues to use paged query primitives under the hood
