@@ -340,9 +340,17 @@ export function useAppShell() {
       });
   };
 
-  const handlePlaylistCreate = async (name: string, artworkPath?: string | null) => {
+  const handlePlaylistCreate = async (
+    name: string,
+    description?: string | null,
+    artworkPath?: string | null,
+  ) => {
     try {
-      const playlist = await createPlaylist(name, null, artworkPath);
+      const playlist = await createPlaylist(
+        name,
+        description?.trim() ? description.trim() : null,
+        artworkPath,
+      );
       refreshPlaylists(playlist.id);
       return playlist.id;
     } catch (error: unknown) {
@@ -362,7 +370,12 @@ export function useAppShell() {
     description?: string | null,
     artworkPath?: string | null,
   ) => {
-    void updatePlaylist(playlistId, name, description ?? null, artworkPath ?? null)
+    void updatePlaylist(
+      playlistId,
+      name,
+      description?.trim() ? description.trim() : null,
+      artworkPath ?? null,
+    )
       .then((playlist) => {
         refreshPlaylists(playlist.id);
       })

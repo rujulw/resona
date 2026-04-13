@@ -607,6 +607,34 @@ describe("app shell smoke checks", () => {
     expect(screen.getByRole("dialog", { name: /create playlist/i })).toBeTruthy();
   });
 
+  it("edits playlist metadata from the playlist detail header", async () => {
+    window.history.replaceState({}, "", "/playlists/playlist-1");
+    const { default: App } = await import("./App");
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Desk Set" });
+
+    fireEvent.click(screen.getByRole("button", { name: /edit playlist/i }));
+    const editDialog = screen.getByRole("dialog", { name: /edit playlist/i });
+    fireEvent.change(within(editDialog).getByLabelText("playlist name"), {
+      target: { value: "Night Drive" },
+    });
+    fireEvent.change(within(editDialog).getByLabelText("description"), {
+      target: { value: "after midnight" },
+    });
+    fireEvent.click(within(editDialog).getByRole("button", { name: /save changes/i }));
+
+    await waitFor(() => {
+      expect(updatePlaylistMock).toHaveBeenCalledWith(
+        "playlist-1",
+        "Night Drive",
+        "after midnight",
+        null,
+      );
+    });
+  });
+
   it("creates a playlist from the empty playlists state without using a native prompt", async () => {
     window.history.replaceState({}, "", "/playlists");
     listPlaylistsMock.mockReset();
