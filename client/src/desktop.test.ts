@@ -268,6 +268,28 @@ describe("desktop bootstrap bridge", () => {
     expect(updated.artworkKey).toBe("playlist-cover.png");
   });
 
+  it("normalizes empty playlist edit metadata in the command bridge payload", async () => {
+    invokeMock.mockResolvedValueOnce({
+      id: "playlist-1",
+      name: "Night Drive",
+      description: null,
+      artworkKey: null,
+      entryCount: 0,
+      createdAt: "1700000100",
+      updatedAt: "1700000200",
+    });
+
+    const { updatePlaylist } = await import("./desktop");
+    await updatePlaylist("playlist-1", "Night Drive", "   ", "   ");
+
+    expect(invokeMock).toHaveBeenCalledWith("update_playlist", {
+      playlistId: "playlist-1",
+      name: "Night Drive",
+      description: null,
+      artworkPath: null,
+    });
+  });
+
   it("does not hide playlist creation failures in the desktop runtime", async () => {
     invokeMock.mockRejectedValueOnce(new Error("no such table: playlists"));
     (globalThis as typeof globalThis & { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ =

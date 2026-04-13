@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowDown, ArrowUp, ImagePlus, Play, Plus, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, ImagePlus, Pencil, Play, Plus, Trash2 } from "lucide-react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 
 import { pickPlaylistArtwork, type TrackListItem } from "../desktop";
@@ -17,19 +17,28 @@ export function PlaylistsPage({
   onPlaylistEntryMove,
   onPlaylistEntryRemove,
   onPlaylistPlaybackHandoff,
-  onPlaylistRename: _onPlaylistRename,
+  onPlaylistRename,
   onPlaylistSelect,
   onTrackAdd,
 }: {
   playlistsState: PlaylistsState;
   tracksState: TracksState;
-  onCreatePlaylist: (name: string, artworkPath?: string | null) => Promise<string | null>;
+  onCreatePlaylist: (
+    name: string,
+    description?: string | null,
+    artworkPath?: string | null,
+  ) => Promise<string | null>;
   onPlaylistArtworkChange: (playlistId: string, artworkPath: string) => void;
   onPlaylistDelete: (playlistId: string) => void;
   onPlaylistEntryMove: (playlistId: string, entryId: string, targetPosition: number) => void;
   onPlaylistEntryRemove: (playlistId: string, entryId: string) => void;
   onPlaylistPlaybackHandoff: (playlistId: string, startEntryId?: string) => void;
-  onPlaylistRename: (playlistId: string, name: string, description?: string | null) => void;
+  onPlaylistRename: (
+    playlistId: string,
+    name: string,
+    description?: string | null,
+    artworkPath?: string | null,
+  ) => void;
   onPlaylistSelect: (playlistId: string) => void;
   onTrackAdd: (playlistId: string, track: TrackListItem) => void;
 }) {
@@ -38,9 +47,14 @@ export function PlaylistsPage({
   const activePlaylistId = playlistId ?? playlistsState.activePlaylistId;
   const activePlaylist = playlistsState.activePlaylist;
   const [createDraft, setCreateDraft] = useState("");
+  const [createDescriptionDraft, setCreateDescriptionDraft] = useState("");
   const [createArtworkPath, setCreateArtworkPath] = useState<string | null>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isCreatingPlaylist, setIsCreatingPlaylist] = useState(false);
+  const [editDraft, setEditDraft] = useState("");
+  const [editDescriptionDraft, setEditDescriptionDraft] = useState("");
+  const [editArtworkPath, setEditArtworkPath] = useState<string | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [librarySearchDraft, setLibrarySearchDraft] = useState("");
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
 
@@ -77,9 +91,28 @@ export function PlaylistsPage({
 
   const closeCreateDialog = () => {
     setCreateDraft("");
+    setCreateDescriptionDraft("");
     setCreateArtworkPath(null);
     setIsCreateDialogOpen(false);
     setIsCreatingPlaylist(false);
+  };
+
+  const openEditDialog = () => {
+    if (!activePlaylist) {
+      return;
+    }
+
+    setEditDraft(activePlaylist.playlist.name);
+    setEditDescriptionDraft(activePlaylist.playlist.description ?? "");
+    setEditArtworkPath(activePlaylist.playlist.artworkKey ?? null);
+    setIsEditDialogOpen(true);
+  };
+
+  const closeEditDialog = () => {
+    setEditDraft("");
+    setEditDescriptionDraft("");
+    setEditArtworkPath(null);
+    setIsEditDialogOpen(false);
   };
 
   const handleCreateSubmit = () => {
@@ -89,13 +122,29 @@ export function PlaylistsPage({
     }
 
     setIsCreatingPlaylist(true);
-    void onCreatePlaylist(nextName, createArtworkPath).then((createdPlaylistId) => {
-      setIsCreatingPlaylist(false);
-      if (createdPlaylistId) {
-        closeCreateDialog();
-        navigate(`/playlists/${createdPlaylistId}`);
-      }
-    });
+    void onCreatePlaylist(nextName, createDescriptionDraft, createArtworkPath).then(
+      (createdPlaylistId) => {
+        setIsCreatingPlaylist(false);
+        if (createdPlaylistId) {
+          closeCreateDialog();
+          navigate(`/playlists/${createdPlaylistId}`);
+        }
+      },
+    );
+  };
+
+  const handleEditSubmit = () => {
+    if (!activePlaylist || !editDraft.trim()) {
+      return;
+    }
+
+    onPlaylistRename(
+      activePlaylist.playlist.id,
+      editDraft,
+      editDescriptionDraft,
+      editArtworkPath,
+    );
+    closeEditDialog();
   };
 
   if (!playlistId && playlistsState.items[0]) {
@@ -127,10 +176,14 @@ export function PlaylistsPage({
         <CreatePlaylistDialog
           isOpen={isCreateDialogOpen}
           isSubmitting={isCreatingPlaylist}
+          dialogTitle="Create playlist"
+          submitLabel="Create playlist"
           nameDraft={createDraft}
+          descriptionDraft={createDescriptionDraft}
           selectedArtworkPath={createArtworkPath}
           onClose={closeCreateDialog}
           onNameDraftChange={setCreateDraft}
+          onDescriptionDraftChange={setCreateDescriptionDraft}
           onSelectedArtworkPathChange={setCreateArtworkPath}
           onSubmit={handleCreateSubmit}
         />
@@ -239,6 +292,14 @@ export function PlaylistsPage({
                 <Play className="h-4 w-4" strokeWidth={2} />
               </button>
             ) : null}
+            <button
+              type="button"
+              onClick={openEditDialog}
+              aria-label="Edit playlist"
+              className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/8 bg-white/[0.03] text-[#d4d4d4] transition-colors hover:border-white/12 hover:bg-white/[0.05] hover:text-[#f2f2f2]"
+            >
+              <Pencil className="h-4 w-4" strokeWidth={2} />
+            </button>
             <button
               type="button"
               onClick={() => {
@@ -484,12 +545,30 @@ export function PlaylistsPage({
       <CreatePlaylistDialog
         isOpen={isCreateDialogOpen}
         isSubmitting={isCreatingPlaylist}
+        dialogTitle="Create playlist"
+        submitLabel="Create playlist"
         nameDraft={createDraft}
+        descriptionDraft={createDescriptionDraft}
         selectedArtworkPath={createArtworkPath}
         onClose={closeCreateDialog}
         onNameDraftChange={setCreateDraft}
+        onDescriptionDraftChange={setCreateDescriptionDraft}
         onSelectedArtworkPathChange={setCreateArtworkPath}
         onSubmit={handleCreateSubmit}
+      />
+      <CreatePlaylistDialog
+        isOpen={isEditDialogOpen}
+        dialogTitle="Edit playlist"
+        dialogDescription="Update the playlist name, notes, and cover without touching its saved order."
+        submitLabel="Save changes"
+        nameDraft={editDraft}
+        descriptionDraft={editDescriptionDraft}
+        selectedArtworkPath={editArtworkPath}
+        onClose={closeEditDialog}
+        onNameDraftChange={setEditDraft}
+        onDescriptionDraftChange={setEditDescriptionDraft}
+        onSelectedArtworkPathChange={setEditArtworkPath}
+        onSubmit={handleEditSubmit}
       />
     </>
   );

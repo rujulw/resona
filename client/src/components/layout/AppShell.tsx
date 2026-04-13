@@ -54,13 +54,22 @@ export function AppShell({
   libraryPath: string;
   scanState: ScanState;
   onPickLibraryDirectory: () => void;
-  onPlaylistCreate: (name: string, artworkPath?: string | null) => Promise<string | null>;
+  onPlaylistCreate: (
+    name: string,
+    description?: string | null,
+    artworkPath?: string | null,
+  ) => Promise<string | null>;
   onPlaylistArtworkChange: (playlistId: string, artworkPath: string) => void;
   onPlaylistDelete: (playlistId: string) => void;
   onPlaylistEntryMove: (playlistId: string, entryId: string, targetPosition: number) => void;
   onPlaylistEntryRemove: (playlistId: string, entryId: string) => void;
   onPlaylistPlaybackHandoff: (playlistId: string, startEntryId?: string) => void;
-  onPlaylistRename: (playlistId: string, name: string, description?: string | null) => void;
+  onPlaylistRename: (
+    playlistId: string,
+    name: string,
+    description?: string | null,
+    artworkPath?: string | null,
+  ) => void;
   onPlaylistSelect: (playlistId: string) => void;
   onPlaylistTrackAdd: (playlistId: string, track: TrackListItem) => void;
   onPlaybackAction: (action: "previous" | "toggle" | "next") => void;

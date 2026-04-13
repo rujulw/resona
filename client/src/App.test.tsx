@@ -12,6 +12,7 @@ const handoffPlaylistToQueueMock = vi.fn();
 const listPlaylistsMock = vi.fn();
 const loadPlaybackTrackMock = vi.fn();
 const movePlaylistEntryMock = vi.fn();
+const replacePlaylistEntriesMock = vi.fn();
 const removePlaylistEntryMock = vi.fn();
 const queryLibraryMock = vi.fn();
 const pickLibraryDirectoryMock = vi.fn();
@@ -36,6 +37,7 @@ vi.mock("./desktop", () => ({
   listPlaylists: () => listPlaylistsMock(),
   loadPlaybackTrack: (...args: unknown[]) => loadPlaybackTrackMock(...args),
   movePlaylistEntry: (...args: unknown[]) => movePlaylistEntryMock(...args),
+  replacePlaylistEntries: (...args: unknown[]) => replacePlaylistEntriesMock(...args),
   removePlaylistEntry: (...args: unknown[]) => removePlaylistEntryMock(...args),
   pickLibraryDirectory: (...args: unknown[]) => pickLibraryDirectoryMock(...args),
   queryLibrary: (...args: unknown[]) => queryLibraryMock(...args),
@@ -141,6 +143,7 @@ describe("app shell smoke checks", () => {
     listPlaylistsMock.mockReset();
     loadPlaybackTrackMock.mockReset();
     movePlaylistEntryMock.mockReset();
+    replacePlaylistEntriesMock.mockReset();
     removePlaylistEntryMock.mockReset();
     queryLibraryMock.mockReset();
     pickLibraryDirectoryMock.mockReset();
@@ -439,6 +442,35 @@ describe("app shell smoke checks", () => {
         },
       ],
     }));
+    replacePlaylistEntriesMock.mockImplementation(
+      async (
+        playlistId: string,
+        entries: Array<{ entryId?: string; trackId: string; position: number }>,
+      ) => ({
+        playlist: {
+          id: playlistId,
+          name: "Desk Set",
+          description: "focused hours",
+          entryCount: entries.length,
+          createdAt: "1700000100",
+          updatedAt: "1700000400",
+        },
+        entries: entries.map((entry, index) => ({
+          entryId: entry.entryId ?? `playlist-entry-${index + 1}`,
+          playlistId,
+          trackId: entry.trackId,
+          position: index,
+          addedAt: "1700000100",
+          updatedAt: "1700000400",
+          title: entry.trackId === "track-2" ? "Bravo" : "Alpha",
+          artist: entry.trackId === "track-2" ? "South" : "North",
+          album: entry.trackId === "track-2" ? "Horizons" : "Signals",
+          artworkKey: entry.trackId === "track-2" ? "bravo-cover.png" : "alpha-cover.png",
+          extension: "mp3",
+          durationSeconds: entry.trackId === "track-2" ? 205 : 182,
+        })),
+      }),
+    );
     removePlaylistEntryMock.mockImplementation(async (playlistId: string, entryId: string) => ({
       playlist: {
         id: playlistId,
@@ -563,7 +595,11 @@ describe("app shell smoke checks", () => {
 
     fireEvent.click(screen.getByLabelText(/move alpha down/i));
     await waitFor(() => {
-      expect(movePlaylistEntryMock).toHaveBeenCalled();
+      expect(movePlaylistEntryMock).toHaveBeenCalledWith(
+        "playlist-1",
+        "playlist-entry-1",
+        1,
+      );
     });
 
     const alphaRow = screen.getByRole("button", { name: /select alpha/i });
@@ -605,6 +641,159 @@ describe("app shell smoke checks", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /create playlist/i }));
     expect(screen.getByRole("dialog", { name: /create playlist/i })).toBeTruthy();
+  });
+
+  it("edits playlist metadata from the playlist detail header", async () => {
+    window.history.replaceState({}, "", "/playlists/playlist-1");
+    const { default: App } = await import("./App");
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Desk Set" });
+
+    fireEvent.click(screen.getByRole("button", { name: /edit playlist/i }));
+    const editDialog = screen.getByRole("dialog", { name: /edit playlist/i });
+    fireEvent.change(within(editDialog).getByLabelText("playlist name"), {
+      target: { value: "Night Drive" },
+    });
+    fireEvent.change(within(editDialog).getByLabelText("description"), {
+      target: { value: "after midnight" },
+    });
+    fireEvent.click(within(editDialog).getByRole("button", { name: /save changes/i }));
+
+    await waitFor(() => {
+      expect(updatePlaylistMock).toHaveBeenCalledWith(
+        "playlist-1",
+        "Night Drive",
+        "after midnight",
+        null,
+      );
+    });
+  });
+
+  it("persists edited playlist metadata after the dialog saves", async () => {
+    window.history.replaceState({}, "", "/playlists/playlist-1");
+    listPlaylistsMock.mockReset();
+    getPlaylistMock.mockReset();
+    updatePlaylistMock.mockReset();
+
+    let currentPlaylist: {
+      id: string;
+      name: string;
+      description: string | null;
+      artworkKey: string | null;
+      entryCount: number;
+      createdAt: string;
+      updatedAt: string;
+    } = {
+      id: "playlist-1",
+      name: "Desk Set",
+      description: "focused hours",
+      artworkKey: "desk-set.png",
+      entryCount: 1,
+      createdAt: "1700000100",
+      updatedAt: "1700000100",
+    };
+
+    listPlaylistsMock.mockImplementation(async () => [
+      {
+        id: currentPlaylist.id,
+        name: currentPlaylist.name,
+        description: currentPlaylist.description,
+        artworkKey: currentPlaylist.artworkKey,
+        entryCount: currentPlaylist.entryCount,
+        createdAt: currentPlaylist.createdAt,
+        updatedAt: currentPlaylist.updatedAt,
+      },
+    ]);
+    getPlaylistMock.mockImplementation(async () => ({
+      playlist: {
+        id: currentPlaylist.id,
+        name: currentPlaylist.name,
+        description: currentPlaylist.description,
+        artworkKey: currentPlaylist.artworkKey,
+        entryCount: currentPlaylist.entryCount,
+        createdAt: currentPlaylist.createdAt,
+        updatedAt: currentPlaylist.updatedAt,
+      },
+      entries: [
+        {
+          entryId: "playlist-entry-1",
+          playlistId: currentPlaylist.id,
+          trackId: "track-1",
+          position: 0,
+          addedAt: "1700000100",
+          updatedAt: currentPlaylist.updatedAt,
+          title: "Alpha",
+          artist: "North",
+          album: "Signals",
+          artworkKey: "alpha-cover.png",
+          extension: "mp3",
+          durationSeconds: 182,
+        },
+      ],
+    }));
+    updatePlaylistMock.mockImplementation(
+      async (
+        playlistId: string,
+        name: string,
+        description?: string | null,
+        artworkPath?: string | null,
+      ) => {
+        currentPlaylist = {
+          ...currentPlaylist,
+          id: playlistId,
+          name,
+          description: description ?? null,
+          artworkKey: artworkPath ? "night-drive.png" : currentPlaylist.artworkKey,
+          updatedAt: "1700000200",
+        };
+
+        return {
+          id: currentPlaylist.id,
+          name: currentPlaylist.name,
+          description: currentPlaylist.description,
+          artworkKey: currentPlaylist.artworkKey,
+          entryCount: currentPlaylist.entryCount,
+          createdAt: currentPlaylist.createdAt,
+          updatedAt: currentPlaylist.updatedAt,
+        };
+      },
+    );
+
+    const { default: App } = await import("./App");
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Desk Set" });
+
+    fireEvent.click(screen.getByRole("button", { name: /edit playlist/i }));
+    const editDialog = screen.getByRole("dialog", { name: /edit playlist/i });
+    expect(
+      (within(editDialog).getByLabelText("playlist name") as HTMLInputElement).value,
+    ).toBe("Desk Set");
+    expect(
+      (within(editDialog).getByLabelText("description") as HTMLTextAreaElement).value,
+    ).toBe("focused hours");
+
+    fireEvent.change(within(editDialog).getByLabelText("playlist name"), {
+      target: { value: "Night Drive" },
+    });
+    fireEvent.change(within(editDialog).getByLabelText("description"), {
+      target: { value: "after midnight" },
+    });
+    fireEvent.click(within(editDialog).getByRole("button", { name: /save changes/i }));
+
+    await screen.findByRole("heading", { name: "Night Drive" });
+    expect(screen.getByText("after midnight")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: /edit playlist/i }));
+    const reopenedDialog = screen.getByRole("dialog", { name: /edit playlist/i });
+    expect(
+      (within(reopenedDialog).getByLabelText("playlist name") as HTMLInputElement).value,
+    ).toBe("Night Drive");
+    expect(
+      (within(reopenedDialog).getByLabelText("description") as HTMLTextAreaElement).value,
+    ).toBe("after midnight");
   });
 
   it("creates a playlist from the empty playlists state without using a native prompt", async () => {
