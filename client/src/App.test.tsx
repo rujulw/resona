@@ -677,7 +677,15 @@ describe("app shell smoke checks", () => {
     getPlaylistMock.mockReset();
     updatePlaylistMock.mockReset();
 
-    let currentPlaylist = {
+    let currentPlaylist: {
+      id: string;
+      name: string;
+      description: string | null;
+      artworkKey: string | null;
+      entryCount: number;
+      createdAt: string;
+      updatedAt: string;
+    } = {
       id: "playlist-1",
       name: "Desk Set",
       description: "focused hours",
