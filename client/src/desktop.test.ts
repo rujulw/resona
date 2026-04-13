@@ -268,6 +268,28 @@ describe("desktop bootstrap bridge", () => {
     expect(updated.artworkKey).toBe("playlist-cover.png");
   });
 
+  it("normalizes empty playlist edit metadata in the command bridge payload", async () => {
+    invokeMock.mockResolvedValueOnce({
+      id: "playlist-1",
+      name: "Night Drive",
+      description: null,
+      artworkKey: null,
+      entryCount: 0,
+      createdAt: "1700000100",
+      updatedAt: "1700000200",
+    });
+
+    const { updatePlaylist } = await import("./desktop");
+    await updatePlaylist("playlist-1", "Night Drive", "   ", "   ");
+
+    expect(invokeMock).toHaveBeenCalledWith("update_playlist", {
+      playlistId: "playlist-1",
+      name: "Night Drive",
+      description: null,
+      artworkPath: null,
+    });
+  });
+
   it("does not hide playlist creation failures in the desktop runtime", async () => {
     invokeMock.mockRejectedValueOnce(new Error("no such table: playlists"));
     (globalThis as typeof globalThis & { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ =
@@ -298,6 +320,34 @@ describe("desktop bootstrap bridge", () => {
       playlistId: "playlist-1",
       entryId: "entry-2",
       targetPosition: 0,
+    });
+  });
+
+  it("replaces playlist entries through the command bridge", async () => {
+    invokeMock.mockResolvedValueOnce({
+      playlist: {
+        id: "playlist-1",
+        name: "Desk Set",
+        description: null,
+        entryCount: 2,
+        createdAt: "1700000100",
+        updatedAt: "1700000200",
+      },
+      entries: [],
+    });
+
+    const { replacePlaylistEntries } = await import("./desktop");
+    await replacePlaylistEntries("playlist-1", [
+      { entryId: "entry-2", trackId: "track-2", position: 0 },
+      { entryId: "entry-1", trackId: "track-1", position: 1 },
+    ]);
+
+    expect(invokeMock).toHaveBeenCalledWith("replace_playlist_entries", {
+      playlistId: "playlist-1",
+      entries: [
+        { entryId: "entry-2", trackId: "track-2", position: 0 },
+        { entryId: "entry-1", trackId: "track-1", position: 1 },
+      ],
     });
   });
 
