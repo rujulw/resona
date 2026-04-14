@@ -128,6 +128,14 @@ The backend is intentionally split so each layer has a clear responsibility boun
 - The app-shell hook owns derived queue state, bridge subscriptions, and audio-element control flow, but no longer owns playback truth
 - The tracks page owns a full-width search field and a scrollable table, while the hook stitches backend query pages into one continuous client view
 
+Current `v1.4.0` boundary definition:
+
+- `App.tsx` is the route-composition layer that converts shell-hook output into grouped `chrome`, `routes`, `actions`, and playback contracts
+- `AppShell` owns the persistent frame and router wiring, but consumes route-grouped state rather than a flat bag of shell props
+- route-level state is grouped by screen (`home`, `tracks`, `playlists`, `queue`, `settings`) so later extractions can move one route at a time
+- playback chrome actions stay separate from route actions because the playback bar is persistent shell UI rather than page UI
+- route-local transient state such as playlist edit drafts, reorder previews, and in-page filters stays inside page components unless another shell surface needs it
+
 ### Playback Ownership Shift
 
 - The `playback` Rust module is now the source of truth for loaded-track identity, play/pause state, timing updates, completion state, playback errors, and output ownership

@@ -1,13 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 
-import type { BootstrapPayload, TrackListItem } from "../../desktop";
 import type {
-  PlaylistsState,
-  QueueState,
-  ScanState,
-  ShellState,
-  TracksQueryState,
-  TracksState,
+  AppShellViewModel,
 } from "../../types/app";
 import { PlaybackBar } from "./PlaybackBar";
 import { Sidebar } from "./Sidebar";
@@ -17,82 +11,14 @@ import { QueuePage } from "../../pages/QueuePage";
 import { SettingsPage } from "../../pages/SettingsPage";
 import { TracksPage } from "../../pages/TracksPage";
 
-export function AppShell({
-  payload,
-  playlistsState,
-  queueState,
-  shellState,
-  tracksState,
-  tracksQueryState,
-  libraryPath,
-  scanState,
-  onPickLibraryDirectory,
-  onPlaylistCreate,
-  onPlaylistArtworkChange,
-  onPlaylistDelete,
-  onPlaylistEntryMove,
-  onPlaylistEntriesReplace,
-  onPlaylistEntryRemove,
-  onPlaylistPlaybackHandoff,
-  onPlaylistRename,
-  onPlaylistSelect,
-  onPlaylistTrackAdd,
-  onPlaybackAction,
-  onPlaybackSeek,
-  onTrackSelect,
-  onScan,
-  onTracksSearchDraftChange,
-  onTracksSearchSubmit,
-  onTracksTitleHeaderSort,
-  onTracksAlbumHeaderSort,
-}: {
-  payload: BootstrapPayload;
-  playlistsState: PlaylistsState;
-  queueState: QueueState;
-  shellState: ShellState;
-  tracksState: TracksState;
-  tracksQueryState: TracksQueryState;
-  libraryPath: string;
-  scanState: ScanState;
-  onPickLibraryDirectory: () => void;
-  onPlaylistCreate: (
-    name: string,
-    description?: string | null,
-    artworkPath?: string | null,
-  ) => Promise<string | null>;
-  onPlaylistArtworkChange: (playlistId: string, artworkPath: string) => void;
-  onPlaylistDelete: (playlistId: string) => void;
-  onPlaylistEntryMove: (playlistId: string, entryId: string, targetPosition: number) => void;
-  onPlaylistEntriesReplace: (
-    playlistId: string,
-    entries: Array<{ entryId?: string; trackId: string; position: number }>,
-  ) => void;
-  onPlaylistEntryRemove: (playlistId: string, entryId: string) => void;
-  onPlaylistPlaybackHandoff: (playlistId: string, startEntryId?: string) => void;
-  onPlaylistRename: (
-    playlistId: string,
-    name: string,
-    description?: string | null,
-    artworkPath?: string | null,
-  ) => void;
-  onPlaylistSelect: (playlistId: string) => void;
-  onPlaylistTrackAdd: (playlistId: string, track: TrackListItem) => void;
-  onPlaybackAction: (action: "previous" | "toggle" | "next") => void;
-  onPlaybackSeek: (positionSeconds: number) => void;
-  onTrackSelect: (track: TrackListItem) => void;
-  onScan: () => void;
-  onTracksSearchDraftChange: (value: string) => void;
-  onTracksSearchSubmit: () => void;
-  onTracksTitleHeaderSort: () => void;
-  onTracksAlbumHeaderSort: () => void;
-}) {
+export function AppShell({ chrome, routes, actions, playback }: AppShellViewModel) {
   return (
     <BrowserRouter>
       <main className="grid h-screen grid-cols-[248px_minmax(0,1fr)] grid-rows-[minmax(0,1fr)_auto] overflow-hidden bg-[#121212] text-[#e5e5e5]">
         <Sidebar
-          appName={payload.appName}
-          playlists={playlistsState.items}
-          runtimeLabel={`${payload.runtime.desktopShell} desktop shell`}
+          appName={chrome.appName}
+          playlists={chrome.playlists}
+          runtimeLabel={chrome.runtimeLabel}
         />
 
         <section className="min-h-0 min-w-0 overflow-hidden bg-[#121212]">
@@ -102,9 +28,9 @@ export function AppShell({
               path="/home"
               element={
                 <HomePage
-                  libraryRows={shellState.libraryRows}
-                  trackCount={tracksState.total}
-                  appVersion={payload.appVersion}
+                  libraryRows={routes.home.libraryRows}
+                  trackCount={routes.home.trackCount}
+                  appVersion={routes.home.appVersion}
                 />
               }
             />
@@ -112,15 +38,15 @@ export function AppShell({
               path="/tracks"
               element={
                 <TracksPage
-                  libraryPath={libraryPath}
-                  scanState={scanState}
-                  tracksQueryState={tracksQueryState}
-                  tracksState={tracksState}
-                  onTrackSelect={onTrackSelect}
-                  onTracksSearchDraftChange={onTracksSearchDraftChange}
-                  onTracksSearchSubmit={onTracksSearchSubmit}
-                  onTracksTitleHeaderSort={onTracksTitleHeaderSort}
-                  onTracksAlbumHeaderSort={onTracksAlbumHeaderSort}
+                  libraryPath={routes.tracks.libraryPath}
+                  scanState={routes.tracks.scanState}
+                  tracksQueryState={routes.tracks.tracksQueryState}
+                  tracksState={routes.tracks.tracksState}
+                  onTrackSelect={actions.tracks.onTrackSelect}
+                  onTracksSearchDraftChange={actions.tracks.onTracksSearchDraftChange}
+                  onTracksSearchSubmit={actions.tracks.onTracksSearchSubmit}
+                  onTracksTitleHeaderSort={actions.tracks.onTracksTitleHeaderSort}
+                  onTracksAlbumHeaderSort={actions.tracks.onTracksAlbumHeaderSort}
                 />
               }
             />
@@ -128,18 +54,18 @@ export function AppShell({
               path="/playlists"
               element={
                 <PlaylistsPage
-                  playlistsState={playlistsState}
-                  tracksState={tracksState}
-                  onCreatePlaylist={onPlaylistCreate}
-                  onPlaylistArtworkChange={onPlaylistArtworkChange}
-                  onPlaylistDelete={onPlaylistDelete}
-                  onPlaylistEntryMove={onPlaylistEntryMove}
-                  onPlaylistEntriesReplace={onPlaylistEntriesReplace}
-                  onPlaylistEntryRemove={onPlaylistEntryRemove}
-                  onPlaylistPlaybackHandoff={onPlaylistPlaybackHandoff}
-                  onPlaylistRename={onPlaylistRename}
-                  onPlaylistSelect={onPlaylistSelect}
-                  onTrackAdd={onPlaylistTrackAdd}
+                  playlistsState={routes.playlists.playlistsState}
+                  tracksState={routes.playlists.tracksState}
+                  onCreatePlaylist={actions.playlists.onCreatePlaylist}
+                  onPlaylistArtworkChange={actions.playlists.onPlaylistArtworkChange}
+                  onPlaylistDelete={actions.playlists.onPlaylistDelete}
+                  onPlaylistEntryMove={actions.playlists.onPlaylistEntryMove}
+                  onPlaylistEntriesReplace={actions.playlists.onPlaylistEntriesReplace}
+                  onPlaylistEntryRemove={actions.playlists.onPlaylistEntryRemove}
+                  onPlaylistPlaybackHandoff={actions.playlists.onPlaylistPlaybackHandoff}
+                  onPlaylistRename={actions.playlists.onPlaylistRename}
+                  onPlaylistSelect={actions.playlists.onPlaylistSelect}
+                  onTrackAdd={actions.playlists.onTrackAdd}
                 />
               }
             />
@@ -147,33 +73,33 @@ export function AppShell({
               path="/playlists/:playlistId"
               element={
                 <PlaylistsPage
-                  playlistsState={playlistsState}
-                  tracksState={tracksState}
-                  onCreatePlaylist={onPlaylistCreate}
-                  onPlaylistArtworkChange={onPlaylistArtworkChange}
-                  onPlaylistDelete={onPlaylistDelete}
-                  onPlaylistEntryMove={onPlaylistEntryMove}
-                  onPlaylistEntriesReplace={onPlaylistEntriesReplace}
-                  onPlaylistEntryRemove={onPlaylistEntryRemove}
-                  onPlaylistPlaybackHandoff={onPlaylistPlaybackHandoff}
-                  onPlaylistRename={onPlaylistRename}
-                  onPlaylistSelect={onPlaylistSelect}
-                  onTrackAdd={onPlaylistTrackAdd}
+                  playlistsState={routes.playlists.playlistsState}
+                  tracksState={routes.playlists.tracksState}
+                  onCreatePlaylist={actions.playlists.onCreatePlaylist}
+                  onPlaylistArtworkChange={actions.playlists.onPlaylistArtworkChange}
+                  onPlaylistDelete={actions.playlists.onPlaylistDelete}
+                  onPlaylistEntryMove={actions.playlists.onPlaylistEntryMove}
+                  onPlaylistEntriesReplace={actions.playlists.onPlaylistEntriesReplace}
+                  onPlaylistEntryRemove={actions.playlists.onPlaylistEntryRemove}
+                  onPlaylistPlaybackHandoff={actions.playlists.onPlaylistPlaybackHandoff}
+                  onPlaylistRename={actions.playlists.onPlaylistRename}
+                  onPlaylistSelect={actions.playlists.onPlaylistSelect}
+                  onTrackAdd={actions.playlists.onTrackAdd}
                 />
               }
             />
-            <Route path="/queue" element={<QueuePage queueState={queueState} />} />
+            <Route path="/queue" element={<QueuePage queueState={routes.queue.queueState} />} />
             <Route
               path="/settings"
               element={
                 <SettingsPage
-                  libraryRows={shellState.libraryRows}
-                  libraryPath={libraryPath}
-                  platformLabel={payload.platform}
-                  appVersion={payload.appVersion}
-                  scanState={scanState}
-                  onPickLibraryDirectory={onPickLibraryDirectory}
-                  onScan={onScan}
+                  libraryRows={routes.settings.libraryRows}
+                  libraryPath={routes.settings.libraryPath}
+                  platformLabel={routes.settings.platformLabel}
+                  appVersion={routes.settings.appVersion}
+                  scanState={routes.settings.scanState}
+                  onPickLibraryDirectory={actions.settings.onPickLibraryDirectory}
+                  onScan={actions.settings.onScan}
                 />
               }
             />
@@ -182,10 +108,10 @@ export function AppShell({
         </section>
 
         <PlaybackBar
-          activeTrack={queueState.activeTrack}
-          playback={shellState.playback}
-          onPlaybackAction={onPlaybackAction}
-          onSeek={onPlaybackSeek}
+          activeTrack={chrome.queueState.activeTrack}
+          playback={chrome.playback}
+          onPlaybackAction={playback.onPlaybackAction}
+          onSeek={playback.onPlaybackSeek}
         />
       </main>
     </BrowserRouter>
