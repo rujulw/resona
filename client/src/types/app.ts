@@ -84,3 +84,105 @@ export type PlaylistsState =
       playbackQueue: PlaybackQueueSnapshot | null;
       message: string;
     };
+
+export type HomeRouteState = {
+  libraryRows: LibraryRow[];
+  trackCount: number;
+  appVersion: string;
+};
+
+export type TracksRouteState = {
+  libraryPath: string;
+  scanState: ScanState;
+  tracksQueryState: TracksQueryState;
+  tracksState: TracksState;
+};
+
+export type PlaylistsRouteState = {
+  playlistsState: PlaylistsState;
+  tracksState: TracksState;
+};
+
+export type QueueRouteState = {
+  queueState: QueueState;
+};
+
+export type SettingsRouteState = {
+  libraryRows: LibraryRow[];
+  libraryPath: string;
+  platformLabel: string;
+  appVersion: string;
+  scanState: ScanState;
+};
+
+export type AppShellChromeState = {
+  appName: string;
+  runtimeLabel: string;
+  playlists: PlaylistSummary[];
+  queueState: QueueState;
+  playback: PlaybackShellState;
+};
+
+export type AppShellRoutesState = {
+  home: HomeRouteState;
+  tracks: TracksRouteState;
+  playlists: PlaylistsRouteState;
+  queue: QueueRouteState;
+  settings: SettingsRouteState;
+};
+
+export type PlaylistRouteActions = {
+  onCreatePlaylist: (
+    name: string,
+    description?: string | null,
+    artworkPath?: string | null,
+  ) => Promise<string | null>;
+  onPlaylistArtworkChange: (playlistId: string, artworkPath: string) => void;
+  onPlaylistDelete: (playlistId: string) => void;
+  onPlaylistEntryMove: (playlistId: string, entryId: string, targetPosition: number) => void;
+  onPlaylistEntriesReplace: (
+    playlistId: string,
+    entries: Array<{ entryId?: string; trackId: string; position: number }>,
+  ) => void;
+  onPlaylistEntryRemove: (playlistId: string, entryId: string) => void;
+  onPlaylistPlaybackHandoff: (playlistId: string, startEntryId?: string) => void;
+  onPlaylistRename: (
+    playlistId: string,
+    name: string,
+    description?: string | null,
+    artworkPath?: string | null,
+  ) => void;
+  onPlaylistSelect: (playlistId: string) => void;
+  onTrackAdd: (playlistId: string, track: TrackListItem) => void;
+};
+
+export type TracksRouteActions = {
+  onTrackSelect: (track: TrackListItem) => void;
+  onTracksSearchDraftChange: (value: string) => void;
+  onTracksSearchSubmit: () => void;
+  onTracksTitleHeaderSort: () => void;
+  onTracksAlbumHeaderSort: () => void;
+};
+
+export type SettingsRouteActions = {
+  onPickLibraryDirectory: () => void;
+  onScan: () => void;
+};
+
+export type PlaybackChromeActions = {
+  onPlaybackAction: (action: "previous" | "toggle" | "next") => void;
+  onPlaybackSeek: (positionSeconds: number) => void;
+};
+
+export type AppShellRouteActions = {
+  playlists: PlaylistRouteActions;
+  tracks: TracksRouteActions;
+  settings: SettingsRouteActions;
+};
+
+export type AppShellViewModel = {
+  chrome: AppShellChromeState;
+  routes: AppShellRoutesState;
+  actions: AppShellRouteActions;
+  playback: PlaybackChromeActions;
+};

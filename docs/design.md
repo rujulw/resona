@@ -153,8 +153,53 @@ Track insights from timbre should appear in secondary detail surfaces such as a 
 - The `v1.3.0` playback contract moves command authority to Rust through a narrow Tauri contract and pushes playback snapshots back to the shell through named events
 - The shell should consume backend playback snapshots through `playback://state-changed` rather than inventing separate client-only transport truth
 - The shell should remain a renderer/controller rather than reclaiming playback state locally
+- The frontend shell should expose three ownership layers: shell chrome state, route-owned screen state, and intent handlers grouped by the route or chrome surface that consumes them
+- Route-owned transient UI state should stay inside page components unless another route or persistent shell surface truly depends on it
+- The app-level shell hook should keep shared queries, refresh paths, playback coordination, and backend subscriptions, but it should stop serving as the home for page-only dialog drafts, search boxes, or drag-preview state
 - The tracks route should feel like one uninterrupted library surface, even if the backend continues to use paged query primitives under the hood
 - Public v1 release readiness should be enforced by automated frontend and backend CI rather than manual spot checks alone
+
+## Frontend Shell Ownership Boundaries
+
+The `v1.4.0` shell refactor should preserve the current visible desktop UX while making ownership legible in code.
+
+### Shell chrome
+
+Persistent shell chrome owns only persistent frame concerns:
+
+- sidebar navigation labels and playlist shortcuts
+- playback bar rendering and transport intents
+- chrome-wide runtime labels or app identity
+
+Chrome should consume already-derived state. It should not decide which route is active, fetch route data, or hold route-local drafts.
+
+### Route composition
+
+Route composition owns page selection and the mapping from app-shell state into route-facing contracts.
+
+- `App.tsx` or an equivalent route-composition surface should build grouped route props from the shell hook
+- `AppShell` should own shared frame wiring and playback chrome while a dedicated route-composition surface owns the routed page map
+- route composition may reuse the same underlying shell state across pages, but it should present that state in route-shaped slices
+
+### Route-owned state
+
+Each page owns its local interaction state and any transient UI that only matters within that route.
+
+- `PlaylistsPage` owns dialog drafts, optimistic reorder preview, selected entry, and library-within-playlist filtering
+- `TracksPage` owns presentation of the current query results, while shared query execution can remain in shell hooks until later extraction
+- `SettingsPage` owns library import controls and reads shell-provided scan status without owning playback or playlist logic
+- `HomePage` and `QueuePage` stay mostly render-only and should not accumulate shell orchestration work
+
+### Shared shell hooks
+
+The app-shell hook remains responsible for cross-route coordination:
+
+- bootstrapping app payload and initial shell queries
+- refreshing shared library and playlist data from the bridge
+- playback subscription wiring, queue derivation, and transport coordination
+- exposing route-grouped actions that route composition can hand to pages
+
+The result should be a simple rule: if state must survive route changes or feeds more than one persistent shell surface, keep it in shell hooks; if it only exists to complete one screen workflow, keep it in that page.
 
 ## Non-Goals
 

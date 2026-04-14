@@ -19,6 +19,7 @@ vi.mock("@tauri-apps/plugin-dialog", () => ({
 
 describe("desktop bootstrap bridge", () => {
   beforeEach(() => {
+    vi.resetModules();
     invokeMock.mockReset();
     openMock.mockReset();
     listenMock.mockReset();
@@ -55,6 +56,50 @@ describe("desktop bootstrap bridge", () => {
 
     expect(payload.platform).toBe("browser");
     expect(payload.runtime.desktopShell).toBe("browser-preview");
+  });
+
+  it("loads shell state from the command bridge", async () => {
+    invokeMock.mockResolvedValueOnce({
+      navSections: [{ id: "tracks", label: "Tracks" }],
+      libraryRows: [{ title: "Library", detail: "120 tracks", state: "Ready" }],
+      playback: {
+        statusLabel: "Playing",
+        transportLabel: "Playing",
+        outputOwner: "rust",
+        progressSeconds: 12,
+        durationSeconds: 182,
+        isPlaying: true,
+        trackId: "track-1",
+        trackTitle: "Alpha",
+        trackArtist: "North",
+        trackAlbum: "Signals",
+        trackAdvisory: null,
+      },
+    });
+
+    const { getShellState } = await import("./desktop");
+    const payload = await getShellState();
+
+    expect(invokeMock).toHaveBeenCalledWith("get_shell_state");
+    expect(payload.libraryRows[0].state).toBe("Ready");
+    expect(payload.playback.outputOwner).toBe("rust");
+  });
+
+  it("falls back to browser preview shell state when the bridge is unavailable", async () => {
+    invokeMock.mockRejectedValueOnce(new Error("bridge unavailable"));
+
+    const { getShellState } = await import("./desktop");
+    const payload = await getShellState();
+
+    expect(payload.navSections.map((section) => section.id)).toEqual([
+      "tracks",
+      "albums",
+      "artists",
+      "queue",
+      "insights",
+      "settings",
+    ]);
+    expect(payload.playback.outputOwner).toBe("frontend");
   });
 
   it("falls back to preview playback state when shell actions are unavailable", async () => {
@@ -115,6 +160,24 @@ describe("desktop bootstrap bridge", () => {
     expect(payload.progressSeconds).toBe(41);
   });
 
+  it("normalizes empty timing values before invoking the playback runtime", async () => {
+    invokeMock.mockResolvedValueOnce({
+      statusLabel: "Idle",
+      transportLabel: "Idle",
+      progressSeconds: 0,
+      durationSeconds: 0,
+      isPlaying: false,
+    });
+
+    const { syncPlaybackTiming } = await import("./desktop");
+    await syncPlaybackTiming();
+
+    expect(invokeMock).toHaveBeenCalledWith("sync_playback_timing", {
+      progressSeconds: null,
+      durationSeconds: null,
+    });
+  });
+
   it("reports explicit seek updates through the playback runtime contract", async () => {
     invokeMock.mockResolvedValueOnce({
       statusLabel: "Paused",
@@ -165,6 +228,23 @@ describe("desktop bootstrap bridge", () => {
       transportLabel: "Playback blocked",
     });
     expect(payload.statusLabel).toBe("Error");
+  });
+
+  it("normalizes empty playback errors before invoking the backend runtime contract", async () => {
+    invokeMock.mockResolvedValueOnce({
+      statusLabel: "Error",
+      transportLabel: "Playback error",
+      progressSeconds: 0,
+      durationSeconds: 0,
+      isPlaying: false,
+    });
+
+    const { reportPlaybackError } = await import("./desktop");
+    await reportPlaybackError();
+
+    expect(invokeMock).toHaveBeenCalledWith("report_playback_error", {
+      transportLabel: null,
+    });
   });
 
   it("describes the rust playback migration contract through the command bridge", async () => {
@@ -435,6 +515,18 @@ describe("desktop bootstrap bridge", () => {
     expect(detach).toBe(unlisten);
   });
 
+  it("returns a no-op playback subscription when preview runtime events are unavailable", async () => {
+    listenMock.mockRejectedValueOnce(new Error("bridge unavailable"));
+
+    const onPlayback = vi.fn();
+    const { subscribePlaybackState } = await import("./desktop");
+    const detach = await subscribePlaybackState(onPlayback);
+
+    expect(onPlayback).not.toHaveBeenCalled();
+    expect(detach).toEqual(expect.any(Function));
+    expect(detach()).toBeUndefined();
+  });
+
   it("resolves a local playback source into an asset url", async () => {
     invokeMock.mockResolvedValueOnce({
       trackId: "track-1",
@@ -449,6 +541,82 @@ describe("desktop bootstrap bridge", () => {
     });
     expect(payload?.assetUrl).toContain("asset://localhost/");
     expect(payload?.trackId).toBe("track-1");
+  });
+
+  it("queries the library through the command bridge with normalized defaults", async () => {
+    invokeMock.mockResolvedValueOnce({
+      items: [],
+      nextCursor: "cursor-2",
+      total: 120,
+      pageSize: 100,
+    });
+
+    const { queryLibrary } = await import("./desktop");
+    const payload = await queryLibrary();
+
+    expect(invokeMock).toHaveBeenCalledWith("query_library", {
+      pageSize: 100,
+      cursor: null,
+      search: null,
+      sortKey: "title",
+      sortDirection: "asc",
+    });
+    expect(payload.nextCursor).toBe("cursor-2");
+  });
+
+  it("keeps playlist and library fallbacks inside the browser preview runtime", async () => {
+    invokeMock
+      .mockRejectedValueOnce(new Error("bridge unavailable"))
+      .mockRejectedValueOnce(new Error("bridge unavailable"))
+      .mockRejectedValueOnce(new Error("bridge unavailable"))
+      .mockRejectedValueOnce(new Error("bridge unavailable"))
+      .mockRejectedValueOnce(new Error("bridge unavailable"))
+      .mockRejectedValueOnce(new Error("bridge unavailable"))
+      .mockRejectedValueOnce(new Error("bridge unavailable"));
+
+    const {
+      createPlaylist,
+      addTrackToPlaylist,
+      getPlaylist,
+      queryLibrary,
+      removePlaylistEntry,
+      deletePlaylist,
+      listPlaylists,
+    } = await import("./desktop");
+
+    const created = await createPlaylist("Desk Set", "focused hours", " /tmp/desk-set.png ");
+    const detail = await addTrackToPlaylist(created.id, {
+      id: "track-1",
+      title: "Alpha",
+      artist: "North",
+      album: "Signals",
+      advisory: null,
+      durationSeconds: 182,
+      artworkKey: "cover-1",
+      relativePath: "Alpha.mp3",
+      extension: "mp3",
+      sourceStatus: "local",
+      cacheState: "ready",
+      analysisStatus: "complete",
+      indexedAt: "1700000100",
+    });
+    const playlist = await getPlaylist(created.id);
+    const page = await queryLibrary({ pageSize: 25 });
+    const updated = await removePlaylistEntry(created.id, detail.entries[0].entryId);
+    await deletePlaylist(created.id);
+    const playlists = await listPlaylists();
+
+    expect(created.artworkKey).toContain("browser-playlist-artwork-");
+    expect(playlist?.entries).toHaveLength(1);
+    expect(detail.entries[0].position).toBe(0);
+    expect(page).toEqual({
+      items: [],
+      nextCursor: null,
+      total: 0,
+      pageSize: 25,
+    });
+    expect(updated.entries).toHaveLength(0);
+    expect(playlists).toEqual([]);
   });
 
   it("resolves an artwork source into an asset url", async () => {
