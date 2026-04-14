@@ -114,9 +114,19 @@ Build a private, performance-first music player that feels closer to a system ut
 The playback migration boundary is now implemented in code rather than only described as a roadmap note.
 
 - Rust now owns the playback runtime for loaded-track identity, transport state, progress, seek, completion, and output ownership
-- The command surface centers on `load_playback_track`, `playback_action`, `seek_playback`, `replace_playback_queue`, and `get_playback_snapshot`
+- The command surface centers on `load_playback_track`, `playback_action`, `seek_playback`, `sync_playback_timing`, `complete_playback`, and `report_playback_error`
 - The event surface centers on `playback://state-changed` and `playback://queue-changed`
 - The frontend shell now acts as a renderer/controller for playback state rather than the system of record
+
+Current frontend bridge layout:
+
+- `client/src/desktop.ts` is a compatibility barrel that re-exports the bridge surface
+- `client/src/desktop/types.ts` holds shared payload and contract types
+- `client/src/desktop/runtime.ts` holds runtime detection, invoke helpers, and payload normalizers
+- `client/src/desktop/shell.ts` owns bootstrap and shell-state bridge calls
+- `client/src/desktop/playback.ts` owns playback commands, playback event subscription, and playback contract helpers
+- `client/src/desktop/playlists.ts` owns playlist CRUD, entry ordering, and playlist-to-queue handoff
+- `client/src/desktop/library.ts` owns library query/scan calls, asset resolution, and native picker helpers
 
 Current implementation status:
 
