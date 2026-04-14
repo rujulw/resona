@@ -1215,6 +1215,121 @@ mod tests {
     }
 
     #[test]
+    fn playlist_reorder_does_not_mutate_an_existing_handoff_queue_snapshot() {
+        let database_state = test_database_state();
+        let playback_runtime = PlaybackRuntimeState::default();
+        let root =
+            std::env::temp_dir().join(unique_test_suffix("resona-playlist-handoff-stability"));
+
+        write_test_mp3(
+            &root.join("alpha.mp3"),
+            Some("Alpha"),
+            Some("Set A"),
+            Some("A"),
+            None,
+        );
+        write_test_mp3(
+            &root.join("beta.mp3"),
+            Some("Beta"),
+            Some("Set B"),
+            Some("B"),
+            None,
+        );
+
+        scan_local_library_with_database(
+            &database_state.app_database,
+            &root.display().to_string(),
+            Some("playlist-handoff-stability"),
+        )
+        .expect("scan should succeed");
+
+        let tracks = query_library_with_database(
+            &database_state.app_database,
+            Some(10),
+            None,
+            None,
+            Some("title".to_owned()),
+            Some("asc".to_owned()),
+        )
+        .expect("tracks should query");
+
+        let created =
+            create_playlist_with_database(&database_state.app_database, "Desk Set", None, None)
+                .expect("playlist should create");
+        let with_first = add_track_to_playlist_with_database(
+            &database_state.app_database,
+            &created.id,
+            &tracks.items[0].id,
+        )
+        .expect("first track should append");
+        let with_second = add_track_to_playlist_with_database(
+            &database_state.app_database,
+            &created.id,
+            &tracks.items[1].id,
+        )
+        .expect("second track should append");
+
+        let initial_handoff = handoff_playlist_to_queue_with_database(
+            &database_state.app_database,
+            &playback_runtime,
+            &created.id,
+            Some(&with_second.entries[1].entry_id),
+        )
+        .expect("playlist handoff should succeed");
+        assert_eq!(
+            initial_handoff.queue.track_ids,
+            vec![tracks.items[0].id.clone(), tracks.items[1].id.clone()]
+        );
+
+        let reordered = replace_playlist_entries_with_database(
+            &database_state.app_database,
+            &created.id,
+            &[
+                PlaylistEntryRecord {
+                    entry_id: with_second.entries[1].entry_id.clone(),
+                    track_id: tracks.items[1].id.clone(),
+                    position: 0,
+                },
+                PlaylistEntryRecord {
+                    entry_id: with_first.entries[0].entry_id.clone(),
+                    track_id: tracks.items[0].id.clone(),
+                    position: 1,
+                },
+            ],
+        )
+        .expect("entries should replace");
+
+        assert_eq!(reordered.entries[0].track_id, tracks.items[1].id);
+        assert_eq!(reordered.entries[1].track_id, tracks.items[0].id);
+
+        let queue_snapshot = playback_runtime.queue_snapshot();
+        assert_eq!(
+            queue_snapshot.track_ids,
+            vec![tracks.items[0].id.clone(), tracks.items[1].id.clone()]
+        );
+        assert_eq!(
+            queue_snapshot.active_track_id.as_deref(),
+            Some(tracks.items[1].id.as_str())
+        );
+
+        let reordered_handoff = handoff_playlist_to_queue_with_database(
+            &database_state.app_database,
+            &playback_runtime,
+            &created.id,
+            Some(&reordered.entries[0].entry_id),
+        )
+        .expect("reordered playlist handoff should succeed");
+        assert_eq!(
+            reordered_handoff.queue.track_ids,
+            vec![tracks.items[1].id.clone(), tracks.items[0].id.clone()]
+        );
+        assert_eq!(
+            reordered_handoff.queue.active_track_id.as_deref(),
+            Some(tracks.items[1].id.as_str())
+        );
+    }
+
+    #[test]
     fn local_scan_command_persists_supported_local_audio_files() {
         let database_state = test_database_state();
         let root = std::env::temp_dir().join(unique_test_suffix("resona-command-scan"));

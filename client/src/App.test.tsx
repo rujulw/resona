@@ -755,6 +755,225 @@ describe("app shell smoke checks", () => {
     });
   });
 
+  it("persists drag reorder and keeps the handed-off queue stable after later playlist reorders", async () => {
+    window.history.replaceState({}, "", "/playlists/playlist-1");
+    listPlaylistsMock.mockReset();
+    getPlaylistMock.mockReset();
+    replacePlaylistEntriesMock.mockReset();
+    handoffPlaylistToQueueMock.mockReset();
+
+    const summary = {
+      id: "playlist-1",
+      name: "Desk Set",
+      description: "focused hours",
+      artworkKey: null,
+      entryCount: 2,
+      createdAt: "1700000100",
+      updatedAt: "1700000200",
+    };
+    const tracksCatalog = [
+      {
+        id: "track-1",
+        title: "Alpha",
+        artist: "North",
+        album: "Signals",
+        durationSeconds: 182,
+        artworkKey: "alpha-cover.png",
+      },
+      {
+        id: "track-2",
+        title: "Bravo",
+        artist: "South",
+        album: "Horizons",
+        durationSeconds: 205,
+        artworkKey: "bravo-cover.png",
+      },
+    ];
+    let playlistEntries = [
+      {
+        entryId: "playlist-entry-1",
+        playlistId: "playlist-1",
+        trackId: "track-1",
+        position: 0,
+        addedAt: "1700000100",
+        updatedAt: "1700000100",
+        title: "Alpha",
+        artist: "North",
+        album: "Signals",
+        artworkKey: "alpha-cover.png",
+        extension: "mp3",
+        durationSeconds: 182,
+      },
+      {
+        entryId: "playlist-entry-2",
+        playlistId: "playlist-1",
+        trackId: "track-2",
+        position: 1,
+        addedAt: "1700000200",
+        updatedAt: "1700000200",
+        title: "Bravo",
+        artist: "South",
+        album: "Horizons",
+        artworkKey: "bravo-cover.png",
+        extension: "mp3",
+        durationSeconds: 205,
+      },
+    ];
+
+    const detailFromEntries = () => ({
+      playlist: {
+        ...summary,
+        updatedAt: `${Date.now()}`,
+      },
+      entries: playlistEntries.map((entry) => ({ ...entry })),
+    });
+
+    listPlaylistsMock.mockImplementation(async () => [
+      {
+        ...summary,
+        updatedAt: detailFromEntries().playlist.updatedAt,
+      },
+    ]);
+    getPlaylistMock.mockImplementation(async () => detailFromEntries());
+    replacePlaylistEntriesMock.mockImplementation(
+      async (
+        playlistId: string,
+        entries: Array<{ entryId?: string; trackId: string; position: number }>,
+      ) => {
+        playlistEntries = entries.map((entry, index) => {
+          const existing = playlistEntries.find(
+            (playlistEntry) => playlistEntry.entryId === entry.entryId,
+          );
+          if (!existing) {
+            throw new Error(`missing playlist entry ${entry.entryId}`);
+          }
+
+          return {
+            ...existing,
+            playlistId,
+            position: index,
+            updatedAt: `${1700000300 + index}`,
+          };
+        });
+
+        return detailFromEntries();
+      },
+    );
+
+    let handedOffQueue:
+      | {
+          trackIds: string[];
+          activeTrackId: string | null;
+          sourceLabel: string;
+        }
+      | undefined;
+    handoffPlaylistToQueueMock.mockImplementation(
+      async (playlistId: string, startEntryId?: string | null) => {
+        if (!handedOffQueue) {
+          handedOffQueue = {
+            trackIds: playlistEntries.map((entry) => entry.trackId),
+            activeTrackId:
+              playlistEntries.find((entry) => entry.entryId === startEntryId)?.trackId ??
+              playlistEntries[0]?.trackId ??
+              null,
+            sourceLabel: "playlist-handoff",
+          };
+        }
+
+        const activeTrack =
+          tracksCatalog.find((track) => track.id === handedOffQueue?.activeTrackId) ??
+          tracksCatalog[0];
+
+        return {
+          playback: {
+            statusLabel: "Ready",
+            transportLabel: "Ready",
+            progressSeconds: 0,
+            durationSeconds: activeTrack.durationSeconds ?? 0,
+            isPlaying: false,
+            outputOwner: "rust",
+            trackId: activeTrack.id,
+            trackTitle: activeTrack.title,
+            trackArtist: activeTrack.artist,
+            trackAlbum: activeTrack.album,
+          },
+          queue: handedOffQueue,
+          playlistId,
+          activeEntryId:
+            playlistEntries.find((entry) => entry.trackId === handedOffQueue?.activeTrackId)
+              ?.entryId ?? playlistEntries[0].entryId,
+        };
+      },
+    );
+
+    const { default: App } = await import("./App");
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Desk Set" });
+
+    const moveRowByHandle = async (
+      title: "Alpha" | "Bravo",
+      targetTitle: "Alpha" | "Bravo",
+      clientY: number,
+    ) => {
+      const sourceHandle = screen.getByRole("button", { name: new RegExp(`drag ${title}`, "i") });
+      const targetRow = screen.getByRole("button", { name: new RegExp(`select ${targetTitle}`, "i") });
+      vi.spyOn(targetRow, "getBoundingClientRect").mockReturnValue({
+        x: 0,
+        y: 0,
+        width: 640,
+        height: 48,
+        top: 0,
+        right: 640,
+        bottom: 48,
+        left: 0,
+        toJSON: () => ({}),
+      });
+
+      fireEvent.mouseDown(sourceHandle, { buttons: 1, clientY: 8 });
+      fireEvent.mouseMove(targetRow, { buttons: 1, clientY });
+      fireEvent.mouseUp(targetRow, { clientY });
+
+      await waitFor(() => {
+        const labels = screen
+          .getAllByRole("button", { name: /select (alpha|bravo)/i })
+          .map((button) => button.getAttribute("aria-label"));
+        expect(labels).toHaveLength(2);
+      });
+    };
+
+    await moveRowByHandle("Alpha", "Bravo", 40);
+    await waitFor(() => {
+      const labels = screen
+        .getAllByRole("button", { name: /select (alpha|bravo)/i })
+        .map((button) => button.getAttribute("aria-label"));
+      expect(labels).toEqual(["Select Bravo", "Select Alpha"]);
+    });
+
+    fireEvent.click(screen.getByLabelText(/play bravo/i));
+    await waitFor(() => {
+      expect(handoffPlaylistToQueueMock).toHaveBeenCalledWith(
+        "playlist-1",
+        "playlist-entry-2",
+      );
+    });
+
+    await moveRowByHandle("Alpha", "Bravo", 8);
+    await waitFor(() => {
+      const labels = screen
+        .getAllByRole("button", { name: /select (alpha|bravo)/i })
+        .map((button) => button.getAttribute("aria-label"));
+      expect(labels).toEqual(["Select Alpha", "Select Bravo"]);
+    });
+
+    fireEvent.click(screen.getByRole("link", { name: /queue/i }));
+    await screen.findByRole("heading", { name: "playback queue" });
+
+    expect(screen.getByText("1 waiting")).toBeTruthy();
+    expect(screen.getAllByText("Bravo").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Alpha").length).toBeGreaterThan(0);
+  });
+
   it("smoke-covers the playlist route shell with saved order handoff controls and dialog creation", async () => {
     window.history.replaceState({}, "", "/playlists/playlist-1");
     const { default: App } = await import("./App");
