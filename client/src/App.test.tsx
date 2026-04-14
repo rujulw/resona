@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const bootstrapAppMock = vi.fn();
@@ -621,6 +622,137 @@ describe("app shell smoke checks", () => {
     });
 
     confirmMock.mockRestore();
+  });
+
+  it("reorders saved-order rows only from the drag handle", async () => {
+    const { PlaylistsPage } = await import("./pages/PlaylistsPage");
+    const onPlaylistEntriesReplace = vi.fn();
+
+    render(
+      <MemoryRouter initialEntries={["/playlists/playlist-1"]}>
+        <Routes>
+          <Route
+            path="/playlists/:playlistId"
+            element={
+              <PlaylistsPage
+                playlistsState={{
+                  status: "ready",
+                  items: [
+                    {
+                      id: "playlist-1",
+                      name: "Desk Set",
+                      description: "focused hours",
+                      artworkKey: null,
+                      entryCount: 2,
+                      createdAt: "1700000100",
+                      updatedAt: "1700000200",
+                    },
+                  ],
+                  activePlaylistId: "playlist-1",
+                  activePlaylist: {
+                    playlist: {
+                      id: "playlist-1",
+                      name: "Desk Set",
+                      description: "focused hours",
+                      artworkKey: null,
+                      entryCount: 2,
+                      createdAt: "1700000100",
+                      updatedAt: "1700000200",
+                    },
+                    entries: [
+                      {
+                        entryId: "playlist-entry-1",
+                        playlistId: "playlist-1",
+                        trackId: "track-1",
+                        position: 0,
+                        addedAt: "1700000100",
+                        updatedAt: "1700000100",
+                        title: "Alpha",
+                        artist: "North",
+                        album: "Signals",
+                        artworkKey: "alpha-cover.png",
+                        extension: "mp3",
+                        durationSeconds: 182,
+                      },
+                      {
+                        entryId: "playlist-entry-2",
+                        playlistId: "playlist-1",
+                        trackId: "track-2",
+                        position: 1,
+                        addedAt: "1700000200",
+                        updatedAt: "1700000200",
+                        title: "Bravo",
+                        artist: "South",
+                        album: "Horizons",
+                        artworkKey: "bravo-cover.png",
+                        extension: "mp3",
+                        durationSeconds: 205,
+                      },
+                    ],
+                  },
+                  playbackQueue: null,
+                }}
+                tracksState={{
+                  status: "ready",
+                  items: [],
+                  total: 0,
+                  selectedTrackId: null,
+                }}
+                onCreatePlaylist={vi.fn(async () => null)}
+                onPlaylistArtworkChange={vi.fn()}
+                onPlaylistDelete={vi.fn()}
+                onPlaylistEntryMove={vi.fn()}
+                onPlaylistEntriesReplace={onPlaylistEntriesReplace}
+                onPlaylistEntryRemove={vi.fn()}
+                onPlaylistPlaybackHandoff={vi.fn()}
+                onPlaylistRename={vi.fn()}
+                onPlaylistSelect={vi.fn()}
+                onTrackAdd={vi.fn()}
+              />
+            }
+          />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Desk Set" });
+
+    const alphaRow = screen.getByRole("button", { name: /select alpha/i });
+    const bravoRow = screen.getByRole("button", { name: /select bravo/i });
+    const alphaDragHandle = screen.getByRole("button", { name: /drag alpha/i });
+    vi.spyOn(bravoRow, "getBoundingClientRect").mockReturnValue({
+      x: 0,
+      y: 0,
+      width: 640,
+      height: 48,
+      top: 0,
+      right: 640,
+      bottom: 48,
+      left: 0,
+      toJSON: () => ({}),
+    });
+
+    fireEvent.click(alphaRow);
+    expect(alphaRow.getAttribute("aria-pressed")).toBe("true");
+    expect(alphaRow.getAttribute("draggable")).not.toBe("true");
+    expect(alphaDragHandle.getAttribute("draggable")).toBe("true");
+
+    fireEvent.mouseDown(alphaDragHandle, { buttons: 1, clientY: 8 });
+    expect(alphaRow.className).toContain("opacity-60");
+
+    fireEvent.mouseMove(bravoRow, { buttons: 1, clientY: 40 });
+    expect(bravoRow.className).not.toContain("bg-white/[0.06]");
+    expect(bravoRow.className).not.toContain("border-b-2");
+    expect(bravoRow.className).not.toContain("border-t-2");
+    expect(bravoRow.querySelector(".pointer-events-none.absolute")).toBeTruthy();
+    fireEvent.mouseUp(bravoRow, { clientY: 40 });
+
+    await waitFor(() => {
+      expect(onPlaylistEntriesReplace).toHaveBeenCalledWith("playlist-1", [
+        { entryId: "playlist-entry-2", trackId: "track-2", position: 0 },
+        { entryId: "playlist-entry-1", trackId: "track-1", position: 1 },
+      ]);
+    });
   });
 
   it("smoke-covers the playlist route shell with saved order handoff controls and dialog creation", async () => {
