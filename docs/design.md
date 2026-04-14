@@ -106,13 +106,15 @@ Design rules for the current playlist slice:
 - library handoff should feel like an adjacent acquisition surface rather than a separate workflow
 - saved-order selection should support keyboard removal and precise playback starting points without overwhelming the layout with heavy editing chrome
 
-Design rules for the upcoming drag-reorder slice:
+Design rules for the current drag-reorder slice:
 
 - drag reorder should preview one explicit drop target at a time rather than implying a fuzzy freeform move zone
 - each saved-order row should resolve drag intent into a before-or-after drop target based on which half of the row the pointer occupies
+- drag initiation should belong only to the reorder handle on the right so row selection and playback actions stay predictable
 - persisted playlist order should change only on drop, never during hover, drag enter, or transient visual preview
 - reorder commits should replace the full saved entry order in one explicit payload so backend state stays dense and deterministic
 - playlist reorder should not silently mutate an already handed-off playback queue after playback has started
+- visual drop affordances should use an explicit insertion line instead of a full-row highlight that can read like selection state
 
 ### Insights
 

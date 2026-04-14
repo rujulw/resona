@@ -1,5 +1,24 @@
 # Bug Log
 
+## 2026-04-13 - Fixed playlist drag reorder snapping back and starting from the wrong surface
+- Status: fixed
+- Severity: high
+- Symptom: playlist drag reorder looked partly active in the UI, but dropping could snap the entry back to its old position, and dragging could start from the entire saved-order row instead of only from the reorder grip.
+- Root cause: the first drag implementation leaned on row-level HTML drag behavior and non-optimistic shell updates, which made reorder commits feel flaky and blurred row-selection intent with reorder intent.
+- Fix: moved reorder initiation onto the dedicated handle, switched the saved-order interaction to a handle-owned pointer drag flow with explicit insertion markers, added optimistic saved-order updates in the playlist view, and expanded smoke coverage for reorder persistence plus queue-snapshot stability after handoff.
+- Verification: `npm test -- --run src/App.test.tsx` passed with 32 frontend tests and `cargo test playlist_reorder_does_not_mutate_an_existing_handoff_queue_snapshot` passed.
+- Files touched:
+  - `client/src/pages/PlaylistsPage.tsx`
+  - `client/src/App.test.tsx`
+  - `server/src/commands.rs`
+  - `README.md`
+  - `docs/design.md`
+  - `docs/architecture.md`
+  - `docs/roadmap.md`
+  - `release-smoke-checklist.md`
+- Linked commit/PR: pending
+- Notes: this closed both the UX bug and the contract gap by making reordering explicit at the handle level while keeping handed-off playback queues snapshot-based.
+
 ## 2026-04-03 - Added smoke coverage for backend-owned playback sync in `v1.3.0`
 - Status: fixed
 - Severity: medium

@@ -67,11 +67,12 @@ Current milestone progress:
 - Privacy-safe desktop presence now ships with a managed Discord RPC client and explicit/advisory metadata remains source-trusted rather than heuristically inferred
 - `v1.3.0` now adds first-class local playlists with persisted ordering and backend queue handoff
 - Playlist foundations now define storage and ordering contracts that Spotify import and smart playlists can reuse later
+- Playlist reordering now uses a handle-only drag interaction with explicit drop markers and queue-snapshot stability after handoff
 
 Current release status:
 
 - `v1.3.0` now ships the local-first playback baseline, FLAC compatibility, privacy-safe Rich Presence, trusted advisory metadata, and first-class playlists in one coherent desktop release
-- The next release work should build on that baseline with playlist editing polish, drag-reorder, Spotify import, artist/album pages, and timbre-driven insight surfaces
+- The next release work should build on that baseline with Spotify import, artist/album pages, richer queue ownership, and timbre-driven insight surfaces
 
 ## Milestone 5: Cache and Remote Media
 

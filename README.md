@@ -105,8 +105,9 @@ Build a private, performance-first music player that feels closer to a system ut
 
 - Local playlists are now persisted in SQLite instead of being treated like a temporary saved filter
 - Playlist entry identity is separate from track identity, so duplicate tracks can be intentionally preserved as distinct saved-order rows
-- Playlist pages now support dialog-based creation, custom cover artwork, reorder controls, entry removal, and queue handoff from either the full playlist or a chosen row
-- Saved-order rows now support selection, keyboard removal, and double-click playback from the playlist's own ordering context
+- Playlist pages now support dialog-based creation, custom cover artwork, handle-only drag reorder, entry removal, and queue handoff from either the full playlist or a chosen row
+- Saved-order rows now support selection, keyboard removal, double-click playback from the playlist's own ordering context, and explicit before-or-after drop markers while reordering
+- Queue handoff stays snapshot-based: changing saved playlist order later does not silently rewrite an already active playback queue
 
 ## Current Playback Contract
 

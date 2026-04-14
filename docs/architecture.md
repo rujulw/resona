@@ -148,7 +148,8 @@ Current playlist implementation in `v1.3.0`:
 - playlist summaries and ordered entries persist in SQLite
 - playlist artwork is stored alongside other app-local artwork assets
 - queue handoff copies playlist order into backend playback state at a moment in time rather than creating a live mirrored binding
-- the frontend playlist page supports dialog-driven creation, saved-order playback starts, keyboard removal, and library-to-playlist add flows
+- the frontend playlist page supports dialog-driven creation, handle-only drag reorder with explicit drop markers, saved-order playback starts, keyboard removal, and library-to-playlist add flows
+- drag reorder commits one explicit full-order replacement payload and later playlist edits do not mutate an already handed-off queue snapshot
 
 ### Privacy-Safe Presence Boundary
 
