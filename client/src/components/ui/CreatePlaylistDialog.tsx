@@ -55,7 +55,7 @@ export function CreatePlaylistDialog({
 
         <div className="grid gap-4 sm:grid-cols-[96px_minmax(0,1fr)] sm:items-start">
           <div className="grid gap-2">
-            <div className="grid h-24 w-24 place-items-center rounded-sm border border-white/8 bg-white/[0.04] text-[#8f8f8f]">
+            <div className="grid h-24 w-24 place-items-center rounded-sm border border-white/8 bg-white/4 text-[#8f8f8f]">
               <ImagePlus className="h-7 w-7" strokeWidth={1.75} />
             </div>
             <button
@@ -67,7 +67,7 @@ export function CreatePlaylistDialog({
                   }
                 });
               }}
-              className="rounded-xl border border-white/8 bg-white/[0.03] px-3 py-2 text-xs text-[#d4d4d4] transition-colors hover:border-white/12 hover:bg-white/[0.05] hover:text-[#f2f2f2]"
+              className="rounded-xl border border-white/8 bg-white/3 px-3 py-2 text-xs text-[#d4d4d4] transition-colors hover:border-white/12 hover:bg-white/5 hover:text-[#f2f2f2]"
             >
               Choose cover
             </button>
@@ -88,7 +88,7 @@ export function CreatePlaylistDialog({
                   }
                 }}
                 placeholder="Late night mix"
-                className="w-full rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3 text-sm text-[#f2f2f2] outline-none placeholder:text-[#6f6f6f]"
+                className="w-full rounded-2xl border border-white/8 bg-white/3 px-4 py-3 text-sm text-[#f2f2f2] outline-none placeholder:text-[#6f6f6f]"
               />
             </label>
 
@@ -102,7 +102,7 @@ export function CreatePlaylistDialog({
                   onChange={(event) => onDescriptionDraftChange(event.target.value)}
                   rows={3}
                   placeholder="Late drive through the city"
-                  className="w-full resize-none rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3 text-sm text-[#f2f2f2] outline-none placeholder:text-[#6f6f6f]"
+                  className="w-full resize-none rounded-2xl border border-white/8 bg-white/3 px-4 py-3 text-sm text-[#f2f2f2] outline-none placeholder:text-[#6f6f6f]"
                 />
               </label>
             ) : null}
@@ -120,7 +120,7 @@ export function CreatePlaylistDialog({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl border border-white/8 bg-white/[0.03] px-4 py-2.5 text-sm text-[#d4d4d4] transition-colors hover:border-white/12 hover:bg-white/[0.05] hover:text-[#f2f2f2]"
+            className="rounded-xl border border-white/8 bg-white/3 px-4 py-2.5 text-sm text-[#d4d4d4] transition-colors hover:border-white/12 hover:bg-white/5 hover:text-[#f2f2f2]"
           >
             Cancel
           </button>

@@ -39,7 +39,7 @@ export function PlaylistDetailHeader({
               fallbackClassName="bg-white/[0.04]"
             />
           ) : (
-            <div className="grid h-36 w-36 place-items-center rounded-sm border border-white/8 bg-white/[0.04] text-[#8f8f8f]">
+            <div className="grid h-36 w-36 place-items-center rounded-sm border border-white/8 bg-white/4 text-[#8f8f8f]">
               <ImagePlus className="h-10 w-10" strokeWidth={1.75} />
             </div>
           )}
@@ -104,7 +104,7 @@ function IconActionButton({
       type="button"
       onClick={onClick}
       aria-label={label}
-      className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/8 bg-white/[0.03] text-[#d4d4d4] transition-colors hover:border-white/12 hover:bg-white/[0.05] hover:text-[#f2f2f2]"
+      className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/8 bg-white/3 text-[#d4d4d4] transition-colors hover:border-white/12 hover:bg-white/5 hover:text-[#f2f2f2]"
     >
       {icon}
     </button>

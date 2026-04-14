@@ -23,7 +23,7 @@ export function PlaylistLibrarySection({
     <section className="grid min-h-[44vh] grid-rows-[auto_auto_minmax(0,1fr)] overflow-hidden rounded-3xl border border-white/6 bg-[#1b1b1b]">
       <label className="block min-w-0 border-b border-white/6 px-5 py-4">
         <input
-          className="w-full rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3 text-sm text-[#f2f2f2] outline-none placeholder:text-[#6f6f6f]"
+          className="w-full rounded-2xl border border-white/8 bg-white/3 px-4 py-3 text-sm text-[#f2f2f2] outline-none placeholder:text-[#6f6f6f]"
           type="text"
           value={searchDraft}
           placeholder="Search title, artist, album"
@@ -94,7 +94,7 @@ export function PlaylistLibrarySection({
                 type="button"
                 aria-label={`Add ${track.title} to ${playlist.playlist.name}`}
                 onClick={() => onTrackAdd(track)}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/8 bg-white/[0.03] text-[#d4d4d4] transition-colors hover:border-white/12 hover:bg-white/[0.05] hover:text-[#f2f2f2]"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/8 bg-white/3 text-[#d4d4d4] transition-colors hover:border-white/12 hover:bg-white/5 hover:text-[#f2f2f2]"
               >
                 <Plus className="h-4 w-4" strokeWidth={2} />
               </button>

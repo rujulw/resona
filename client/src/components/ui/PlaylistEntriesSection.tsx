@@ -126,7 +126,7 @@ export function PlaylistEntriesSection({
                     event.stopPropagation();
                     onEntryPlay(entry.entryId);
                   }}
-                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/8 bg-white/[0.03] text-[#d4d4d4] transition-colors hover:border-white/12 hover:bg-white/[0.05] hover:text-[#f2f2f2]"
+                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/8 bg-white/3 text-[#d4d4d4] transition-colors hover:border-white/12 hover:bg-white/5 hover:text-[#f2f2f2]"
                 >
                   <Play className="h-4 w-4" strokeWidth={2} />
                 </button>
@@ -167,7 +167,7 @@ export function PlaylistEntriesSection({
                   onMouseDown={(event) => onDragHandleMouseDown(event, entry.entryId)}
                   onDragStart={(event) => onDragHandleStart(event, entry.entryId)}
                   onDragEnd={onDragHandleEnd}
-                  className="inline-flex h-9 w-9 cursor-grab items-center justify-center rounded-xl border border-white/8 bg-white/[0.03] text-[#8f8f8f] transition-colors hover:border-white/12 hover:bg-white/[0.05] active:cursor-grabbing"
+                  className="inline-flex h-9 w-9 cursor-grab items-center justify-center rounded-xl border border-white/8 bg-white/3 text-[#8f8f8f] transition-colors hover:border-white/12 hover:bg-white/5 active:cursor-grabbing"
                 >
                   <GripVertical className="h-4 w-4" strokeWidth={1.8} />
                 </button>
@@ -176,7 +176,7 @@ export function PlaylistEntriesSection({
                   aria-label={`Move ${entry.title} up`}
                   disabled={entry.position === 0}
                   onClick={(event) => onMoveEntryUp(event, entry)}
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/8 bg-white/[0.03] text-[#d4d4d4] transition-colors hover:border-white/12 hover:bg-white/[0.05] hover:text-[#f2f2f2] disabled:cursor-not-allowed disabled:opacity-35"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/8 bg-white/3 text-[#d4d4d4] transition-colors hover:border-white/12 hover:bg-white/5 hover:text-[#f2f2f2] disabled:cursor-not-allowed disabled:opacity-35"
                 >
                   <ArrowUp className="h-4 w-4" strokeWidth={2} />
                 </button>
@@ -185,7 +185,7 @@ export function PlaylistEntriesSection({
                   aria-label={`Move ${entry.title} down`}
                   disabled={entry.position === entries.length - 1}
                   onClick={(event) => onMoveEntryDown(event, entry)}
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/8 bg-white/[0.03] text-[#d4d4d4] transition-colors hover:border-white/12 hover:bg-white/[0.05] hover:text-[#f2f2f2] disabled:cursor-not-allowed disabled:opacity-35"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/8 bg-white/3 text-[#d4d4d4] transition-colors hover:border-white/12 hover:bg-white/5 hover:text-[#f2f2f2] disabled:cursor-not-allowed disabled:opacity-35"
                 >
                   <ArrowDown className="h-4 w-4" strokeWidth={2} />
                 </button>
