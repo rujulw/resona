@@ -37,6 +37,7 @@ export default function App() {
       onPlaylistArtworkChange={appShell.handlePlaylistArtworkChange}
       onPlaylistDelete={appShell.handlePlaylistDelete}
       onPlaylistEntryMove={appShell.handlePlaylistEntryMove}
+      onPlaylistEntriesReplace={appShell.handlePlaylistEntriesReplace}
       onPlaylistEntryRemove={appShell.handlePlaylistEntryRemove}
       onPlaylistPlaybackHandoff={appShell.handlePlaylistPlaybackHandoff}
       onPlaylistRename={appShell.handlePlaylistRename}

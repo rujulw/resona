@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const bootstrapAppMock = vi.fn();
@@ -621,6 +622,356 @@ describe("app shell smoke checks", () => {
     });
 
     confirmMock.mockRestore();
+  });
+
+  it("reorders saved-order rows only from the drag handle", async () => {
+    const { PlaylistsPage } = await import("./pages/PlaylistsPage");
+    const onPlaylistEntriesReplace = vi.fn();
+
+    render(
+      <MemoryRouter initialEntries={["/playlists/playlist-1"]}>
+        <Routes>
+          <Route
+            path="/playlists/:playlistId"
+            element={
+              <PlaylistsPage
+                playlistsState={{
+                  status: "ready",
+                  items: [
+                    {
+                      id: "playlist-1",
+                      name: "Desk Set",
+                      description: "focused hours",
+                      artworkKey: null,
+                      entryCount: 2,
+                      createdAt: "1700000100",
+                      updatedAt: "1700000200",
+                    },
+                  ],
+                  activePlaylistId: "playlist-1",
+                  activePlaylist: {
+                    playlist: {
+                      id: "playlist-1",
+                      name: "Desk Set",
+                      description: "focused hours",
+                      artworkKey: null,
+                      entryCount: 2,
+                      createdAt: "1700000100",
+                      updatedAt: "1700000200",
+                    },
+                    entries: [
+                      {
+                        entryId: "playlist-entry-1",
+                        playlistId: "playlist-1",
+                        trackId: "track-1",
+                        position: 0,
+                        addedAt: "1700000100",
+                        updatedAt: "1700000100",
+                        title: "Alpha",
+                        artist: "North",
+                        album: "Signals",
+                        artworkKey: "alpha-cover.png",
+                        extension: "mp3",
+                        durationSeconds: 182,
+                      },
+                      {
+                        entryId: "playlist-entry-2",
+                        playlistId: "playlist-1",
+                        trackId: "track-2",
+                        position: 1,
+                        addedAt: "1700000200",
+                        updatedAt: "1700000200",
+                        title: "Bravo",
+                        artist: "South",
+                        album: "Horizons",
+                        artworkKey: "bravo-cover.png",
+                        extension: "mp3",
+                        durationSeconds: 205,
+                      },
+                    ],
+                  },
+                  playbackQueue: null,
+                }}
+                tracksState={{
+                  status: "ready",
+                  items: [],
+                  total: 0,
+                  selectedTrackId: null,
+                }}
+                onCreatePlaylist={vi.fn(async () => null)}
+                onPlaylistArtworkChange={vi.fn()}
+                onPlaylistDelete={vi.fn()}
+                onPlaylistEntryMove={vi.fn()}
+                onPlaylistEntriesReplace={onPlaylistEntriesReplace}
+                onPlaylistEntryRemove={vi.fn()}
+                onPlaylistPlaybackHandoff={vi.fn()}
+                onPlaylistRename={vi.fn()}
+                onPlaylistSelect={vi.fn()}
+                onTrackAdd={vi.fn()}
+              />
+            }
+          />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Desk Set" });
+
+    const alphaRow = screen.getByRole("button", { name: /select alpha/i });
+    const bravoRow = screen.getByRole("button", { name: /select bravo/i });
+    const alphaDragHandle = screen.getByRole("button", { name: /drag alpha/i });
+    vi.spyOn(bravoRow, "getBoundingClientRect").mockReturnValue({
+      x: 0,
+      y: 0,
+      width: 640,
+      height: 48,
+      top: 0,
+      right: 640,
+      bottom: 48,
+      left: 0,
+      toJSON: () => ({}),
+    });
+
+    fireEvent.click(alphaRow);
+    expect(alphaRow.getAttribute("aria-pressed")).toBe("true");
+    expect(alphaRow.getAttribute("draggable")).not.toBe("true");
+    expect(alphaDragHandle.getAttribute("draggable")).toBe("true");
+
+    fireEvent.mouseDown(alphaDragHandle, { buttons: 1, clientY: 8 });
+    expect(alphaRow.className).toContain("opacity-60");
+
+    fireEvent.mouseMove(bravoRow, { buttons: 1, clientY: 40 });
+    expect(bravoRow.className).not.toContain("bg-white/[0.06]");
+    expect(bravoRow.className).not.toContain("border-b-2");
+    expect(bravoRow.className).not.toContain("border-t-2");
+    expect(bravoRow.querySelector(".pointer-events-none.absolute")).toBeTruthy();
+    fireEvent.mouseUp(bravoRow, { clientY: 40 });
+
+    await waitFor(() => {
+      expect(onPlaylistEntriesReplace).toHaveBeenCalledWith("playlist-1", [
+        { entryId: "playlist-entry-2", trackId: "track-2", position: 0 },
+        { entryId: "playlist-entry-1", trackId: "track-1", position: 1 },
+      ]);
+    });
+  });
+
+  it("persists drag reorder and keeps the handed-off queue stable after later playlist reorders", async () => {
+    window.history.replaceState({}, "", "/playlists/playlist-1");
+    listPlaylistsMock.mockReset();
+    getPlaylistMock.mockReset();
+    replacePlaylistEntriesMock.mockReset();
+    handoffPlaylistToQueueMock.mockReset();
+
+    const summary = {
+      id: "playlist-1",
+      name: "Desk Set",
+      description: "focused hours",
+      artworkKey: null,
+      entryCount: 2,
+      createdAt: "1700000100",
+      updatedAt: "1700000200",
+    };
+    const tracksCatalog = [
+      {
+        id: "track-1",
+        title: "Alpha",
+        artist: "North",
+        album: "Signals",
+        durationSeconds: 182,
+        artworkKey: "alpha-cover.png",
+      },
+      {
+        id: "track-2",
+        title: "Bravo",
+        artist: "South",
+        album: "Horizons",
+        durationSeconds: 205,
+        artworkKey: "bravo-cover.png",
+      },
+    ];
+    let playlistEntries = [
+      {
+        entryId: "playlist-entry-1",
+        playlistId: "playlist-1",
+        trackId: "track-1",
+        position: 0,
+        addedAt: "1700000100",
+        updatedAt: "1700000100",
+        title: "Alpha",
+        artist: "North",
+        album: "Signals",
+        artworkKey: "alpha-cover.png",
+        extension: "mp3",
+        durationSeconds: 182,
+      },
+      {
+        entryId: "playlist-entry-2",
+        playlistId: "playlist-1",
+        trackId: "track-2",
+        position: 1,
+        addedAt: "1700000200",
+        updatedAt: "1700000200",
+        title: "Bravo",
+        artist: "South",
+        album: "Horizons",
+        artworkKey: "bravo-cover.png",
+        extension: "mp3",
+        durationSeconds: 205,
+      },
+    ];
+
+    const detailFromEntries = () => ({
+      playlist: {
+        ...summary,
+        updatedAt: `${Date.now()}`,
+      },
+      entries: playlistEntries.map((entry) => ({ ...entry })),
+    });
+
+    listPlaylistsMock.mockImplementation(async () => [
+      {
+        ...summary,
+        updatedAt: detailFromEntries().playlist.updatedAt,
+      },
+    ]);
+    getPlaylistMock.mockImplementation(async () => detailFromEntries());
+    replacePlaylistEntriesMock.mockImplementation(
+      async (
+        playlistId: string,
+        entries: Array<{ entryId?: string; trackId: string; position: number }>,
+      ) => {
+        playlistEntries = entries.map((entry, index) => {
+          const existing = playlistEntries.find(
+            (playlistEntry) => playlistEntry.entryId === entry.entryId,
+          );
+          if (!existing) {
+            throw new Error(`missing playlist entry ${entry.entryId}`);
+          }
+
+          return {
+            ...existing,
+            playlistId,
+            position: index,
+            updatedAt: `${1700000300 + index}`,
+          };
+        });
+
+        return detailFromEntries();
+      },
+    );
+
+    let handedOffQueue:
+      | {
+          trackIds: string[];
+          activeTrackId: string | null;
+          sourceLabel: string;
+        }
+      | undefined;
+    handoffPlaylistToQueueMock.mockImplementation(
+      async (playlistId: string, startEntryId?: string | null) => {
+        if (!handedOffQueue) {
+          handedOffQueue = {
+            trackIds: playlistEntries.map((entry) => entry.trackId),
+            activeTrackId:
+              playlistEntries.find((entry) => entry.entryId === startEntryId)?.trackId ??
+              playlistEntries[0]?.trackId ??
+              null,
+            sourceLabel: "playlist-handoff",
+          };
+        }
+
+        const activeTrack =
+          tracksCatalog.find((track) => track.id === handedOffQueue?.activeTrackId) ??
+          tracksCatalog[0];
+
+        return {
+          playback: {
+            statusLabel: "Ready",
+            transportLabel: "Ready",
+            progressSeconds: 0,
+            durationSeconds: activeTrack.durationSeconds ?? 0,
+            isPlaying: false,
+            outputOwner: "rust",
+            trackId: activeTrack.id,
+            trackTitle: activeTrack.title,
+            trackArtist: activeTrack.artist,
+            trackAlbum: activeTrack.album,
+          },
+          queue: handedOffQueue,
+          playlistId,
+          activeEntryId:
+            playlistEntries.find((entry) => entry.trackId === handedOffQueue?.activeTrackId)
+              ?.entryId ?? playlistEntries[0].entryId,
+        };
+      },
+    );
+
+    const { default: App } = await import("./App");
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Desk Set" });
+
+    const moveRowByHandle = async (
+      title: "Alpha" | "Bravo",
+      targetTitle: "Alpha" | "Bravo",
+      clientY: number,
+    ) => {
+      const sourceHandle = screen.getByRole("button", { name: new RegExp(`drag ${title}`, "i") });
+      const targetRow = screen.getByRole("button", { name: new RegExp(`select ${targetTitle}`, "i") });
+      vi.spyOn(targetRow, "getBoundingClientRect").mockReturnValue({
+        x: 0,
+        y: 0,
+        width: 640,
+        height: 48,
+        top: 0,
+        right: 640,
+        bottom: 48,
+        left: 0,
+        toJSON: () => ({}),
+      });
+
+      fireEvent.mouseDown(sourceHandle, { buttons: 1, clientY: 8 });
+      fireEvent.mouseMove(targetRow, { buttons: 1, clientY });
+      fireEvent.mouseUp(targetRow, { clientY });
+
+      await waitFor(() => {
+        const labels = screen
+          .getAllByRole("button", { name: /select (alpha|bravo)/i })
+          .map((button) => button.getAttribute("aria-label"));
+        expect(labels).toHaveLength(2);
+      });
+    };
+
+    await moveRowByHandle("Alpha", "Bravo", 40);
+    await waitFor(() => {
+      const labels = screen
+        .getAllByRole("button", { name: /select (alpha|bravo)/i })
+        .map((button) => button.getAttribute("aria-label"));
+      expect(labels).toEqual(["Select Bravo", "Select Alpha"]);
+    });
+
+    fireEvent.click(screen.getByLabelText(/play bravo/i));
+    await waitFor(() => {
+      expect(handoffPlaylistToQueueMock).toHaveBeenCalledWith(
+        "playlist-1",
+        "playlist-entry-2",
+      );
+    });
+
+    await moveRowByHandle("Alpha", "Bravo", 8);
+    await waitFor(() => {
+      const labels = screen
+        .getAllByRole("button", { name: /select (alpha|bravo)/i })
+        .map((button) => button.getAttribute("aria-label"));
+      expect(labels).toEqual(["Select Alpha", "Select Bravo"]);
+    });
+
+    fireEvent.click(screen.getByRole("link", { name: /queue/i }));
+    await screen.findByRole("heading", { name: "playback queue" });
+
+    expect(screen.getByText("1 waiting")).toBeTruthy();
+    expect(screen.getAllByText("Bravo").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Alpha").length).toBeGreaterThan(0);
   });
 
   it("smoke-covers the playlist route shell with saved order handoff controls and dialog creation", async () => {

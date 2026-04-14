@@ -31,6 +31,7 @@ export function AppShell({
   onPlaylistArtworkChange,
   onPlaylistDelete,
   onPlaylistEntryMove,
+  onPlaylistEntriesReplace,
   onPlaylistEntryRemove,
   onPlaylistPlaybackHandoff,
   onPlaylistRename,
@@ -62,6 +63,10 @@ export function AppShell({
   onPlaylistArtworkChange: (playlistId: string, artworkPath: string) => void;
   onPlaylistDelete: (playlistId: string) => void;
   onPlaylistEntryMove: (playlistId: string, entryId: string, targetPosition: number) => void;
+  onPlaylistEntriesReplace: (
+    playlistId: string,
+    entries: Array<{ entryId?: string; trackId: string; position: number }>,
+  ) => void;
   onPlaylistEntryRemove: (playlistId: string, entryId: string) => void;
   onPlaylistPlaybackHandoff: (playlistId: string, startEntryId?: string) => void;
   onPlaylistRename: (
@@ -129,6 +134,7 @@ export function AppShell({
                   onPlaylistArtworkChange={onPlaylistArtworkChange}
                   onPlaylistDelete={onPlaylistDelete}
                   onPlaylistEntryMove={onPlaylistEntryMove}
+                  onPlaylistEntriesReplace={onPlaylistEntriesReplace}
                   onPlaylistEntryRemove={onPlaylistEntryRemove}
                   onPlaylistPlaybackHandoff={onPlaylistPlaybackHandoff}
                   onPlaylistRename={onPlaylistRename}
@@ -147,6 +153,7 @@ export function AppShell({
                   onPlaylistArtworkChange={onPlaylistArtworkChange}
                   onPlaylistDelete={onPlaylistDelete}
                   onPlaylistEntryMove={onPlaylistEntryMove}
+                  onPlaylistEntriesReplace={onPlaylistEntriesReplace}
                   onPlaylistEntryRemove={onPlaylistEntryRemove}
                   onPlaylistPlaybackHandoff={onPlaylistPlaybackHandoff}
                   onPlaylistRename={onPlaylistRename}

@@ -147,6 +147,12 @@ export type PlaylistDetail = {
   entries: PlaylistEntryItem[];
 };
 
+export type PlaylistEntryInput = {
+  entryId?: string;
+  trackId: string;
+  position: number;
+};
+
 export type PlaybackQueueSnapshot = {
   trackIds: string[];
   activeTrackId: string | null;
@@ -565,6 +571,69 @@ export async function movePlaylistEntry(
         ...entry,
         position: index,
       })),
+    };
+    browserPlaylists.set(playlistId, detail);
+    return detail;
+  }
+}
+
+export async function replacePlaylistEntries(
+  playlistId: string,
+  entries: PlaylistEntryInput[],
+): Promise<PlaylistDetail> {
+  try {
+    return await invoke<PlaylistDetail>("replace_playlist_entries", {
+      playlistId,
+      entries,
+    });
+  } catch (error) {
+    if (!isBrowserPreviewRuntime()) {
+      rethrowInDesktopRuntime(error);
+    }
+    const existing = browserPlaylists.get(playlistId);
+    if (!existing) {
+      throw new Error(`playlist ${playlistId} was not found`);
+    }
+
+    const trackByEntryId = new Map(existing.entries.map((entry) => [entry.entryId, entry]));
+    const now = `${Date.now()}`;
+    const nextEntries = entries.map((entry, index) => {
+      const existingEntry =
+        entry.entryId != null ? trackByEntryId.get(entry.entryId) : undefined;
+
+      if (existingEntry) {
+        return {
+          ...existingEntry,
+          position: index,
+          updatedAt: now,
+        };
+      }
+
+      browserPlaylistEntryCounter += 1;
+      return {
+        entryId: `browser-playlist-entry-${browserPlaylistEntryCounter}`,
+        playlistId,
+        trackId: entry.trackId,
+        position: index,
+        addedAt: now,
+        updatedAt: now,
+        title: entry.trackId,
+        artist: null,
+        album: null,
+        advisory: null,
+        artworkKey: null,
+        extension: "mp3",
+        durationSeconds: null,
+      };
+    });
+
+    const detail: PlaylistDetail = {
+      playlist: {
+        ...existing.playlist,
+        entryCount: nextEntries.length,
+        updatedAt: now,
+      },
+      entries: nextEntries,
     };
     browserPlaylists.set(playlistId, detail);
     return detail;

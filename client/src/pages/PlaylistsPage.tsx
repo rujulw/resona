@@ -1,9 +1,24 @@
-import { useEffect, useState } from "react";
-import { ArrowDown, ArrowUp, ImagePlus, Pencil, Play, Plus, Trash2 } from "lucide-react";
+import { type DragEvent, type MouseEvent, useEffect, useMemo, useRef, useState } from "react";
+import {
+  ArrowDown,
+  ArrowUp,
+  GripVertical,
+  ImagePlus,
+  Pencil,
+  Play,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 
-import { pickPlaylistArtwork, type TrackListItem } from "../desktop";
+import {
+  pickPlaylistArtwork,
+  type PlaylistEntryInput,
+  type PlaylistEntryItem,
+  type TrackListItem,
+} from "../desktop";
 import type { PlaylistsState, TracksState } from "../types/app";
+import { AdvisoryBadge } from "../components/ui/AdvisoryBadge";
 import { ArtworkTile } from "../components/ui/ArtworkTile";
 import { CreatePlaylistDialog } from "../components/ui/CreatePlaylistDialog";
 import { formatDuration } from "../utils/format";
@@ -15,6 +30,7 @@ export function PlaylistsPage({
   onPlaylistArtworkChange,
   onPlaylistDelete,
   onPlaylistEntryMove,
+  onPlaylistEntriesReplace,
   onPlaylistEntryRemove,
   onPlaylistPlaybackHandoff,
   onPlaylistRename,
@@ -31,6 +47,7 @@ export function PlaylistsPage({
   onPlaylistArtworkChange: (playlistId: string, artworkPath: string) => void;
   onPlaylistDelete: (playlistId: string) => void;
   onPlaylistEntryMove: (playlistId: string, entryId: string, targetPosition: number) => void;
+  onPlaylistEntriesReplace: (playlistId: string, entries: PlaylistEntryInput[]) => void;
   onPlaylistEntryRemove: (playlistId: string, entryId: string) => void;
   onPlaylistPlaybackHandoff: (playlistId: string, startEntryId?: string) => void;
   onPlaylistRename: (
@@ -57,6 +74,13 @@ export function PlaylistsPage({
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [librarySearchDraft, setLibrarySearchDraft] = useState("");
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
+  const [draggedEntryId, setDraggedEntryId] = useState<string | null>(null);
+  const [optimisticEntries, setOptimisticEntries] = useState<PlaylistEntryItem[] | null>(null);
+  const draggedEntryIdRef = useRef<string | null>(null);
+  const [dropIndicator, setDropIndicator] = useState<{
+    entryId: string;
+    placement: "before" | "after";
+  } | null>(null);
 
   useEffect(() => {
     if (
@@ -84,6 +108,16 @@ export function PlaylistsPage({
 
     setSelectedEntryId(null);
   }, [activePlaylist, selectedEntryId]);
+
+  useEffect(() => {
+    setOptimisticEntries(null);
+  }, [activePlaylist?.playlist.id, activePlaylist?.playlist.updatedAt, activePlaylist?.entries]);
+
+  useEffect(() => {
+    if (playlistsState.status === "error") {
+      setOptimisticEntries(null);
+    }
+  }, [playlistsState.status]);
 
   const openCreateDialog = () => {
     setIsCreateDialogOpen(true);
@@ -146,6 +180,148 @@ export function PlaylistsPage({
     );
     closeEditDialog();
   };
+
+  const persistedOrderedPlaylistEntries = useMemo(
+    () =>
+      [...(activePlaylist?.entries ?? [])].sort(
+        (left, right) => left.position - right.position,
+      ),
+    [activePlaylist?.entries],
+  );
+
+  const orderedPlaylistEntries = optimisticEntries ?? persistedOrderedPlaylistEntries;
+
+  const resolveDragPlacement = (
+    event: DragEvent<HTMLElement>,
+    entryId: string,
+  ): { entryId: string; placement: "before" | "after" } => {
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const midpoint = bounds.top + bounds.height / 2;
+    const placement =
+      bounds.height <= 1
+        ? event.clientY > bounds.top
+          ? "after"
+          : "before"
+        : event.clientY >= midpoint
+          ? "after"
+          : "before";
+
+    return { entryId, placement };
+  };
+
+  const reorderEntries = (
+    entries: PlaylistEntryItem[],
+    movingEntryId: string,
+    targetEntryId: string,
+    placement: "before" | "after",
+  ): PlaylistEntryItem[] | null => {
+    const nextEntries = [...entries];
+    const movingIndex = nextEntries.findIndex((entry) => entry.entryId === movingEntryId);
+    const targetIndex = nextEntries.findIndex((entry) => entry.entryId === targetEntryId);
+
+    if (movingIndex < 0 || targetIndex < 0) {
+      return null;
+    }
+
+    const [movingEntry] = nextEntries.splice(movingIndex, 1);
+    const insertIndex = nextEntries.findIndex((entry) => entry.entryId === targetEntryId);
+    const boundedIndex = placement === "after" ? insertIndex + 1 : insertIndex;
+    nextEntries.splice(boundedIndex, 0, movingEntry);
+
+    if (nextEntries.every((entry, index) => entry.entryId === entries[index]?.entryId)) {
+      return null;
+    }
+
+    return nextEntries.map((entry, index) => ({
+      ...entry,
+      position: index,
+    }));
+  };
+
+  const clearDropIndicator = (entryId?: string) => {
+    setDropIndicator((existing) => {
+      if (!existing) {
+        return null;
+      }
+
+      if (entryId && existing.entryId !== entryId) {
+        return existing;
+      }
+
+      return null;
+    });
+  };
+
+  const resolveActiveDragEntryId = (event: DragEvent<HTMLElement>) =>
+    draggedEntryIdRef.current ||
+    draggedEntryId ||
+    event.dataTransfer.getData("text/plain") ||
+    selectedEntryId;
+
+  const updateDropIndicatorFromPointer = (
+    event: MouseEvent<HTMLElement>,
+    entryId: string,
+  ) => {
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const midpoint = bounds.top + bounds.height / 2;
+    const placement = event.clientY >= midpoint ? "after" : "before";
+    setDropIndicator((existing) =>
+      existing?.entryId === entryId && existing.placement === placement
+        ? existing
+        : { entryId, placement },
+    );
+  };
+
+  const commitReorder = (
+    movingEntryId: string,
+    targetEntryId: string,
+    placement: "before" | "after",
+  ) => {
+    if (!activePlaylist || movingEntryId === targetEntryId) {
+      draggedEntryIdRef.current = null;
+      setDraggedEntryId(null);
+      clearDropIndicator();
+      return;
+    }
+
+    const nextEntries = reorderEntries(
+      orderedPlaylistEntries,
+      movingEntryId,
+      targetEntryId,
+      placement,
+    );
+    if (nextEntries) {
+      setOptimisticEntries(nextEntries);
+      onPlaylistEntriesReplace(
+        activePlaylist.playlist.id,
+        nextEntries.map((nextEntry) => ({
+          entryId: nextEntry.entryId,
+          trackId: nextEntry.trackId,
+          position: nextEntry.position,
+        })),
+      );
+    }
+    draggedEntryIdRef.current = null;
+    setDraggedEntryId(null);
+    clearDropIndicator();
+  };
+
+  useEffect(() => {
+    if (!draggedEntryId) {
+      return;
+    }
+
+    const clearDrag = () => {
+      draggedEntryIdRef.current = null;
+      setDraggedEntryId(null);
+      clearDropIndicator();
+    };
+
+    window.addEventListener("mouseup", clearDrag);
+    return () => {
+      window.removeEventListener("mouseup", clearDrag);
+    };
+  }, [draggedEntryId]);
 
   if (!playlistId && playlistsState.items[0]) {
     return <Navigate to={`/playlists/${playlistsState.items[0].id}`} replace />;
@@ -346,7 +522,7 @@ export function PlaylistsPage({
                   </p>
                 </div>
               ) : (
-                activePlaylist.entries.map((entry) => (
+                orderedPlaylistEntries.map((entry) => (
                   <article
                     key={entry.entryId}
                     role="button"
@@ -354,6 +530,72 @@ export function PlaylistsPage({
                     aria-label={`Select ${entry.title}`}
                     aria-pressed={selectedEntryId === entry.entryId}
                     onClick={() => setSelectedEntryId(entry.entryId)}
+                    onDragOver={(event) => {
+                      event.preventDefault();
+                      const activeDragEntryId = resolveActiveDragEntryId(event);
+                      if (!activeDragEntryId || activeDragEntryId === entry.entryId) {
+                        clearDropIndicator(entry.entryId);
+                        return;
+                      }
+
+                      const nextIndicator = resolveDragPlacement(event, entry.entryId);
+                      setDropIndicator((existing) =>
+                        existing?.entryId === nextIndicator.entryId &&
+                        existing.placement === nextIndicator.placement
+                          ? existing
+                          : nextIndicator,
+                      );
+                    }}
+                    onDragLeave={(event) => {
+                      const relatedTarget = event.relatedTarget;
+                      if (
+                        relatedTarget instanceof Node &&
+                        event.currentTarget.contains(relatedTarget)
+                      ) {
+                        return;
+                      }
+
+                      clearDropIndicator(entry.entryId);
+                    }}
+                    onMouseMove={(event) => {
+                      if (!draggedEntryIdRef.current || draggedEntryIdRef.current === entry.entryId) {
+                        return;
+                      }
+
+                      updateDropIndicatorFromPointer(event, entry.entryId);
+                    }}
+                    onMouseUp={(event) => {
+                      const activeDragEntryId = draggedEntryIdRef.current;
+                      if (!activeDragEntryId || activeDragEntryId === entry.entryId) {
+                        return;
+                      }
+
+                      event.preventDefault();
+                      updateDropIndicatorFromPointer(event, entry.entryId);
+                      const targetPlacement =
+                        event.clientY >=
+                        event.currentTarget.getBoundingClientRect().top +
+                          event.currentTarget.getBoundingClientRect().height / 2
+                          ? "after"
+                          : "before";
+                      commitReorder(activeDragEntryId, entry.entryId, targetPlacement);
+                    }}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      const activeDragEntryId = resolveActiveDragEntryId(event);
+                      if (!activeDragEntryId || activeDragEntryId === entry.entryId) {
+                        draggedEntryIdRef.current = null;
+                        setDraggedEntryId(null);
+                        clearDropIndicator();
+                        return;
+                      }
+
+                      const target =
+                        dropIndicator?.entryId === entry.entryId
+                          ? dropIndicator
+                          : resolveDragPlacement(event, entry.entryId);
+                      commitReorder(activeDragEntryId, target.entryId, target.placement);
+                    }}
                     onDoubleClick={() =>
                       onPlaylistPlaybackHandoff(activePlaylist.playlist.id, entry.entryId)
                     }
@@ -370,11 +612,38 @@ export function PlaylistsPage({
                       }
                     }}
                     className={[
-                      "grid w-full grid-cols-[minmax(320px,2fr)_minmax(180px,1.1fr)_96px_112px] items-center gap-4 border-b border-white/5 px-5 py-3.5 text-left last:border-b-0",
+                      "relative grid w-full grid-cols-[minmax(320px,2fr)_minmax(180px,1.1fr)_96px_112px] items-center gap-4 border-b border-white/5 px-5 py-3.5 text-left last:border-b-0",
                       selectedEntryId === entry.entryId ? "bg-white/8" : "hover:bg-white/3",
+                      draggedEntryId === entry.entryId ? "opacity-60" : "",
                     ].join(" ")}
                   >
+                    {dropIndicator?.entryId === entry.entryId &&
+                    dropIndicator.placement === "before" ? (
+                      <span
+                        aria-hidden="true"
+                        className="pointer-events-none absolute inset-x-4 top-0 z-10 h-1 rounded-full bg-[#f2f2f2] shadow-[0_0_0_1px_rgba(18,18,18,0.9)]"
+                      />
+                    ) : null}
+                    {dropIndicator?.entryId === entry.entryId &&
+                    dropIndicator.placement === "after" ? (
+                      <span
+                        aria-hidden="true"
+                        className="pointer-events-none absolute inset-x-4 bottom-0 z-10 h-1 rounded-full bg-[#f2f2f2] shadow-[0_0_0_1px_rgba(18,18,18,0.9)]"
+                      />
+                    ) : null}
                     <div className="flex min-w-0 items-center gap-3">
+                      <button
+                        type="button"
+                        aria-label={`Play ${entry.title}`}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setSelectedEntryId(entry.entryId);
+                          onPlaylistPlaybackHandoff(activePlaylist.playlist.id, entry.entryId);
+                        }}
+                        className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/8 bg-white/[0.03] text-[#d4d4d4] transition-colors hover:border-white/12 hover:bg-white/[0.05] hover:text-[#f2f2f2]"
+                      >
+                        <Play className="h-4 w-4" strokeWidth={2} />
+                      </button>
                       <ArtworkTile
                         artworkKey={entry.artworkKey}
                         title={entry.title}
@@ -384,9 +653,12 @@ export function PlaylistsPage({
                       />
                       <div className="grid min-w-0 gap-1">
                         <span className="truncate text-sm text-[#f2f2f2]">{entry.title}</span>
-                        <span className="truncate text-xs text-[#8f8f8f]">
-                          {entry.artist ?? "unknown artist"}
-                        </span>
+                        <div className="flex min-w-0 items-center gap-2">
+                          <AdvisoryBadge advisory={entry.advisory} />
+                          <span className="truncate text-xs text-[#8f8f8f]">
+                            {entry.artist ?? "unknown artist"}
+                          </span>
+                        </div>
                       </div>
                     </div>
 
@@ -403,15 +675,34 @@ export function PlaylistsPage({
                     <div className="flex items-center gap-1">
                       <button
                         type="button"
-                        aria-label={`Play ${entry.title}`}
+                        draggable
+                        aria-label={`Drag ${entry.title}`}
                         onClick={(event) => {
                           event.stopPropagation();
                           setSelectedEntryId(entry.entryId);
-                          onPlaylistPlaybackHandoff(activePlaylist.playlist.id, entry.entryId);
                         }}
-                        className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/8 bg-white/[0.03] text-[#d4d4d4] transition-colors hover:border-white/12 hover:bg-white/[0.05] hover:text-[#f2f2f2]"
+                        onMouseDown={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          draggedEntryIdRef.current = entry.entryId;
+                          setDraggedEntryId(entry.entryId);
+                          setSelectedEntryId(entry.entryId);
+                        }}
+                        onDragStart={(event) => {
+                          event.dataTransfer.setData("text/plain", entry.entryId);
+                          event.dataTransfer.effectAllowed = "move";
+                          draggedEntryIdRef.current = entry.entryId;
+                          setDraggedEntryId(entry.entryId);
+                          setSelectedEntryId(entry.entryId);
+                        }}
+                        onDragEnd={() => {
+                          draggedEntryIdRef.current = null;
+                          setDraggedEntryId(null);
+                          clearDropIndicator();
+                        }}
+                        className="inline-flex h-9 w-9 cursor-grab items-center justify-center rounded-xl border border-white/8 bg-white/[0.03] text-[#8f8f8f] transition-colors hover:border-white/12 hover:bg-white/[0.05] active:cursor-grabbing"
                       >
-                        <Play className="h-4 w-4" strokeWidth={2} />
+                        <GripVertical className="h-4 w-4" strokeWidth={1.8} />
                       </button>
                       <button
                         type="button"
@@ -433,7 +724,7 @@ export function PlaylistsPage({
                       <button
                         type="button"
                         aria-label={`Move ${entry.title} down`}
-                        disabled={entry.position === activePlaylist.entries.length - 1}
+                        disabled={entry.position === orderedPlaylistEntries.length - 1}
                         onClick={(event) => {
                           event.stopPropagation();
                           setSelectedEntryId(entry.entryId);
