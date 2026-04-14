@@ -178,7 +178,7 @@ Chrome should consume already-derived state. It should not decide which route is
 Route composition owns page selection and the mapping from app-shell state into route-facing contracts.
 
 - `App.tsx` or an equivalent route-composition surface should build grouped route props from the shell hook
-- `AppShell` should accept grouped chrome state, route state, and action surfaces rather than one long flat prop list
+- `AppShell` should own shared frame wiring and playback chrome while a dedicated route-composition surface owns the routed page map
 - route composition may reuse the same underlying shell state across pages, but it should present that state in route-shaped slices
 
 ### Route-owned state

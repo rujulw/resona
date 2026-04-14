@@ -1,4 +1,7 @@
+import { BrowserRouter } from "react-router-dom";
+
 import { AppShell } from "./components/layout/AppShell";
+import { AppShellRoutes } from "./components/layout/AppShellRoutes";
 import { ShellStateScreen } from "./components/ui/ShellStateScreen";
 import { useAppShell } from "./hooks/useAppShell";
 import type { AppShellViewModel } from "./types/app";
@@ -90,11 +93,16 @@ export default function App() {
   };
 
   return (
-    <AppShell
-      chrome={shellViewModel.chrome}
-      routes={shellViewModel.routes}
-      actions={shellViewModel.actions}
-      playback={shellViewModel.playback}
-    />
+    <BrowserRouter>
+      <AppShell
+        chrome={shellViewModel.chrome}
+        playback={shellViewModel.playback}
+      >
+        <AppShellRoutes
+          routes={shellViewModel.routes}
+          actions={shellViewModel.actions}
+        />
+      </AppShell>
+    </BrowserRouter>
   );
 }

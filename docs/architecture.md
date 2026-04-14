@@ -131,7 +131,8 @@ The backend is intentionally split so each layer has a clear responsibility boun
 Current `v1.4.0` boundary definition:
 
 - `App.tsx` is the route-composition layer that converts shell-hook output into grouped `chrome`, `routes`, `actions`, and playback contracts
-- `AppShell` owns the persistent frame and router wiring, but consumes route-grouped state rather than a flat bag of shell props
+- `AppShell` owns the persistent frame, shared layout wiring, and playback chrome, but not the route table itself
+- `AppShellRoutes` owns the routed page map and consumes grouped route state plus grouped route actions
 - route-level state is grouped by screen (`home`, `tracks`, `playlists`, `queue`, `settings`) so later extractions can move one route at a time
 - playback chrome actions stay separate from route actions because the playback bar is persistent shell UI rather than page UI
 - route-local transient state such as playlist edit drafts, reorder previews, and in-page filters stays inside page components unless another shell surface needs it
