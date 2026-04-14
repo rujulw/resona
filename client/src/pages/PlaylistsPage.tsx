@@ -1,14 +1,4 @@
 import { type DragEvent, type MouseEvent, useEffect, useMemo, useRef, useState } from "react";
-import {
-  ArrowDown,
-  ArrowUp,
-  GripVertical,
-  ImagePlus,
-  Pencil,
-  Play,
-  Plus,
-  Trash2,
-} from "lucide-react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 
 import {
@@ -18,10 +8,10 @@ import {
   type TrackListItem,
 } from "../desktop";
 import type { PlaylistsState, TracksState } from "../types/app";
-import { AdvisoryBadge } from "../components/ui/AdvisoryBadge";
-import { ArtworkTile } from "../components/ui/ArtworkTile";
 import { CreatePlaylistDialog } from "../components/ui/CreatePlaylistDialog";
-import { formatDuration } from "../utils/format";
+import { PlaylistDetailHeader } from "../components/ui/PlaylistDetailHeader";
+import { PlaylistEntriesSection } from "../components/ui/PlaylistEntriesSection";
+import { PlaylistLibrarySection } from "../components/ui/PlaylistLibrarySection";
 
 export function PlaylistsPage({
   playlistsState,
@@ -403,433 +393,173 @@ export function PlaylistsPage({
   return (
     <>
       <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-5 overflow-hidden px-6 py-5">
-        <header className="flex flex-wrap items-start justify-between gap-6 rounded-3xl border border-white/6 bg-[#181818] px-6 py-7">
-          <div className="flex min-w-0 items-start gap-5">
-            <button
-              type="button"
-              onClick={() => {
-                void pickPlaylistArtwork().then((artworkPath) => {
-                  if (artworkPath) {
-                    onPlaylistArtworkChange(activePlaylist.playlist.id, artworkPath);
-                  }
-                });
-              }}
-              className="shrink-0 transition-opacity hover:opacity-90"
-              aria-label="Choose playlist cover"
-            >
-              {activePlaylist.playlist.artworkKey ? (
-                <ArtworkTile
-                  artworkKey={activePlaylist.playlist.artworkKey}
-                  title={title}
-                  sizeClassName="h-36 w-36"
-                  roundedClassName="rounded-sm"
-                  fallbackClassName="bg-white/[0.04]"
-                />
-              ) : (
-                <div className="grid h-36 w-36 place-items-center rounded-sm border border-white/8 bg-white/[0.04] text-[#8f8f8f]">
-                  <ImagePlus className="h-10 w-10" strokeWidth={1.75} />
-                </div>
-              )}
-            </button>
-
-            <div className="min-w-0 pt-1">
-              <p className="m-0 text-[11px] tracking-[0.08em] text-[#8f8f8f]">playlist</p>
-              <h2 className="mt-4 truncate text-6xl font-medium tracking-[-0.06em] text-[#f2f2f2]">
-                {title}
-              </h2>
-              <p className="mt-4 text-sm text-[#8f8f8f]">
-                {activePlaylist.playlist.entryCount} saved track
-                {activePlaylist.playlist.entryCount === 1 ? "" : "s"}
-              </p>
-              {activePlaylist.playlist.description ? (
-                <p className="mt-2 max-w-2xl text-sm text-[#a5a5a5]">
-                  {activePlaylist.playlist.description}
-                </p>
-              ) : null}
-            </div>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={openCreateDialog}
-              aria-label="Create playlist"
-              className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/8 bg-white/[0.03] text-[#d4d4d4] transition-colors hover:border-white/12 hover:bg-white/[0.05] hover:text-[#f2f2f2]"
-            >
-              <Plus className="h-4 w-4" strokeWidth={2} />
-            </button>
-            {activePlaylist.entries.length > 0 ? (
-              <button
-                type="button"
-                onClick={() => onPlaylistPlaybackHandoff(activePlaylist.playlist.id)}
-                aria-label="Play playlist"
-                className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/8 bg-white/[0.03] text-[#d4d4d4] transition-colors hover:border-white/12 hover:bg-white/[0.05] hover:text-[#f2f2f2]"
-              >
-                <Play className="h-4 w-4" strokeWidth={2} />
-              </button>
-            ) : null}
-            <button
-              type="button"
-              onClick={openEditDialog}
-              aria-label="Edit playlist"
-              className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/8 bg-white/[0.03] text-[#d4d4d4] transition-colors hover:border-white/12 hover:bg-white/[0.05] hover:text-[#f2f2f2]"
-            >
-              <Pencil className="h-4 w-4" strokeWidth={2} />
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                if (window.confirm(`Delete ${title}?`)) {
-                  navigate("/playlists");
-                  onPlaylistDelete(activePlaylist.playlist.id);
-                }
-              }}
-              aria-label="Delete playlist"
-              className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/8 bg-white/[0.03] text-[#d4d4d4] transition-colors hover:border-white/12 hover:bg-white/[0.05] hover:text-[#f2f2f2]"
-            >
-              <Trash2 className="h-4 w-4" strokeWidth={2} />
-            </button>
-          </div>
-        </header>
+        <PlaylistDetailHeader
+          playlist={activePlaylist}
+          onArtworkPick={() => {
+            void pickPlaylistArtwork().then((artworkPath) => {
+              if (artworkPath) {
+                onPlaylistArtworkChange(activePlaylist.playlist.id, artworkPath);
+              }
+            });
+          }}
+          onCreatePlaylist={openCreateDialog}
+          onEditPlaylist={openEditDialog}
+          onDeletePlaylist={() => {
+            if (window.confirm(`Delete ${title}?`)) {
+              navigate("/playlists");
+              onPlaylistDelete(activePlaylist.playlist.id);
+            }
+          }}
+          onPlayPlaylist={() => onPlaylistPlaybackHandoff(activePlaylist.playlist.id)}
+        />
 
         <div className="grid min-h-0 gap-4 overflow-y-auto pb-2">
-          <section className="grid min-h-[62vh] grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-3xl border border-white/6 bg-[#1b1b1b]">
-            <div className="grid grid-cols-[minmax(320px,2fr)_minmax(180px,1.1fr)_96px_112px] gap-4 border-b border-white/6 px-5 py-3 text-[11px] tracking-[0.08em] text-[#8f8f8f]">
-              <span>saved order</span>
-              <span>album</span>
-              <span>duration</span>
-              <span>actions</span>
-            </div>
+          <PlaylistEntriesSection
+            playlist={activePlaylist}
+            entries={orderedPlaylistEntries}
+            selectedEntryId={selectedEntryId}
+            draggedEntryId={draggedEntryId}
+            dropIndicator={dropIndicator}
+            onContainerKeyDown={(event) => {
+              if ((event.key === "Backspace" || event.key === "Delete") && selectedEntryId) {
+                event.preventDefault();
+                onPlaylistEntryRemove(activePlaylist.playlist.id, selectedEntryId);
+              }
+            }}
+            onEntrySelect={setSelectedEntryId}
+            onEntryDragOver={(event, entryId) => {
+              event.preventDefault();
+              const activeDragEntryId = resolveActiveDragEntryId(event);
+              if (!activeDragEntryId || activeDragEntryId === entryId) {
+                clearDropIndicator(entryId);
+                return;
+              }
 
-            <div
-              className="min-h-0 overflow-y-auto"
-              tabIndex={0}
-              onKeyDown={(event) => {
-                if (
-                  (event.key === "Backspace" || event.key === "Delete") &&
-                  selectedEntryId
-                ) {
-                  event.preventDefault();
-                  onPlaylistEntryRemove(activePlaylist.playlist.id, selectedEntryId);
-                }
-              }}
-            >
-              {activePlaylist.entries.length === 0 ? (
-                <div className="grid gap-2 px-5 py-8">
-                  <p className="m-0 text-sm text-[#e5e5e5]">No tracks saved yet.</p>
-                  <p className="m-0 text-sm text-[#8f8f8f]">
-                    Use the library handoff list below to start building the playlist order.
-                  </p>
-                </div>
-              ) : (
-                orderedPlaylistEntries.map((entry) => (
-                  <article
-                    key={entry.entryId}
-                    role="button"
-                    tabIndex={0}
-                    aria-label={`Select ${entry.title}`}
-                    aria-pressed={selectedEntryId === entry.entryId}
-                    onClick={() => setSelectedEntryId(entry.entryId)}
-                    onDragOver={(event) => {
-                      event.preventDefault();
-                      const activeDragEntryId = resolveActiveDragEntryId(event);
-                      if (!activeDragEntryId || activeDragEntryId === entry.entryId) {
-                        clearDropIndicator(entry.entryId);
-                        return;
-                      }
+              const nextIndicator = resolveDragPlacement(event, entryId);
+              setDropIndicator((existing) =>
+                existing?.entryId === nextIndicator.entryId &&
+                existing.placement === nextIndicator.placement
+                  ? existing
+                  : nextIndicator,
+              );
+            }}
+            onEntryDragLeave={(event, entryId) => {
+              const relatedTarget = event.relatedTarget;
+              if (
+                relatedTarget instanceof Node &&
+                event.currentTarget.contains(relatedTarget)
+              ) {
+                return;
+              }
 
-                      const nextIndicator = resolveDragPlacement(event, entry.entryId);
-                      setDropIndicator((existing) =>
-                        existing?.entryId === nextIndicator.entryId &&
-                        existing.placement === nextIndicator.placement
-                          ? existing
-                          : nextIndicator,
-                      );
-                    }}
-                    onDragLeave={(event) => {
-                      const relatedTarget = event.relatedTarget;
-                      if (
-                        relatedTarget instanceof Node &&
-                        event.currentTarget.contains(relatedTarget)
-                      ) {
-                        return;
-                      }
+              clearDropIndicator(entryId);
+            }}
+            onEntryMouseMove={(event, entryId) => {
+              if (!draggedEntryIdRef.current || draggedEntryIdRef.current === entryId) {
+                return;
+              }
 
-                      clearDropIndicator(entry.entryId);
-                    }}
-                    onMouseMove={(event) => {
-                      if (!draggedEntryIdRef.current || draggedEntryIdRef.current === entry.entryId) {
-                        return;
-                      }
+              updateDropIndicatorFromPointer(event, entryId);
+            }}
+            onEntryMouseUp={(event, entryId) => {
+              const activeDragEntryId = draggedEntryIdRef.current;
+              if (!activeDragEntryId || activeDragEntryId === entryId) {
+                return;
+              }
 
-                      updateDropIndicatorFromPointer(event, entry.entryId);
-                    }}
-                    onMouseUp={(event) => {
-                      const activeDragEntryId = draggedEntryIdRef.current;
-                      if (!activeDragEntryId || activeDragEntryId === entry.entryId) {
-                        return;
-                      }
+              event.preventDefault();
+              updateDropIndicatorFromPointer(event, entryId);
+              const targetPlacement =
+                event.clientY >=
+                event.currentTarget.getBoundingClientRect().top +
+                  event.currentTarget.getBoundingClientRect().height / 2
+                  ? "after"
+                  : "before";
+              commitReorder(activeDragEntryId, entryId, targetPlacement);
+            }}
+            onEntryDrop={(event, entryId) => {
+              event.preventDefault();
+              const activeDragEntryId = resolveActiveDragEntryId(event);
+              if (!activeDragEntryId || activeDragEntryId === entryId) {
+                draggedEntryIdRef.current = null;
+                setDraggedEntryId(null);
+                clearDropIndicator();
+                return;
+              }
 
-                      event.preventDefault();
-                      updateDropIndicatorFromPointer(event, entry.entryId);
-                      const targetPlacement =
-                        event.clientY >=
-                        event.currentTarget.getBoundingClientRect().top +
-                          event.currentTarget.getBoundingClientRect().height / 2
-                          ? "after"
-                          : "before";
-                      commitReorder(activeDragEntryId, entry.entryId, targetPlacement);
-                    }}
-                    onDrop={(event) => {
-                      event.preventDefault();
-                      const activeDragEntryId = resolveActiveDragEntryId(event);
-                      if (!activeDragEntryId || activeDragEntryId === entry.entryId) {
-                        draggedEntryIdRef.current = null;
-                        setDraggedEntryId(null);
-                        clearDropIndicator();
-                        return;
-                      }
+              const target =
+                dropIndicator?.entryId === entryId
+                  ? dropIndicator
+                  : resolveDragPlacement(event, entryId);
+              commitReorder(activeDragEntryId, target.entryId, target.placement);
+            }}
+            onEntryPlay={(entryId) => {
+              setSelectedEntryId(entryId);
+              onPlaylistPlaybackHandoff(activePlaylist.playlist.id, entryId);
+            }}
+            onEntryKeyDown={(event, entryId) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                setSelectedEntryId(entryId);
+                return;
+              }
 
-                      const target =
-                        dropIndicator?.entryId === entry.entryId
-                          ? dropIndicator
-                          : resolveDragPlacement(event, entry.entryId);
-                      commitReorder(activeDragEntryId, target.entryId, target.placement);
-                    }}
-                    onDoubleClick={() =>
-                      onPlaylistPlaybackHandoff(activePlaylist.playlist.id, entry.entryId)
-                    }
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" || event.key === " ") {
-                        event.preventDefault();
-                        setSelectedEntryId(entry.entryId);
-                        return;
-                      }
+              if (event.key === "Backspace" || event.key === "Delete") {
+                event.preventDefault();
+                onPlaylistEntryRemove(activePlaylist.playlist.id, entryId);
+              }
+            }}
+            onDragHandleClick={(event, entryId) => {
+              event.stopPropagation();
+              setSelectedEntryId(entryId);
+            }}
+            onDragHandleMouseDown={(event, entryId) => {
+              event.preventDefault();
+              event.stopPropagation();
+              draggedEntryIdRef.current = entryId;
+              setDraggedEntryId(entryId);
+              setSelectedEntryId(entryId);
+            }}
+            onDragHandleStart={(event, entryId) => {
+              event.dataTransfer.setData("text/plain", entryId);
+              event.dataTransfer.effectAllowed = "move";
+              draggedEntryIdRef.current = entryId;
+              setDraggedEntryId(entryId);
+              setSelectedEntryId(entryId);
+            }}
+            onDragHandleEnd={() => {
+              draggedEntryIdRef.current = null;
+              setDraggedEntryId(null);
+              clearDropIndicator();
+            }}
+            onMoveEntryUp={(event, entry) => {
+              event.stopPropagation();
+              setSelectedEntryId(entry.entryId);
+              onPlaylistEntryMove(
+                activePlaylist.playlist.id,
+                entry.entryId,
+                entry.position - 1,
+              );
+            }}
+            onMoveEntryDown={(event, entry) => {
+              event.stopPropagation();
+              setSelectedEntryId(entry.entryId);
+              onPlaylistEntryMove(
+                activePlaylist.playlist.id,
+                entry.entryId,
+                entry.position + 1,
+              );
+            }}
+          />
 
-                      if (event.key === "Backspace" || event.key === "Delete") {
-                        event.preventDefault();
-                        onPlaylistEntryRemove(activePlaylist.playlist.id, entry.entryId);
-                      }
-                    }}
-                    className={[
-                      "relative grid w-full grid-cols-[minmax(320px,2fr)_minmax(180px,1.1fr)_96px_112px] items-center gap-4 border-b border-white/5 px-5 py-3.5 text-left last:border-b-0",
-                      selectedEntryId === entry.entryId ? "bg-white/8" : "hover:bg-white/3",
-                      draggedEntryId === entry.entryId ? "opacity-60" : "",
-                    ].join(" ")}
-                  >
-                    {dropIndicator?.entryId === entry.entryId &&
-                    dropIndicator.placement === "before" ? (
-                      <span
-                        aria-hidden="true"
-                        className="pointer-events-none absolute inset-x-4 top-0 z-10 h-1 rounded-full bg-[#f2f2f2] shadow-[0_0_0_1px_rgba(18,18,18,0.9)]"
-                      />
-                    ) : null}
-                    {dropIndicator?.entryId === entry.entryId &&
-                    dropIndicator.placement === "after" ? (
-                      <span
-                        aria-hidden="true"
-                        className="pointer-events-none absolute inset-x-4 bottom-0 z-10 h-1 rounded-full bg-[#f2f2f2] shadow-[0_0_0_1px_rgba(18,18,18,0.9)]"
-                      />
-                    ) : null}
-                    <div className="flex min-w-0 items-center gap-3">
-                      <button
-                        type="button"
-                        aria-label={`Play ${entry.title}`}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          setSelectedEntryId(entry.entryId);
-                          onPlaylistPlaybackHandoff(activePlaylist.playlist.id, entry.entryId);
-                        }}
-                        className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/8 bg-white/[0.03] text-[#d4d4d4] transition-colors hover:border-white/12 hover:bg-white/[0.05] hover:text-[#f2f2f2]"
-                      >
-                        <Play className="h-4 w-4" strokeWidth={2} />
-                      </button>
-                      <ArtworkTile
-                        artworkKey={entry.artworkKey}
-                        title={entry.title}
-                        sizeClassName="h-11 w-11"
-                        roundedClassName="rounded-sm"
-                        fallbackClassName="bg-white/[0.04]"
-                      />
-                      <div className="grid min-w-0 gap-1">
-                        <span className="truncate text-sm text-[#f2f2f2]">{entry.title}</span>
-                        <div className="flex min-w-0 items-center gap-2">
-                          <AdvisoryBadge advisory={entry.advisory} />
-                          <span className="truncate text-xs text-[#8f8f8f]">
-                            {entry.artist ?? "unknown artist"}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <span className="truncate text-sm text-[#d4d4d4]">
-                      {entry.album ?? "unknown album"}
-                    </span>
-
-                    <span className="text-sm text-[#8f8f8f]">
-                      {entry.durationSeconds != null
-                        ? formatDuration(Math.round(entry.durationSeconds))
-                        : "--:--"}
-                    </span>
-
-                    <div className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        draggable
-                        aria-label={`Drag ${entry.title}`}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          setSelectedEntryId(entry.entryId);
-                        }}
-                        onMouseDown={(event) => {
-                          event.preventDefault();
-                          event.stopPropagation();
-                          draggedEntryIdRef.current = entry.entryId;
-                          setDraggedEntryId(entry.entryId);
-                          setSelectedEntryId(entry.entryId);
-                        }}
-                        onDragStart={(event) => {
-                          event.dataTransfer.setData("text/plain", entry.entryId);
-                          event.dataTransfer.effectAllowed = "move";
-                          draggedEntryIdRef.current = entry.entryId;
-                          setDraggedEntryId(entry.entryId);
-                          setSelectedEntryId(entry.entryId);
-                        }}
-                        onDragEnd={() => {
-                          draggedEntryIdRef.current = null;
-                          setDraggedEntryId(null);
-                          clearDropIndicator();
-                        }}
-                        className="inline-flex h-9 w-9 cursor-grab items-center justify-center rounded-xl border border-white/8 bg-white/[0.03] text-[#8f8f8f] transition-colors hover:border-white/12 hover:bg-white/[0.05] active:cursor-grabbing"
-                      >
-                        <GripVertical className="h-4 w-4" strokeWidth={1.8} />
-                      </button>
-                      <button
-                        type="button"
-                        aria-label={`Move ${entry.title} up`}
-                        disabled={entry.position === 0}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          setSelectedEntryId(entry.entryId);
-                          onPlaylistEntryMove(
-                            activePlaylist.playlist.id,
-                            entry.entryId,
-                            entry.position - 1,
-                          );
-                        }}
-                        className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/8 bg-white/[0.03] text-[#d4d4d4] transition-colors hover:border-white/12 hover:bg-white/[0.05] hover:text-[#f2f2f2] disabled:cursor-not-allowed disabled:opacity-35"
-                      >
-                        <ArrowUp className="h-4 w-4" strokeWidth={2} />
-                      </button>
-                      <button
-                        type="button"
-                        aria-label={`Move ${entry.title} down`}
-                        disabled={entry.position === orderedPlaylistEntries.length - 1}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          setSelectedEntryId(entry.entryId);
-                          onPlaylistEntryMove(
-                            activePlaylist.playlist.id,
-                            entry.entryId,
-                            entry.position + 1,
-                          );
-                        }}
-                        className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/8 bg-white/[0.03] text-[#d4d4d4] transition-colors hover:border-white/12 hover:bg-white/[0.05] hover:text-[#f2f2f2] disabled:cursor-not-allowed disabled:opacity-35"
-                      >
-                        <ArrowDown className="h-4 w-4" strokeWidth={2} />
-                      </button>
-                    </div>
-                  </article>
-                ))
-              )}
-            </div>
-          </section>
-
-          <section className="grid min-h-[44vh] grid-rows-[auto_auto_minmax(0,1fr)] overflow-hidden rounded-3xl border border-white/6 bg-[#1b1b1b]">
-            <label className="block min-w-0 border-b border-white/6 px-5 py-4">
-              <input
-                className="w-full rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3 text-sm text-[#f2f2f2] outline-none placeholder:text-[#6f6f6f]"
-                type="text"
-                value={librarySearchDraft}
-                placeholder="Search title, artist, album"
-                onChange={(event) => {
-                  setLibrarySearchDraft(event.target.value);
-                }}
-              />
-            </label>
-
-            <div className="grid grid-cols-[minmax(320px,2fr)_minmax(180px,1.1fr)_72px] gap-4 border-b border-white/6 px-5 py-3 text-[11px] tracking-[0.08em] text-[#8f8f8f]">
-              <span>library handoff</span>
-              <span>album</span>
-              <span>add</span>
-            </div>
-
-            <div className="min-h-0 overflow-y-auto">
-              {tracksState.status === "loading" ? (
-                <div className="px-5 py-8 text-sm text-[#8f8f8f]">Loading indexed tracks...</div>
-              ) : null}
-
-              {tracksState.status === "error" ? (
-                <div className="px-5 py-8 text-sm text-[#8f8f8f]">{tracksState.message}</div>
-              ) : null}
-
-              {tracksState.status !== "loading" && visibleLibraryTracks.length === 0 ? (
-                <div className="grid gap-2 px-5 py-8">
-                  <p className="m-0 text-sm text-[#e5e5e5]">
-                    {tracksState.items.length === 0 ? "No indexed tracks yet." : "No matching tracks."}
-                  </p>
-                  <p className="m-0 text-sm text-[#8f8f8f]">
-                    {tracksState.items.length === 0
-                      ? "Scan a local music folder before adding tracks to playlists."
-                      : "Try a different title, artist, or album search."}
-                  </p>
-                </div>
-              ) : null}
-
-              {visibleLibraryTracks.map((track) => {
-                const duplicateCount = activePlaylist.entries.filter(
-                  (entry) => entry.trackId === track.id,
-                ).length;
-
-                return (
-                  <div
-                    key={track.id}
-                    className="grid grid-cols-[minmax(320px,2fr)_minmax(180px,1.1fr)_72px] items-center gap-4 border-b border-white/5 px-5 py-3.5 last:border-b-0"
-                  >
-                    <div className="flex min-w-0 items-center gap-3">
-                      <ArtworkTile
-                        artworkKey={track.artworkKey}
-                        title={track.title}
-                        sizeClassName="h-11 w-11"
-                        roundedClassName="rounded-sm"
-                        fallbackClassName="bg-white/[0.04]"
-                      />
-                      <div className="grid min-w-0 gap-1">
-                        <span className="truncate text-sm text-[#f2f2f2]">{track.title}</span>
-                        <span className="truncate text-xs text-[#8f8f8f]">
-                          {track.artist ?? "unknown artist"}
-                          {duplicateCount > 0 ? ` • already added ${duplicateCount}x` : ""}
-                        </span>
-                      </div>
-                    </div>
-
-                    <span className="truncate text-sm text-[#d4d4d4]">
-                      {track.album ?? "unknown album"}
-                    </span>
-
-                    <button
-                      type="button"
-                      aria-label={`Add ${track.title} to ${title}`}
-                      onClick={() => onTrackAdd(activePlaylist.playlist.id, track)}
-                      className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/8 bg-white/[0.03] text-[#d4d4d4] transition-colors hover:border-white/12 hover:bg-white/[0.05] hover:text-[#f2f2f2]"
-                    >
-                      <Plus className="h-4 w-4" strokeWidth={2} />
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
+          <PlaylistLibrarySection
+            playlist={activePlaylist}
+            tracksState={tracksState}
+            searchDraft={librarySearchDraft}
+            visibleTracks={visibleLibraryTracks}
+            onSearchDraftChange={setLibrarySearchDraft}
+            onTrackAdd={(track) => onTrackAdd(activePlaylist.playlist.id, track)}
+          />
         </div>
       </div>
 
