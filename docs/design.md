@@ -106,6 +106,14 @@ Design rules for the current playlist slice:
 - library handoff should feel like an adjacent acquisition surface rather than a separate workflow
 - saved-order selection should support keyboard removal and precise playback starting points without overwhelming the layout with heavy editing chrome
 
+Design rules for the upcoming drag-reorder slice:
+
+- drag reorder should preview one explicit drop target at a time rather than implying a fuzzy freeform move zone
+- each saved-order row should resolve drag intent into a before-or-after drop target based on which half of the row the pointer occupies
+- persisted playlist order should change only on drop, never during hover, drag enter, or transient visual preview
+- reorder commits should replace the full saved entry order in one explicit payload so backend state stays dense and deterministic
+- playlist reorder should not silently mutate an already handed-off playback queue after playback has started
+
 ### Insights
 
 Track insights from timbre should appear in secondary detail surfaces such as a side panel or detail drawer. Insight availability should never interrupt the core listening flow.

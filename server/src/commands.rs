@@ -975,6 +975,10 @@ mod tests {
         );
         assert_eq!(payload.planned_commands.len(), 4);
         assert_eq!(payload.planned_commands[2].name, "replace_playlist_entries");
+        assert!(payload.planned_commands[2]
+            .summary
+            .contains("full-order replacement"));
+        assert!(payload.queue_handoff.queue_order_rule.contains("drag targets"));
     }
 
     #[test]

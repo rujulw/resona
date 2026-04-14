@@ -1,9 +1,24 @@
-import { useEffect, useState } from "react";
-import { ArrowDown, ArrowUp, ImagePlus, Pencil, Play, Plus, Trash2 } from "lucide-react";
+import { type DragEvent, useEffect, useMemo, useState } from "react";
+import {
+  ArrowDown,
+  ArrowUp,
+  GripVertical,
+  ImagePlus,
+  Pencil,
+  Play,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 
-import { pickPlaylistArtwork, type TrackListItem } from "../desktop";
+import {
+  pickPlaylistArtwork,
+  type PlaylistEntryInput,
+  type PlaylistEntryItem,
+  type TrackListItem,
+} from "../desktop";
 import type { PlaylistsState, TracksState } from "../types/app";
+import { AdvisoryBadge } from "../components/ui/AdvisoryBadge";
 import { ArtworkTile } from "../components/ui/ArtworkTile";
 import { CreatePlaylistDialog } from "../components/ui/CreatePlaylistDialog";
 import { formatDuration } from "../utils/format";
@@ -15,6 +30,7 @@ export function PlaylistsPage({
   onPlaylistArtworkChange,
   onPlaylistDelete,
   onPlaylistEntryMove,
+  onPlaylistEntriesReplace,
   onPlaylistEntryRemove,
   onPlaylistPlaybackHandoff,
   onPlaylistRename,
@@ -31,6 +47,7 @@ export function PlaylistsPage({
   onPlaylistArtworkChange: (playlistId: string, artworkPath: string) => void;
   onPlaylistDelete: (playlistId: string) => void;
   onPlaylistEntryMove: (playlistId: string, entryId: string, targetPosition: number) => void;
+  onPlaylistEntriesReplace: (playlistId: string, entries: PlaylistEntryInput[]) => void;
   onPlaylistEntryRemove: (playlistId: string, entryId: string) => void;
   onPlaylistPlaybackHandoff: (playlistId: string, startEntryId?: string) => void;
   onPlaylistRename: (
@@ -57,6 +74,11 @@ export function PlaylistsPage({
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [librarySearchDraft, setLibrarySearchDraft] = useState("");
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
+  const [draggedEntryId, setDraggedEntryId] = useState<string | null>(null);
+  const [dropIndicator, setDropIndicator] = useState<{
+    entryId: string;
+    placement: "before" | "after";
+  } | null>(null);
 
   useEffect(() => {
     if (
@@ -145,6 +167,62 @@ export function PlaylistsPage({
       editArtworkPath,
     );
     closeEditDialog();
+  };
+
+  const orderedPlaylistEntries = useMemo(
+    () =>
+      [...(activePlaylist?.entries ?? [])].sort(
+        (left, right) => left.position - right.position,
+      ),
+    [activePlaylist?.entries],
+  );
+
+  const resolveDragPlacement = (
+    event: DragEvent<HTMLElement>,
+    entryId: string,
+  ): { entryId: string; placement: "before" | "after" } => {
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const midpoint = bounds.top + bounds.height / 2;
+    const placement =
+      bounds.height <= 1
+        ? event.clientY > bounds.top
+          ? "after"
+          : "before"
+        : event.clientY >= midpoint
+          ? "after"
+          : "before";
+
+    return { entryId, placement };
+  };
+
+  const reorderEntries = (
+    entries: PlaylistEntryItem[],
+    movingEntryId: string,
+    targetEntryId: string,
+    placement: "before" | "after",
+  ): PlaylistEntryInput[] | null => {
+    const nextEntries = [...entries];
+    const movingIndex = nextEntries.findIndex((entry) => entry.entryId === movingEntryId);
+    const targetIndex = nextEntries.findIndex((entry) => entry.entryId === targetEntryId);
+
+    if (movingIndex < 0 || targetIndex < 0) {
+      return null;
+    }
+
+    const [movingEntry] = nextEntries.splice(movingIndex, 1);
+    const insertIndex = nextEntries.findIndex((entry) => entry.entryId === targetEntryId);
+    const boundedIndex = placement === "after" ? insertIndex + 1 : insertIndex;
+    nextEntries.splice(boundedIndex, 0, movingEntry);
+
+    if (nextEntries.every((entry, index) => entry.entryId === entries[index]?.entryId)) {
+      return null;
+    }
+
+    return nextEntries.map((entry, index) => ({
+      entryId: entry.entryId,
+      trackId: entry.trackId,
+      position: index,
+    }));
   };
 
   if (!playlistId && playlistsState.items[0]) {
@@ -346,14 +424,61 @@ export function PlaylistsPage({
                   </p>
                 </div>
               ) : (
-                activePlaylist.entries.map((entry) => (
+                orderedPlaylistEntries.map((entry) => (
                   <article
                     key={entry.entryId}
                     role="button"
                     tabIndex={0}
+                    draggable
                     aria-label={`Select ${entry.title}`}
                     aria-pressed={selectedEntryId === entry.entryId}
                     onClick={() => setSelectedEntryId(entry.entryId)}
+                    onDragStart={(event) => {
+                      event.dataTransfer.setData("text/plain", entry.entryId);
+                      event.dataTransfer.effectAllowed = "move";
+                      setDraggedEntryId(entry.entryId);
+                      setSelectedEntryId(entry.entryId);
+                    }}
+                    onDragEnd={() => {
+                      setDraggedEntryId(null);
+                      setDropIndicator(null);
+                    }}
+                    onDragOver={(event) => {
+                      event.preventDefault();
+                      const activeDragEntryId =
+                        draggedEntryId ||
+                        event.dataTransfer.getData("text/plain") ||
+                        selectedEntryId;
+                      if (!activeDragEntryId || activeDragEntryId === entry.entryId) {
+                        return;
+                      }
+                      setDropIndicator(resolveDragPlacement(event, entry.entryId));
+                    }}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      const activeDragEntryId =
+                        draggedEntryId ||
+                        event.dataTransfer.getData("text/plain") ||
+                        selectedEntryId;
+                      if (!activeDragEntryId || activeDragEntryId === entry.entryId) {
+                        setDraggedEntryId(null);
+                        setDropIndicator(null);
+                        return;
+                      }
+
+                      const target = resolveDragPlacement(event, entry.entryId);
+                      const nextEntries = reorderEntries(
+                        orderedPlaylistEntries,
+                        activeDragEntryId,
+                        target.entryId,
+                        target.placement,
+                      );
+                      if (nextEntries) {
+                        onPlaylistEntriesReplace(activePlaylist.playlist.id, nextEntries);
+                      }
+                      setDraggedEntryId(null);
+                      setDropIndicator(null);
+                    }}
                     onDoubleClick={() =>
                       onPlaylistPlaybackHandoff(activePlaylist.playlist.id, entry.entryId)
                     }
@@ -372,9 +497,30 @@ export function PlaylistsPage({
                     className={[
                       "grid w-full grid-cols-[minmax(320px,2fr)_minmax(180px,1.1fr)_96px_112px] items-center gap-4 border-b border-white/5 px-5 py-3.5 text-left last:border-b-0",
                       selectedEntryId === entry.entryId ? "bg-white/8" : "hover:bg-white/3",
+                      draggedEntryId === entry.entryId ? "opacity-60" : "",
+                      dropIndicator?.entryId === entry.entryId &&
+                      dropIndicator.placement === "before"
+                        ? "border-t-2 border-t-[#f2f2f2]"
+                        : "",
+                      dropIndicator?.entryId === entry.entryId &&
+                      dropIndicator.placement === "after"
+                        ? "border-b-2 border-b-[#f2f2f2]"
+                        : "",
                     ].join(" ")}
                   >
                     <div className="flex min-w-0 items-center gap-3">
+                      <button
+                        type="button"
+                        aria-label={`Play ${entry.title}`}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setSelectedEntryId(entry.entryId);
+                          onPlaylistPlaybackHandoff(activePlaylist.playlist.id, entry.entryId);
+                        }}
+                        className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/8 bg-white/[0.03] text-[#d4d4d4] transition-colors hover:border-white/12 hover:bg-white/[0.05] hover:text-[#f2f2f2]"
+                      >
+                        <Play className="h-4 w-4" strokeWidth={2} />
+                      </button>
                       <ArtworkTile
                         artworkKey={entry.artworkKey}
                         title={entry.title}
@@ -384,9 +530,12 @@ export function PlaylistsPage({
                       />
                       <div className="grid min-w-0 gap-1">
                         <span className="truncate text-sm text-[#f2f2f2]">{entry.title}</span>
-                        <span className="truncate text-xs text-[#8f8f8f]">
-                          {entry.artist ?? "unknown artist"}
-                        </span>
+                        <div className="flex min-w-0 items-center gap-2">
+                          <AdvisoryBadge advisory={entry.advisory} />
+                          <span className="truncate text-xs text-[#8f8f8f]">
+                            {entry.artist ?? "unknown artist"}
+                          </span>
+                        </div>
                       </div>
                     </div>
 
@@ -401,18 +550,12 @@ export function PlaylistsPage({
                     </span>
 
                     <div className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        aria-label={`Play ${entry.title}`}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          setSelectedEntryId(entry.entryId);
-                          onPlaylistPlaybackHandoff(activePlaylist.playlist.id, entry.entryId);
-                        }}
-                        className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/8 bg-white/[0.03] text-[#d4d4d4] transition-colors hover:border-white/12 hover:bg-white/[0.05] hover:text-[#f2f2f2]"
+                      <span
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/8 bg-white/[0.03] text-[#8f8f8f]"
+                        aria-label={`Drag ${entry.title}`}
                       >
-                        <Play className="h-4 w-4" strokeWidth={2} />
-                      </button>
+                        <GripVertical className="h-4 w-4" strokeWidth={1.8} />
+                      </span>
                       <button
                         type="button"
                         aria-label={`Move ${entry.title} up`}
@@ -433,7 +576,7 @@ export function PlaylistsPage({
                       <button
                         type="button"
                         aria-label={`Move ${entry.title} down`}
-                        disabled={entry.position === activePlaylist.entries.length - 1}
+                        disabled={entry.position === orderedPlaylistEntries.length - 1}
                         onClick={(event) => {
                           event.stopPropagation();
                           setSelectedEntryId(entry.entryId);

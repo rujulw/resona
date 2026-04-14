@@ -509,7 +509,7 @@ pub fn playlist_contract() -> PlaylistContract {
             request_shape: "{ playlistId, startEntryId? }",
             response_shape: "PlaybackQueueSnapshot",
             active_entry_rule: "if startEntryId is present it must belong to playlistId; otherwise playback begins from the first playlist entry",
-            queue_order_rule: "queue track order matches playlist entry order exactly at handoff time and stays stable even if the visible library view is filtered or resorted later",
+            queue_order_rule: "queue track order matches playlist entry order exactly at handoff time and stays stable even if the visible playlist view later previews drag targets or commits a saved-order replacement",
         },
         planned_commands: vec![
             PlaylistCommandContract {
@@ -526,7 +526,7 @@ pub fn playlist_contract() -> PlaylistContract {
             },
             PlaylistCommandContract {
                 name: "replace_playlist_entries",
-                summary: "Commit an explicit ordered list of playlist entries after add, remove, or reorder operations.",
+                summary: "Commit one explicit full-order replacement for playlist entries after add, remove, or drag-reorder operations.",
                 request_shape: "{ playlistId, entries: [{ entryId?, trackId, position }] }",
                 response_shape: "PlaylistDetail",
             },
@@ -541,6 +541,8 @@ pub fn playlist_contract() -> PlaylistContract {
             "playlist entry identity is separate from track identity so the same track can appear more than once in a playlist without ambiguity",
             "playlist order is determined only by ascending entry position and never by track title artist album or insertion timestamp",
             "positions are dense and zero-based after each committed reorder so neighboring inserts and moves remain deterministic",
+            "drag-reorder drop intent resolves against one row at a time with explicit before-or-after placement instead of ambiguous freeform insertion",
+            "saved-order changes persist only when the client commits one explicit replacement payload rather than while hover previews are still in flight",
             "queue handoff copies playlist order into the backend playback queue at one moment in time instead of creating a live coupled view",
             "playlist deletion cascades to playlist entries while track deletion removes dependent local-playlist entries for the current local-first milestone",
         ],
@@ -883,6 +885,16 @@ mod tests {
         assert_eq!(contract.queue_handoff.mode, PLAYLIST_QUEUE_HANDOFF_MODE);
         assert_eq!(contract.planned_commands.len(), 4);
         assert_eq!(contract.planned_commands[0].name, "create_playlist");
+        assert!(contract.queue_handoff.queue_order_rule.contains("drag targets"));
+        assert!(contract.planned_commands[2].summary.contains("full-order replacement"));
+        assert!(
+            contract.guarantees[3].contains("before-or-after placement"),
+            "playlist contract should describe explicit drop-target resolution"
+        );
+        assert!(
+            contract.guarantees[4].contains("explicit replacement payload"),
+            "playlist contract should describe reorder persistence only on explicit replacement"
+        );
         assert_eq!(
             contract.planned_commands[3].name,
             "handoff_playlist_to_queue"

@@ -323,6 +323,35 @@ describe("desktop bootstrap bridge", () => {
     });
   });
 
+  it("replaces playlist entries through the command bridge", async () => {
+    invokeMock.mockResolvedValueOnce({
+      playlist: {
+        id: "playlist-1",
+        name: "Desk Set",
+        description: null,
+        artworkKey: null,
+        entryCount: 2,
+        createdAt: "1700000100",
+        updatedAt: "1700000200",
+      },
+      entries: [],
+    });
+
+    const { replacePlaylistEntries } = await import("./desktop");
+    await replacePlaylistEntries("playlist-1", [
+      { entryId: "entry-2", trackId: "track-2", position: 0 },
+      { entryId: "entry-1", trackId: "track-1", position: 1 },
+    ]);
+
+    expect(invokeMock).toHaveBeenCalledWith("replace_playlist_entries", {
+      playlistId: "playlist-1",
+      entries: [
+        { entryId: "entry-2", trackId: "track-2", position: 0 },
+        { entryId: "entry-1", trackId: "track-1", position: 1 },
+      ],
+    });
+  });
+
   it("hands off playlist playback through the command bridge", async () => {
     invokeMock.mockResolvedValueOnce({
       playback: {

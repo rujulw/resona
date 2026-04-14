@@ -15,6 +15,7 @@ import {
   pickLibraryDirectory,
   playbackAction,
   queryLibrary,
+  replacePlaylistEntries,
   reportPlaybackError,
   scanLocalLibrary,
   seekPlayback,
@@ -480,6 +481,32 @@ export function useAppShell() {
       });
   };
 
+  const handlePlaylistEntriesReplace = (
+    playlistId: string,
+    entries: Array<{ entryId?: string; trackId: string; position: number }>,
+  ) => {
+    void replacePlaylistEntries(playlistId, entries)
+      .then((detail) => {
+        setPlaylistsState((existing) => ({
+          status: "ready",
+          items: existing.items.map((item) =>
+            item.id === detail.playlist.id ? detail.playlist : item,
+          ),
+          activePlaylistId: detail.playlist.id,
+          activePlaylist: detail,
+          playbackQueue: existing.playbackQueue,
+        }));
+      })
+      .catch((error: unknown) => {
+        setPlaylistsState((existing) => ({
+          ...existing,
+          status: "error",
+          message:
+            error instanceof Error ? error.message : "Failed to reorder playlist.",
+        }));
+      });
+  };
+
   const handlePlaylistEntryRemove = (playlistId: string, entryId: string) => {
     void removePlaylistEntry(playlistId, entryId)
       .then((detail) => {
@@ -853,6 +880,7 @@ export function useAppShell() {
     handlePlaylistDelete,
     handlePlaylistArtworkChange,
     handlePlaylistEntryMove,
+    handlePlaylistEntriesReplace,
     handlePlaylistEntryRemove,
     handlePlaylistPlaybackHandoff,
     handlePlaylistRename,
