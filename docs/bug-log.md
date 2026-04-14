@@ -43,6 +43,9 @@
 - Files touched:
   - `client/src/App.test.tsx`
   - `client/src/desktop.ts`
+  - `client/src/desktop/playlists.ts`
+  - `client/src/desktop/library.ts`
+  - `client/src/desktop/types.ts`
   - `client/package.json`
   - `client/package-lock.json`
   - `server/Cargo.toml`
@@ -66,6 +69,9 @@
   - `server/src/commands.rs`
   - `server/src/lib.rs`
   - `client/src/desktop.ts`
+  - `client/src/desktop/runtime.ts`
+  - `client/src/desktop/playback.ts`
+  - `client/src/desktop/types.ts`
   - `client/src/desktop.test.ts`
   - `client/src/hooks/useAppShell.ts`
   - `client/src/App.test.tsx`
@@ -84,6 +90,9 @@
   - `server/src/playback/mod.rs`
   - `server/src/commands.rs`
   - `client/src/desktop.ts`
+  - `client/src/desktop/playback.ts`
+  - `client/src/desktop/runtime.ts`
+  - `client/src/desktop/types.ts`
   - `client/src/desktop.test.ts`
   - `client/src/hooks/useAppShell.ts`
   - `client/src/App.test.tsx`
@@ -215,6 +224,7 @@
   - `server/capabilities/default.json`
   - `server/tauri.conf.json`
   - `client/src/desktop.ts`
+  - `client/src/desktop/library.ts`
   - `client/src/hooks/useAppShell.ts`
 - Linked commit/PR: pending
 - Notes: canceling the picker is now treated as a quiet no-op rather than as a noisy status update, which better matches desktop utility expectations.

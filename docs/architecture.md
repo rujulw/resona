@@ -144,6 +144,18 @@ Current `v1.4.0` boundary definition:
 - The frontend dispatches user intent and renders backend snapshots through Tauri commands and `playback://state-changed`
 - Queue state is still shell-derived today, but the ownership boundary is now narrow enough to move queue authority into Rust without changing the visible client contract
 
+### Frontend Bridge Layout
+
+- `client/src/desktop.ts` is a stable compatibility surface for callers and tests
+- `client/src/desktop/types.ts` contains shared request/response and contract types
+- `client/src/desktop/runtime.ts` contains runtime detection, typed invoke helpers, and shared payload normalization
+- `client/src/desktop/shell.ts` contains bootstrap and shell-state bridge calls
+- `client/src/desktop/playback.ts` contains playback commands, playback event subscription, and playback contract helpers
+- `client/src/desktop/playlists.ts` contains playlist CRUD, entry reorder/replacement, and queue handoff helpers
+- `client/src/desktop/library.ts` contains library query/scan calls, artwork/playback source resolution, and native file picker helpers
+
+This keeps the public bridge surface stable while letting feature code depend on narrower modules internally.
+
 ### Planned Playlist Boundary
 
 - SQLite should store playlist metadata in `playlists` and ordered membership in `playlist_entries`
@@ -288,7 +300,7 @@ Current compatibility rules in `v1.3.0`:
 Current `v1.3.0` contract:
 
 - Commands:
-  `load_playback_track`, `playback_action`, `seek_playback`, `sync_playback_timing`, `complete_playback`, `report_playback_error`, `replace_playback_queue`, and `get_playback_snapshot`
+  `load_playback_track`, `playback_action`, `seek_playback`, `sync_playback_timing`, `complete_playback`, `report_playback_error`, `query_library`, `list_playlists`, and `handoff_playlist_to_queue`
 - Events:
   `playback://state-changed` and `playback://queue-changed`
 - Playback authority:
@@ -395,7 +407,7 @@ The current `tracks` route now exposes that contract directly through client-sid
 ### Frontend Playback Flow
 
 1. A track row selection marks the active local item in shell state
-2. The frontend requests `load_playback_track` for the active local track through the Tauri bridge
+2. The frontend requests `load_playback_track` through `client/src/desktop/playback.ts`
 3. Rust resolves the source, updates playback ownership, and starts local output inside the playback runtime
 4. Rust emits `playback://state-changed` on transport, timing, and completion transitions
 5. The shell playback bar and queue route render the same backend-owned snapshots

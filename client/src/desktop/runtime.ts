@@ -38,3 +38,48 @@ export async function invokeWithPreviewFallback<TResponse, TPayload = undefined>
     return await fallback();
   }
 }
+
+export function normalizeOptionalText(value?: string | null): string | null {
+  return value?.trim() ? value.trim() : null;
+}
+
+export function normalizeOptionalNumber(value?: number | null): number | null {
+  return value ?? null;
+}
+
+export function normalizePlaylistMutationPayload(
+  name: string,
+  description?: string | null,
+  artworkPath?: string | null,
+): {
+  name: string;
+  description: string | null;
+  artworkPath: string | null;
+} {
+  return {
+    name,
+    description: normalizeOptionalText(description),
+    artworkPath: normalizeOptionalText(artworkPath),
+  };
+}
+
+export function normalizeTimingPayload(
+  progressSeconds?: number,
+  durationSeconds?: number,
+): {
+  progressSeconds: number | null;
+  durationSeconds: number | null;
+} {
+  return {
+    progressSeconds: normalizeOptionalNumber(progressSeconds),
+    durationSeconds: normalizeOptionalNumber(durationSeconds),
+  };
+}
+
+export function normalizePlaybackErrorPayload(transportLabel?: string): {
+  transportLabel: string | null;
+} {
+  return {
+    transportLabel: normalizeOptionalText(transportLabel),
+  };
+}
