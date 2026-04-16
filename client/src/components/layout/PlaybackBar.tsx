@@ -3,6 +3,7 @@ import type { MouseEvent } from "react";
 
 import type { PlaybackShellState } from "../../desktop";
 import type { TrackListItem } from "../../desktop";
+import { buildPlaybackBarViewModel } from "../../hooks/appShellViewModels";
 import { formatDuration } from "../../utils/format";
 import { AdvisoryBadge } from "../ui/AdvisoryBadge";
 import { ArtworkTile } from "../ui/ArtworkTile";
@@ -18,13 +19,7 @@ export function PlaybackBar({
   onPlaybackAction: (action: "previous" | "toggle" | "next") => void;
   onSeek: (positionSeconds: number) => void;
 }) {
-  const hasActiveTrack = Boolean(playback.trackId);
-  const progressValue =
-    playback.durationSeconds > 0
-      ? Math.min(playback.durationSeconds, playback.progressSeconds)
-      : 0;
-  const progressPercent =
-    playback.durationSeconds > 0 ? (progressValue / playback.durationSeconds) * 100 : 0;
+  const playbackBar = buildPlaybackBarViewModel({ activeTrack, playback });
   const transportButtons = [
     {
       action: "previous" as const,
@@ -33,8 +28,8 @@ export function PlaybackBar({
     },
     {
       action: "toggle" as const,
-      ariaLabel: playback.isPlaying ? "Pause playback" : "Play playback",
-      icon: playback.isPlaying ? Pause : Play,
+      ariaLabel: playbackBar.isPlaying ? "Pause playback" : "Play playback",
+      icon: playbackBar.isPlaying ? Pause : Play,
     },
     {
       action: "next" as const,
@@ -44,36 +39,34 @@ export function PlaybackBar({
   ];
 
   const handleSeekClick = (event: MouseEvent<HTMLButtonElement>) => {
-    if (!hasActiveTrack || playback.durationSeconds <= 0) {
+    if (!playbackBar.hasActiveTrack || playbackBar.durationSeconds <= 0) {
       return;
     }
 
     const bounds = event.currentTarget.getBoundingClientRect();
     const relativeX = Math.min(Math.max(event.clientX - bounds.left, 0), bounds.width);
-    const nextPosition = (relativeX / bounds.width) * playback.durationSeconds;
+    const nextPosition = (relativeX / bounds.width) * playbackBar.durationSeconds;
     onSeek(nextPosition);
   };
 
   return (
-    <footer className="col-span-full grid min-h-[108px] grid-cols-[minmax(260px,1fr)_minmax(420px,640px)_minmax(260px,1fr)] items-center gap-4 border-t border-white/6 bg-[#0e0e0e] px-4">
+    <footer className="col-span-full grid min-h-27 grid-cols-[minmax(260px,1fr)_minmax(420px,640px)_minmax(260px,1fr)] items-center gap-4 border-t border-white/6 bg-[#0e0e0e] px-4">
       <div className="flex min-w-0 items-center gap-3 py-4">
         <ArtworkTile
           artworkKey={activeTrack?.artworkKey}
-          title={activeTrack?.title ?? playback.trackTitle ?? "Nothing playing"}
+          title={playbackBar.title}
           sizeClassName="h-14 w-14"
           roundedClassName="rounded-sm"
         />
         <div className="grid min-w-0 flex-1 gap-0.5">
           <div className="flex min-w-0 items-center gap-2">
             <strong className="truncate text-sm font-medium text-[#f2f2f2]">
-              {activeTrack?.title ?? playback.trackTitle ?? "Nothing playing"}
+              {playbackBar.title}
             </strong>
-            <AdvisoryBadge
-              advisory={activeTrack?.advisory ?? playback.trackAdvisory}
-            />
+            <AdvisoryBadge advisory={playbackBar.advisory} />
           </div>
           <span className="truncate text-sm text-[#8f8f8f]">
-            {activeTrack?.artist ?? playback.trackArtist ?? ""}
+            {playbackBar.artist}
           </span>
         </div>
       </div>
@@ -86,10 +79,10 @@ export function PlaybackBar({
             return (
               <button
                 key={item.action}
-                className="h-10 min-w-10 rounded-full border border-white/8 bg-white/[0.03] text-sm text-[#d4d4d4] transition-colors hover:border-white/12 hover:text-[#f2f2f2] disabled:cursor-not-allowed disabled:opacity-45"
+                className="h-10 min-w-10 rounded-full border border-white/8 bg-white/3 text-sm text-[#d4d4d4] transition-colors hover:border-white/12 hover:text-[#f2f2f2] disabled:cursor-not-allowed disabled:opacity-45"
                 aria-label={item.ariaLabel}
                 type="button"
-                disabled={!hasActiveTrack && item.action !== "toggle"}
+                disabled={!playbackBar.hasActiveTrack && item.action !== "toggle"}
                 onClick={() => {
                   onPlaybackAction(item.action);
                 }}
@@ -105,18 +98,18 @@ export function PlaybackBar({
             aria-label="Seek playback"
             className="block h-1 w-full overflow-hidden rounded-full bg-white/8 text-left disabled:cursor-not-allowed disabled:opacity-45"
             type="button"
-            disabled={!hasActiveTrack || playback.durationSeconds <= 0}
+            disabled={!playbackBar.hasActiveTrack || playbackBar.durationSeconds <= 0}
             onClick={handleSeekClick}
           >
             <span
               aria-hidden="true"
               className="block h-full rounded-full bg-[#8f8f8f]"
-              style={{ width: `${progressPercent}%` }}
+              style={{ width: `${playbackBar.progressPercent}%` }}
             />
           </button>
           <div className="flex justify-between text-xs text-[#8f8f8f]">
-            <span>{formatDuration(playback.progressSeconds)}</span>
-            <span>{formatDuration(playback.durationSeconds)}</span>
+            <span>{formatDuration(playbackBar.progressSeconds)}</span>
+            <span>{formatDuration(playbackBar.durationSeconds)}</span>
           </div>
         </div>
       </div>

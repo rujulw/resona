@@ -1,9 +1,19 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 
-import { handoffPlaylistToQueue, playbackAction, seekPlayback, type TrackListItem } from "../../desktop";
+import {
+  handoffPlaylistToQueue,
+  playbackAction,
+  seekPlayback,
+  type TrackListItem,
+} from "../../desktop";
+import {
+  selectActivePlaybackTrackId,
+  selectCurrentPlaybackProgressSeconds,
+  selectIsRustOutputPlayback,
+} from "./playbackSelectors";
 import type { PlaylistsState, ShellState, TracksState } from "../../types/app";
-import { deriveQueueState } from "../appShellShared";
+import { buildPlaybackQueueViewModel } from "../appShellViewModels";
 import type { PlaybackAction } from "./playbackCoordinatorShared";
 
 export function usePlaybackQueueSync({
@@ -24,7 +34,7 @@ export function usePlaybackQueueSync({
   playlistsState: PlaylistsState;
   trackCatalogRef: MutableRefObject<Map<string, TrackListItem>>;
   audioRef: MutableRefObject<HTMLAudioElement | null>;
-playbackQueueTrackIds: string[];
+  playbackQueueTrackIds: string[];
   setPlaybackQueueTrackIds: Dispatch<SetStateAction<string[]>>;
   setShellState: Dispatch<SetStateAction<ShellState | null>>;
   setTracksState: Dispatch<SetStateAction<TracksState>>;
@@ -32,16 +42,16 @@ playbackQueueTrackIds: string[];
   startTrackPlayback: (track: TrackListItem, autoplay: boolean) => Promise<void>;
 }) {
 
-  const isRustOutputPlayback = shellState?.playback.outputOwner === "rust";
+  const isRustOutputPlayback = selectIsRustOutputPlayback(shellState);
 
   const queueState = useMemo(
     () =>
-      deriveQueueState(
-        trackCatalogRef.current,
+      buildPlaybackQueueViewModel({
+        trackCatalog: trackCatalogRef.current,
         playbackQueueTrackIds,
-        shellState?.playback.trackId ?? tracksState.selectedTrackId,
-        playlistsState.playbackQueue?.sourceLabel,
-      ),
+        activeTrackId: selectActivePlaybackTrackId(shellState, tracksState),
+        sourceLabel: playlistsState.playbackQueue?.sourceLabel,
+      }),
     [
       playbackQueueTrackIds,
       playlistsState.playbackQueue?.sourceLabel,
@@ -87,16 +97,17 @@ playbackQueueTrackIds: string[];
 
   const handlePlaybackAction = (action: PlaybackAction) => {
     const audio = audioRef.current;
+    const activeTrackId = selectActivePlaybackTrackId(shellState, tracksState);
 
     if (action === "previous" || action === "next") {
-      const activeTrackId = shellState?.playback.trackId ?? tracksState.selectedTrackId;
       const activeIndex = activeTrackId
         ? playbackQueueTrackIds.findIndex((trackId) => trackId === activeTrackId)
         : -1;
 
-      const currentProgressSeconds = isRustOutputPlayback
-        ? shellState?.playback.progressSeconds ?? 0
-        : audio?.currentTime ?? 0;
+      const currentProgressSeconds = selectCurrentPlaybackProgressSeconds(
+        shellState,
+        audio?.currentTime ?? 0,
+      );
 
       if (action === "previous" && currentProgressSeconds > 3 && activeTrackId) {
         if (audio) {
@@ -127,12 +138,12 @@ playbackQueueTrackIds: string[];
     }
 
     if (action === "toggle") {
-      if (shellState?.playback.trackId && (isRustOutputPlayback || (audio && audio.src))) {
+      if (activeTrackId && (isRustOutputPlayback || (audio && audio.src))) {
         void playbackAction("toggle");
         return;
       }
 
-      if (!shellState?.playback.trackId && tracksState.items.length > 0) {
+      if (!activeTrackId && tracksState.items.length > 0) {
         void startTrackPlayback(tracksState.items[0], true);
         return;
       }

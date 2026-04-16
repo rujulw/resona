@@ -1,6 +1,11 @@
 import { useCallback, useState } from "react";
 
 import { seekPlayback, type TrackListItem } from "../desktop";
+
+import {
+  selectIsRustOutputPlayback,
+  selectPlaybackDurationSeconds,
+} from "./playback/playbackSelectors";
 import { usePlaybackAutoAdvance } from "./playback/usePlaybackAutoAdvance";
 import { usePlaybackMediaRuntime } from "./playback/usePlaybackMediaRuntime";
 import type { PlaybackCoordinatorParams } from "./playback/playbackCoordinatorShared";
@@ -51,7 +56,8 @@ export function usePlaybackCoordinator({
     startTrackPlayback,
   });
 
-  const isRustOutputPlayback = shellState?.playback.outputOwner === "rust";
+  const isRustOutputPlayback = selectIsRustOutputPlayback(shellState);
+  const playbackDurationSeconds = selectPlaybackDurationSeconds(shellState);
 
   const handleTrackSelection = useCallback(
     (track: TrackListItem) => {
@@ -66,7 +72,7 @@ export function usePlaybackCoordinator({
         0,
         Math.min(
           Math.round(positionSeconds),
-          shellState?.playback.durationSeconds ?? Math.round(positionSeconds),
+          playbackDurationSeconds || Math.round(positionSeconds),
         ),
       );
 
@@ -76,7 +82,7 @@ export function usePlaybackCoordinator({
 
       void seekPlayback(clampedSeconds);
     },
-    [audioRef, isRustOutputPlayback, shellState?.playback.durationSeconds],
+    [audioRef, isRustOutputPlayback, playbackDurationSeconds],
   );
 
   return {
