@@ -81,18 +81,19 @@ Build a private, performance-first music player that feels closer to a system ut
 - Desktop shell: Tauri
 - Core engine: Rust
 - Database: SQLite
-- Audio path: frontend-owned Web Audio in public `v1.0.0`, with backend-owned playback state, native Rust local desktop output, and first-class playlists in `v1.3.0`
-- Remote storage: Atlas integration deferred until `v3.0.0`
-- Analysis engine: `timbre` integration deferred until `v2.0.0`
+- Audio path: Rust-owned playback state and native local output, with the React shell acting as renderer/controller for transport and queue surfaces
+- Remote storage: Atlas integration deferred until a later release
+- Analysis engine: `timbre` integration deferred until a later release
 
 ## Frontend Foundation
 
-- The desktop client now uses `react-router-dom` for a persistent shell with `home`, `tracks`, `queue`, and `settings` routes
+- The desktop client uses `react-router-dom` for a persistent shell with `home`, `tracks`, `playlists`, `queue`, and `settings` routes
 - The left sidebar and bottom playback bar stay mounted across route changes
-- The top window area now uses app-owned desktop chrome instead of relying fully on native title text
-- Release polish now includes Lucide-based navigation and transport icons instead of text-only shell controls
-- The client code is now split into `components/`, `pages/`, `hooks/`, `types/`, `constants/`, and `utils/` rather than keeping the shell in one `App.tsx`
-- The `tracks` route now uses a full-width inline search field, header-driven sorting, and a scrollable library table inside the persistent desktop shell
+- `App.tsx` now acts as route composition, building grouped `chrome`, `routes`, `actions`, and playback props for `AppShell` and `AppShellRoutes`
+- `useAppShell` is now a thin composition hook over `useShellQueryState` and `usePlaybackCoordinator` instead of one growing all-purpose shell hook
+- Query/bootstrap responsibilities are split into `hooks/shell/` modules and playback responsibilities are split into `hooks/playback/` modules
+- Release polish includes app-owned desktop chrome plus Lucide-based navigation and transport icons
+- The `tracks` route uses an inline search field, header-driven sorting, and a scrollable library table inside the persistent shell
 
 ## Current Playback Baseline
 
@@ -111,7 +112,7 @@ Build a private, performance-first music player that feels closer to a system ut
 
 ## Current Playback Contract
 
-The playback migration boundary is now implemented in code rather than only described as a roadmap note.
+The playback boundary is implemented in code rather than only described as a roadmap note.
 
 - Rust now owns the playback runtime for loaded-track identity, transport state, progress, seek, completion, and output ownership
 - The command surface centers on `load_playback_track`, `playback_action`, `seek_playback`, `sync_playback_timing`, `complete_playback`, and `report_playback_error`
@@ -128,12 +129,23 @@ Current frontend bridge layout:
 - `client/src/desktop/playlists.ts` owns playlist CRUD, entry ordering, and playlist-to-queue handoff
 - `client/src/desktop/library.ts` owns library query/scan calls, asset resolution, and native picker helpers
 
+Current frontend shell layout:
+
+- `client/src/App.tsx` maps shell state into route-facing and chrome-facing view models
+- `client/src/components/layout/AppShell.tsx` owns the persistent frame and playback chrome wiring
+- `client/src/components/layout/AppShellRoutes.tsx` owns the route table for `home`, `tracks`, `playlists`, `queue`, and `settings`
+- `client/src/hooks/useAppShell.ts` composes query/bootstrap state with playback coordination
+- `client/src/hooks/useShellQueryState.ts` owns bootstrap, shell refresh, library scan, track queries, and playlist queries
+- `client/src/hooks/usePlaybackCoordinator.ts` composes the playback runtime bridge, media runtime, queue sync, and auto-advance helpers
+- `client/src/hooks/shell/` and `client/src/hooks/playback/` hold the focused units extracted from the earlier larger hooks
+
 Current implementation status:
 
 - Rust owns local-file playback output for desktop playback and emits playback snapshots back into the shell
 - `get_shell_state` reflects backend playback snapshots instead of only hard-coded idle defaults
 - The shell renders transport, timing, and completion state from backend snapshots and events rather than frontend media lifecycle callbacks
-- Native playback smoke coverage now exercises launch, play, seek, pause, and completion across backend and shell tests
+- Frontend coverage is split across bridge tests, page tests, and the app desktop harness rather than one oversized `App.test.tsx`
+- Native playback smoke coverage exercises launch, play, seek, pause, and completion across backend and shell tests
 
 ## Native Output Direction
 
@@ -159,10 +171,10 @@ Constraints recorded up front:
 - benchmark memory and playback behavior separately instead of assuming native output is automatically lighter
 - defer gapless playback, EQ, DSP, and advanced output-device UX until after native output is stable
 
-Expected result:
+Current result:
 
-- the shell should stop owning active audio execution for local desktop playback
-- playback lifecycle behavior should become more deterministic on desktop
+- the shell no longer owns active audio execution for local desktop playback
+- playback lifecycle behavior is more deterministic on desktop because timing, seek, completion, and error state now round-trip through the backend contract
 - future native clients should be able to reuse more playback behavior without moving authority back into the UI
 
 ## MVP Subsystems
