@@ -42,7 +42,7 @@ export function TracksPage({
 
       <label className="block min-w-0">
         <input
-          className="w-full rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3 text-sm text-[#f2f2f2] outline-none placeholder:text-[#6f6f6f]"
+          className="w-full rounded-2xl border border-white/8 bg-white/3 px-4 py-3 text-sm text-[#f2f2f2] outline-none placeholder:text-[#6f6f6f]"
           type="text"
           value={tracksQueryState.searchDraft}
           placeholder="Search title, artist, album"

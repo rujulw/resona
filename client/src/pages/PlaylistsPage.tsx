@@ -1,10 +1,13 @@
-import { type DragEvent, type MouseEvent, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
+
+import { usePlaylistDialogs } from "../hooks/playlists/usePlaylistDialogs";
+import { usePlaylistLibrarySearch } from "../hooks/playlists/usePlaylistLibrarySearch";
+import { usePlaylistEntrySelection } from "../hooks/playlists/usePlaylistEntrySelection";
+import { usePlaylistReorder } from "../hooks/playlists/usePlaylistReorder";
 
 import {
   pickPlaylistArtwork,
-  type PlaylistEntryInput,
-  type PlaylistEntryItem,
   type TrackListItem,
 } from "../desktop";
 import type { PlaylistsState, TracksState } from "../types/app";
@@ -37,7 +40,7 @@ export function PlaylistsPage({
   onPlaylistArtworkChange: (playlistId: string, artworkPath: string) => void;
   onPlaylistDelete: (playlistId: string) => void;
   onPlaylistEntryMove: (playlistId: string, entryId: string, targetPosition: number) => void;
-  onPlaylistEntriesReplace: (playlistId: string, entries: PlaylistEntryInput[]) => void;
+  onPlaylistEntriesReplace: Parameters<typeof usePlaylistReorder>[0]["onPlaylistEntriesReplace"];
   onPlaylistEntryRemove: (playlistId: string, entryId: string) => void;
   onPlaylistPlaybackHandoff: (playlistId: string, startEntryId?: string) => void;
   onPlaylistRename: (
@@ -53,24 +56,58 @@ export function PlaylistsPage({
   const navigate = useNavigate();
   const activePlaylistId = playlistId ?? playlistsState.activePlaylistId;
   const activePlaylist = playlistsState.activePlaylist;
-  const [createDraft, setCreateDraft] = useState("");
-  const [createDescriptionDraft, setCreateDescriptionDraft] = useState("");
-  const [createArtworkPath, setCreateArtworkPath] = useState<string | null>(null);
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [isCreatingPlaylist, setIsCreatingPlaylist] = useState(false);
-  const [editDraft, setEditDraft] = useState("");
-  const [editDescriptionDraft, setEditDescriptionDraft] = useState("");
-  const [editArtworkPath, setEditArtworkPath] = useState<string | null>(null);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [librarySearchDraft, setLibrarySearchDraft] = useState("");
-  const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
-  const [draggedEntryId, setDraggedEntryId] = useState<string | null>(null);
-  const [optimisticEntries, setOptimisticEntries] = useState<PlaylistEntryItem[] | null>(null);
-  const draggedEntryIdRef = useRef<string | null>(null);
-  const [dropIndicator, setDropIndicator] = useState<{
-    entryId: string;
-    placement: "before" | "after";
-  } | null>(null);
+  const { librarySearchDraft, setLibrarySearchDraft, visibleLibraryTracks } =
+    usePlaylistLibrarySearch(tracksState);
+  const { selectedEntryId, setSelectedEntryId } = usePlaylistEntrySelection(activePlaylist);
+  const {
+    draggedEntryId,
+    setDraggedEntryId,
+    draggedEntryIdRef,
+    dropIndicator,
+    orderedPlaylistEntries,
+    resolveDragPlacement,
+    clearDropIndicator,
+    resolveActiveDragEntryId,
+    updateDropIndicatorFromPointer,
+    setResolvedDropIndicator,
+    commitReorder,
+  } = usePlaylistReorder({
+    activePlaylistId: activePlaylist?.playlist.id ?? null,
+    activePlaylistEntries: activePlaylist?.entries ?? [],
+    activePlaylistUpdatedAt: activePlaylist?.playlist.updatedAt,
+    playlistsStatus: playlistsState.status,
+    onPlaylistEntriesReplace,
+  });
+  const {
+    createDraft,
+    setCreateDraft,
+    createDescriptionDraft,
+    setCreateDescriptionDraft,
+    createArtworkPath,
+    setCreateArtworkPath,
+    isCreateDialogOpen,
+    isCreatingPlaylist,
+    openCreateDialog,
+    closeCreateDialog,
+    handleCreateSubmit,
+    editDraft,
+    setEditDraft,
+    editDescriptionDraft,
+    setEditDescriptionDraft,
+    editArtworkPath,
+    setEditArtworkPath,
+    isEditDialogOpen,
+    openEditDialog,
+    closeEditDialog,
+    handleEditSubmit,
+  } = usePlaylistDialogs({
+    activePlaylist,
+    onCreatePlaylist,
+    onPlaylistRename,
+    onCreatedPlaylistNavigate: (createdPlaylistId) => {
+      navigate(`/playlists/${createdPlaylistId}`);
+    },
+  });
 
   useEffect(() => {
     if (
@@ -87,231 +124,6 @@ export function PlaylistsPage({
     playlistsState.status,
   ]);
 
-  useEffect(() => {
-    if (!selectedEntryId) {
-      return;
-    }
-
-    if (activePlaylist?.entries.some((entry) => entry.entryId === selectedEntryId)) {
-      return;
-    }
-
-    setSelectedEntryId(null);
-  }, [activePlaylist, selectedEntryId]);
-
-  useEffect(() => {
-    setOptimisticEntries(null);
-  }, [activePlaylist?.playlist.id, activePlaylist?.playlist.updatedAt, activePlaylist?.entries]);
-
-  useEffect(() => {
-    if (playlistsState.status === "error") {
-      setOptimisticEntries(null);
-    }
-  }, [playlistsState.status]);
-
-  const openCreateDialog = () => {
-    setIsCreateDialogOpen(true);
-  };
-
-  const closeCreateDialog = () => {
-    setCreateDraft("");
-    setCreateDescriptionDraft("");
-    setCreateArtworkPath(null);
-    setIsCreateDialogOpen(false);
-    setIsCreatingPlaylist(false);
-  };
-
-  const openEditDialog = () => {
-    if (!activePlaylist) {
-      return;
-    }
-
-    setEditDraft(activePlaylist.playlist.name);
-    setEditDescriptionDraft(activePlaylist.playlist.description ?? "");
-    setEditArtworkPath(activePlaylist.playlist.artworkKey ?? null);
-    setIsEditDialogOpen(true);
-  };
-
-  const closeEditDialog = () => {
-    setEditDraft("");
-    setEditDescriptionDraft("");
-    setEditArtworkPath(null);
-    setIsEditDialogOpen(false);
-  };
-
-  const handleCreateSubmit = () => {
-    const nextName = createDraft.trim();
-    if (!nextName || isCreatingPlaylist) {
-      return;
-    }
-
-    setIsCreatingPlaylist(true);
-    void onCreatePlaylist(nextName, createDescriptionDraft, createArtworkPath).then(
-      (createdPlaylistId) => {
-        setIsCreatingPlaylist(false);
-        if (createdPlaylistId) {
-          closeCreateDialog();
-          navigate(`/playlists/${createdPlaylistId}`);
-        }
-      },
-    );
-  };
-
-  const handleEditSubmit = () => {
-    if (!activePlaylist || !editDraft.trim()) {
-      return;
-    }
-
-    onPlaylistRename(
-      activePlaylist.playlist.id,
-      editDraft,
-      editDescriptionDraft,
-      editArtworkPath,
-    );
-    closeEditDialog();
-  };
-
-  const persistedOrderedPlaylistEntries = useMemo(
-    () =>
-      [...(activePlaylist?.entries ?? [])].sort(
-        (left, right) => left.position - right.position,
-      ),
-    [activePlaylist?.entries],
-  );
-
-  const orderedPlaylistEntries = optimisticEntries ?? persistedOrderedPlaylistEntries;
-
-  const resolveDragPlacement = (
-    event: DragEvent<HTMLElement>,
-    entryId: string,
-  ): { entryId: string; placement: "before" | "after" } => {
-    const bounds = event.currentTarget.getBoundingClientRect();
-    const midpoint = bounds.top + bounds.height / 2;
-    const placement =
-      bounds.height <= 1
-        ? event.clientY > bounds.top
-          ? "after"
-          : "before"
-        : event.clientY >= midpoint
-          ? "after"
-          : "before";
-
-    return { entryId, placement };
-  };
-
-  const reorderEntries = (
-    entries: PlaylistEntryItem[],
-    movingEntryId: string,
-    targetEntryId: string,
-    placement: "before" | "after",
-  ): PlaylistEntryItem[] | null => {
-    const nextEntries = [...entries];
-    const movingIndex = nextEntries.findIndex((entry) => entry.entryId === movingEntryId);
-    const targetIndex = nextEntries.findIndex((entry) => entry.entryId === targetEntryId);
-
-    if (movingIndex < 0 || targetIndex < 0) {
-      return null;
-    }
-
-    const [movingEntry] = nextEntries.splice(movingIndex, 1);
-    const insertIndex = nextEntries.findIndex((entry) => entry.entryId === targetEntryId);
-    const boundedIndex = placement === "after" ? insertIndex + 1 : insertIndex;
-    nextEntries.splice(boundedIndex, 0, movingEntry);
-
-    if (nextEntries.every((entry, index) => entry.entryId === entries[index]?.entryId)) {
-      return null;
-    }
-
-    return nextEntries.map((entry, index) => ({
-      ...entry,
-      position: index,
-    }));
-  };
-
-  const clearDropIndicator = (entryId?: string) => {
-    setDropIndicator((existing) => {
-      if (!existing) {
-        return null;
-      }
-
-      if (entryId && existing.entryId !== entryId) {
-        return existing;
-      }
-
-      return null;
-    });
-  };
-
-  const resolveActiveDragEntryId = (event: DragEvent<HTMLElement>) =>
-    draggedEntryIdRef.current ||
-    draggedEntryId ||
-    event.dataTransfer.getData("text/plain") ||
-    selectedEntryId;
-
-  const updateDropIndicatorFromPointer = (
-    event: MouseEvent<HTMLElement>,
-    entryId: string,
-  ) => {
-    const bounds = event.currentTarget.getBoundingClientRect();
-    const midpoint = bounds.top + bounds.height / 2;
-    const placement = event.clientY >= midpoint ? "after" : "before";
-    setDropIndicator((existing) =>
-      existing?.entryId === entryId && existing.placement === placement
-        ? existing
-        : { entryId, placement },
-    );
-  };
-
-  const commitReorder = (
-    movingEntryId: string,
-    targetEntryId: string,
-    placement: "before" | "after",
-  ) => {
-    if (!activePlaylist || movingEntryId === targetEntryId) {
-      draggedEntryIdRef.current = null;
-      setDraggedEntryId(null);
-      clearDropIndicator();
-      return;
-    }
-
-    const nextEntries = reorderEntries(
-      orderedPlaylistEntries,
-      movingEntryId,
-      targetEntryId,
-      placement,
-    );
-    if (nextEntries) {
-      setOptimisticEntries(nextEntries);
-      onPlaylistEntriesReplace(
-        activePlaylist.playlist.id,
-        nextEntries.map((nextEntry) => ({
-          entryId: nextEntry.entryId,
-          trackId: nextEntry.trackId,
-          position: nextEntry.position,
-        })),
-      );
-    }
-    draggedEntryIdRef.current = null;
-    setDraggedEntryId(null);
-    clearDropIndicator();
-  };
-
-  useEffect(() => {
-    if (!draggedEntryId) {
-      return;
-    }
-
-    const clearDrag = () => {
-      draggedEntryIdRef.current = null;
-      setDraggedEntryId(null);
-      clearDropIndicator();
-    };
-
-    window.addEventListener("mouseup", clearDrag);
-    return () => {
-      window.removeEventListener("mouseup", clearDrag);
-    };
-  }, [draggedEntryId]);
 
   if (!playlistId && playlistsState.items[0]) {
     return <Navigate to={`/playlists/${playlistsState.items[0].id}`} replace />;
@@ -379,16 +191,6 @@ export function PlaylistsPage({
   }
 
   const title = activePlaylist.playlist.name;
-  const normalizedLibrarySearch = librarySearchDraft.trim().toLowerCase();
-  const visibleLibraryTracks = tracksState.items.filter((track) => {
-    if (!normalizedLibrarySearch) {
-      return true;
-    }
-
-    return [track.title, track.artist, track.album]
-      .filter(Boolean)
-      .some((value) => value?.toLowerCase().includes(normalizedLibrarySearch));
-  });
 
   return (
     <>
@@ -429,19 +231,14 @@ export function PlaylistsPage({
             onEntrySelect={setSelectedEntryId}
             onEntryDragOver={(event, entryId) => {
               event.preventDefault();
-              const activeDragEntryId = resolveActiveDragEntryId(event);
+              const activeDragEntryId = resolveActiveDragEntryId(event, selectedEntryId);
               if (!activeDragEntryId || activeDragEntryId === entryId) {
                 clearDropIndicator(entryId);
                 return;
               }
 
               const nextIndicator = resolveDragPlacement(event, entryId);
-              setDropIndicator((existing) =>
-                existing?.entryId === nextIndicator.entryId &&
-                existing.placement === nextIndicator.placement
-                  ? existing
-                  : nextIndicator,
-              );
+              setResolvedDropIndicator(nextIndicator.entryId, nextIndicator.placement);
             }}
             onEntryDragLeave={(event, entryId) => {
               const relatedTarget = event.relatedTarget;
@@ -479,7 +276,7 @@ export function PlaylistsPage({
             }}
             onEntryDrop={(event, entryId) => {
               event.preventDefault();
-              const activeDragEntryId = resolveActiveDragEntryId(event);
+              const activeDragEntryId = resolveActiveDragEntryId(event, selectedEntryId);
               if (!activeDragEntryId || activeDragEntryId === entryId) {
                 draggedEntryIdRef.current = null;
                 setDraggedEntryId(null);

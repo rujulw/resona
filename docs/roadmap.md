@@ -44,6 +44,9 @@ Current milestone progress:
 - Local ingest now includes duration/artwork fallback improvements and cleaner sparse-tag row metadata
 - Public v1 now has a planned GitHub Actions gate for frontend smoke/build checks and backend Rust test/check coverage
 - Release polish now includes desktop packaging metadata and icon-aware shell controls
+- The client shell now runs through explicit route composition with `AppShell` and `AppShellRoutes` instead of keeping routing and chrome in one file
+- Query/bootstrap logic is now split across `hooks/shell/` modules and playback logic is split across `hooks/playback/` modules
+- Frontend tests are now modularized across route tests, bridge tests, and `appDesktopHarness` helpers instead of relying on a single oversized app test file
 
 ## Milestone 4: Playback and Queue
 
@@ -60,18 +63,18 @@ Current milestone progress:
 - The queue route now reflects stable next-up behavior from playback order rather than from the filtered tracks table
 - Embedded artwork now renders in the tracks view, queue view, and playback bar
 - Release-hardening fixes now guard against stale playback-source and overlapping library-query races
-- `v1.3.0` now has an explicit Rust-side playback command and event contract
+- The app now has an explicit Rust-side playback command and event contract
 - Rust now owns local playback output for indexed desktop files behind the existing playback runtime
 - The shell now renders playback progress and completion from backend-driven state changes instead of frontend-owned media lifecycle callbacks
 - Native playback smoke coverage now exercises launch, play, seek, pause, and completion through backend and shell tests
 - Privacy-safe desktop presence now ships with a managed Discord RPC client and explicit/advisory metadata remains source-trusted rather than heuristically inferred
-- `v1.3.0` now adds first-class local playlists with persisted ordering and backend queue handoff
+- The app now includes first-class local playlists with persisted ordering and backend queue handoff
 - Playlist foundations now define storage and ordering contracts that Spotify import and smart playlists can reuse later
 - Playlist reordering now uses a handle-only drag interaction with explicit drop markers and queue-snapshot stability after handoff
 
 Current release status:
 
-- `v1.3.0` now ships the local-first playback baseline, FLAC compatibility, privacy-safe Rich Presence, trusted advisory metadata, and first-class playlists in one coherent desktop release
+- The current app ships the local-first playback baseline, FLAC compatibility, privacy-safe Rich Presence, trusted advisory metadata, and first-class playlists in one coherent desktop release
 - The next release work should build on that baseline with Spotify import, artist/album pages, richer queue ownership, and timbre-driven insight surfaces
 
 ## Milestone 5: Cache and Remote Media

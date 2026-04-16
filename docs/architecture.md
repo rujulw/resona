@@ -30,10 +30,13 @@ The desktop UI provides library navigation, playlist management, queue control, 
 
 Current frontend structure:
 
-- `components/layout`: persistent shell elements such as sidebar, top bar, and playback bar
+- `components/layout`: persistent shell elements such as the frame, sidebar, route outlet, and playback bar
 - `components/ui`: generic state screens and smaller UI-only pieces
 - `pages`: route-owned screens such as home, tracks, playlists, queue, and settings
-- `hooks`: app boot and shell state orchestration
+- `hooks/useAppShell.ts`: top-level composition hook for query/bootstrap state plus playback coordination
+- `hooks/useShellQueryState.ts` with `hooks/shell/`: bootstrap, scan, track-query, and playlist-query ownership
+- `hooks/usePlaybackCoordinator.ts` with `hooks/playback/`: runtime bridge, media runtime, queue sync, selectors, and auto-advance ownership
+- `test/appDesktopHarness.tsx` and route/bridge test files: modular frontend smoke coverage
 - `types`, `constants`, `utils`: shared client-side contracts and helpers
 
 ### server
@@ -52,7 +55,7 @@ The current Rust structure is organized around service ownership rather than aro
 
 ### `playback`
 
-- Owns the Rust-side playback contract for the `v1.3.0` release
+- Owns the Rust-side playback contract for the current desktop player
 - Defines the command surface that mutates backend playback state
 - Defines the event surface that broadcasts playback and queue snapshots back to the frontend shell
 - Keeps playback ownership decisions explicit at the shell boundary
@@ -61,7 +64,7 @@ The current Rust structure is organized around service ownership rather than aro
 
 ### `playlists`
 
-- Owns the local playlist design contract for the `v1.3.0` milestone
+- Owns the local playlist design contract for the current desktop player
 - Defines playlist persistence shape, ordering rules, duplicate-entry behavior, and queue handoff semantics before CRUD/UI work lands
 - Keeps playlist identity separate from playback queue identity so saved playlists and transient playback state do not collapse into one model
 
@@ -128,7 +131,7 @@ The backend is intentionally split so each layer has a clear responsibility boun
 - The app-shell hook owns derived queue state, bridge subscriptions, and audio-element control flow, but no longer owns playback truth
 - The tracks page owns a full-width search field and a scrollable table, while the hook stitches backend query pages into one continuous client view
 
-Current `v1.4.0` boundary definition:
+Current boundary definition:
 
 - `App.tsx` is the route-composition layer that converts shell-hook output into grouped `chrome`, `routes`, `actions`, and playback contracts
 - `AppShell` owns the persistent frame, shared layout wiring, and playback chrome, but not the route table itself
@@ -136,6 +139,7 @@ Current `v1.4.0` boundary definition:
 - route-level state is grouped by screen (`home`, `tracks`, `playlists`, `queue`, `settings`) so later extractions can move one route at a time
 - playback chrome actions stay separate from route actions because the playback bar is persistent shell UI rather than page UI
 - route-local transient state such as playlist edit drafts, reorder previews, and in-page filters stays inside page components unless another shell surface needs it
+- the older large-hook responsibilities have now been split across focused `hooks/shell/` and `hooks/playback/` modules without changing the visible desktop shell
 
 ### Playback Ownership Shift
 
@@ -164,7 +168,7 @@ This keeps the public bridge surface stable while letting feature code depend on
 - Queue handoff should copy playlist order into the backend playback queue as a snapshot, not create a live mirrored binding between the playlist and active queue
 - The first local-only milestone can cascade deleted local tracks out of playlist entries; unmatched import states belong to the later Spotify-import branch instead of this foundation slice
 
-Current playlist implementation in `v1.3.0`:
+Current playlist implementation:
 
 - playlist summaries and ordered entries persist in SQLite
 - playlist artwork is stored alongside other app-local artwork assets
@@ -217,13 +221,13 @@ Current ingest baseline:
 - Sparse tags fall back more gracefully through cleaned filename titles, album-artist fallback, and parent-folder album fallback
 - System media tools may still show richer metadata over time, but the current `resona` ingest path now closes the biggest duration and artwork gaps from the earlier MVP scanner
 
-Implemented FLAC compatibility slice in `v1.3.0`:
+Implemented FLAC compatibility slice:
 - expand discovery from MP3-only scanning to mixed MP3 + FLAC local libraries
 - keep the normalized track shape unchanged so query, queue, and shell code do not branch on format
 - preserve `relative_path` identity and explicit `extension` metadata so later duplicate-resolution work can distinguish MP3 and FLAC variants cleanly
 - treat embedded artwork, title, artist, album, and duration as the baseline ingest contract for both formats
 
-Implemented advisory-metadata slice in `v1.3.0`:
+Implemented advisory-metadata slice:
 - treat explicit/advisory state as optional normalized metadata rather than as a required library identity field
 - trust source tags and imported provider metadata when present
 - keep absence of an advisory flag neutral instead of guessing from lyrics or filenames
@@ -289,15 +293,15 @@ That shape matters for both performance and clarity. The traversal is effectivel
 
 - Today resolves the local indexed playback path, with room to expand to cached and remote sources later
 - Owns queue state, transport controls, buffering state, and transitions
-- Started with a Web Audio-based path in public `v1.0.0` and now uses a Rust-owned playback/runtime model for local desktop output while the shell renders output
+- Started with a Web Audio-based path and now uses a Rust-owned playback/runtime model for local desktop output while the shell renders output
 
-Current compatibility rules in `v1.3.0`:
+Current compatibility rules:
 - FLAC should enter through the same indexed local source-resolution path as MP3
 - playback snapshots, transport commands, seek, completion, and queue behavior should remain codec-agnostic at the shell boundary
 - format support should not widen the source-provider model yet; FLAC is still just a local file in this slice
 - remote FLAC, transcoding, ReplayGain, and gapless-album features remain out of scope
 
-Current `v1.3.0` contract:
+Current contract:
 
 - Commands:
   `load_playback_track`, `playback_action`, `seek_playback`, `sync_playback_timing`, `complete_playback`, `report_playback_error`, `query_library`, `list_playlists`, and `handoff_playlist_to_queue`
@@ -402,7 +406,7 @@ The current `tracks` route now exposes that contract directly through client-sid
 1. The client boots the routed shell and requests bootstrap metadata
 2. Shell state and the first tracks page are loaded in parallel
 3. The persistent sidebar, top bar, and playback bar render once and remain mounted across route changes
-4. Route content swaps between home, tracks, queue, and settings without rebuilding the full desktop shell
+4. Route content swaps between home, tracks, playlists, queue, and settings without rebuilding the full desktop shell
 
 ### Frontend Playback Flow
 
@@ -446,14 +450,14 @@ The current `tracks` route now exposes that contract directly through client-sid
 
 ## Implementation Notes
 
-The public v1 implementation should prioritize a dependable local-first player before layering on remote storage, cache policy, and analysis depth. The next key architectural decision after `v1.0.0` was the move from frontend-owned playback into a Rust-owned playback service, followed by the later Atlas and `timbre` integration boundaries.
+The public v1 implementation should prioritize a dependable local-first player before layering on remote storage, cache policy, and analysis depth. The key architectural decision after the earliest frontend-owned playback slice was the move into a Rust-owned playback service, followed by the later Atlas and `timbre` integration boundaries.
 
 The current Rust backend now reflects that direction more closely:
 
 - `commands` owns the Tauri-facing application boundary
 - `library` owns scan, normalization, and query services
 - `database` owns runtime setup, migrations, and schema contracts
-- `playback` now defines the backend playback command and event contract for the `v1.3.0` release
+- `playback` now defines the backend playback command and event contract for the shipped desktop player
 
 That separation is still early and can deepen further with repositories, playback services, and analysis services, but the code is no longer relying on one catch-all module per subsystem.
 

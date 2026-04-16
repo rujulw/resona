@@ -22,13 +22,13 @@ resona is designed to feel immediate, controlled, and quiet. The interface shoul
 
 ### Library
 
-The working library view is a focused tracks table with an inline search field, header-driven sorting, compact artwork tiles, and a continuous scrollable body. Sidebar navigation should stay small and functional, covering home, tracks, queue, and settings without secondary content feeds. Import should begin from a clear folder-selection action in settings rather than from a raw path entry field embedded into the main track view. When tags are sparse, the library should still feel polished through filename-cleanup fallbacks, album-artist fallback, parent-folder album fallback, and duration estimates that avoid unnecessary blank rows.
+The working library view is a focused tracks table with an inline search field, header-driven sorting, compact artwork tiles, and a continuous scrollable body. Sidebar navigation should stay small and functional, covering home, tracks, playlists, queue, and settings without secondary content feeds. Import should begin from a clear folder-selection action in settings rather than from a raw path entry field embedded into the main track view. When tags are sparse, the library should still feel polished through filename-cleanup fallbacks, album-artist fallback, parent-folder album fallback, and duration estimates that avoid unnecessary blank rows.
 
 ### Playback
 
 Playback controls live in a persistent bottom bar with clear transport actions, current track identity, progress, and source or cache status. Core actions should be available with minimal pointer movement, and the selected track in the library should immediately become the active shell track.
 
-The current `v1.3.0` release treats the shell as a playback renderer/controller rather than the playback authority. Rust owns the transport snapshot, timing updates, completion state, error labels, local desktop output for native playback, and the queue-handoff boundary used by playlists.
+The current app treats the shell as a playback renderer/controller rather than the playback authority. Rust owns the transport snapshot, timing updates, completion state, error labels, local desktop output for native playback, and the queue-handoff boundary used by playlists.
 
 Track loading, play/pause, seek, ended, and playback-error transitions now move through backend commands and come back through named playback events instead of through local React state writes.
 
@@ -38,7 +38,7 @@ That remains the direction for later refinement: keep playback output in Rust wh
 
 ### Format Compatibility
 
-The FLAC support now in `v1.3.0` is a compatibility expansion, not a UI redesign. A mixed MP3 + FLAC library should still feel like one coherent local collection:
+The current FLAC support is a compatibility expansion, not a UI redesign. A mixed MP3 + FLAC library should still feel like one coherent local collection:
 
 - the tracks table should not split the library into codec-specific views
 - playback controls should behave identically for MP3 and FLAC tracks
@@ -49,7 +49,7 @@ The product goal is "more local libraries work immediately," not "surface audio-
 
 ### Presence and Advisory Metadata
 
-The desktop Rich Presence now in `v1.3.0` is a restrained utility feature, not a social redesign. The app should be able to report lightweight playback activity to Discord without compromising the privacy expectations of a local-first music library.
+The desktop Rich Presence is a restrained utility feature, not a social redesign. The app should be able to report lightweight playback activity to Discord without compromising the privacy expectations of a local-first music library.
 
 Design rules for the first presence slice:
 
@@ -65,7 +65,7 @@ What the first presence UI/contract should not do:
 - create user-facing account or friend surfaces inside `resona`
 - imply that `resona` is becoming a collaborative or socially networked product
 
-The explicit/advisory tag feature in `v1.3.0` remains a neighboring but separate slice:
+The explicit/advisory tag feature remains a neighboring but separate slice:
 
 - only trust explicit/advisory signals that come from source metadata
 - do not try to infer explicitness from lyrics or heuristic text analysis
@@ -97,7 +97,7 @@ Queue management should be explicit and deterministic. Users should always under
 
 ### Playlists
 
-Playlists in `v1.3.0` should feel like a first-class saved listening surface rather than a thin library filter. The playlist route should preserve the same low-glare desktop utility tone as the tracks route while adding just enough structure to support saved ordering, cover artwork, and deliberate playback handoff.
+Playlists should feel like a first-class saved listening surface rather than a thin library filter. The playlist route should preserve the same low-glare desktop utility tone as the tracks route while adding just enough structure to support saved ordering, cover artwork, and deliberate playback handoff.
 
 Design rules for the current playlist slice:
 
@@ -143,14 +143,14 @@ Track insights from timbre should appear in secondary detail surfaces such as a 
 - The analysis subsystem is planned to be fused from the local `~/dev/timbre` project behind an internal service boundary after v1 ships
 - Local library onboarding should use a desktop directory picker and recursive MP3 discovery instead of asking the user to paste filesystem paths
 - Local library onboarding should expand to recursive MP3 + FLAC discovery without changing the visible library workflow
-- Public `v1.0.0` used a Web Audio path for faster delivery, while `v1.3.0` now reflects the Rust-owned playback authority and local desktop output model
+- Earlier builds used a Web Audio path for faster delivery, while the current app reflects the Rust-owned playback authority and local desktop output model
 - Further native-output refinement can deepen the Rust-local stack around `symphonia` decode and `cpal` device output while preserving the existing shell-facing playback contract
 - Playback-critical source resolution and library persistence flows are owned by Rust to reduce frontend complexity
 - Format support should remain additive: new local codecs should fit the same normalization, query, and playback shell contracts instead of creating format-specific app modes
 - The app remains open source even when used with private Atlas-backed media libraries
-- The desktop client should use a persistent routed shell so home, tracks, queue, and settings share the same navigation and playback frame
+- The desktop client should use a persistent routed shell so home, tracks, playlists, queue, and settings share the same navigation and playback frame
 - The playback bar and queue route should both read from the same active-track state so transport and next-up behavior cannot drift apart
-- The `v1.3.0` playback contract moves command authority to Rust through a narrow Tauri contract and pushes playback snapshots back to the shell through named events
+- The playback contract moves command authority to Rust through a narrow Tauri contract and pushes playback snapshots back to the shell through named events
 - The shell should consume backend playback snapshots through `playback://state-changed` rather than inventing separate client-only transport truth
 - The shell should remain a renderer/controller rather than reclaiming playback state locally
 - The frontend shell should expose three ownership layers: shell chrome state, route-owned screen state, and intent handlers grouped by the route or chrome surface that consumes them
@@ -161,7 +161,7 @@ Track insights from timbre should appear in secondary detail surfaces such as a 
 
 ## Frontend Shell Ownership Boundaries
 
-The `v1.4.0` shell refactor should preserve the current visible desktop UX while making ownership legible in code.
+The current shell structure preserves the visible desktop UX while making ownership legible in code.
 
 ### Shell chrome
 
@@ -177,8 +177,8 @@ Chrome should consume already-derived state. It should not decide which route is
 
 Route composition owns page selection and the mapping from app-shell state into route-facing contracts.
 
-- `App.tsx` or an equivalent route-composition surface should build grouped route props from the shell hook
-- `AppShell` should own shared frame wiring and playback chrome while a dedicated route-composition surface owns the routed page map
+- `App.tsx` builds grouped route props from the shell hook
+- `AppShell` owns shared frame wiring and playback chrome while `AppShellRoutes` owns the routed page map
 - route composition may reuse the same underlying shell state across pages, but it should present that state in route-shaped slices
 
 ### Route-owned state
@@ -186,7 +186,7 @@ Route composition owns page selection and the mapping from app-shell state into 
 Each page owns its local interaction state and any transient UI that only matters within that route.
 
 - `PlaylistsPage` owns dialog drafts, optimistic reorder preview, selected entry, and library-within-playlist filtering
-- `TracksPage` owns presentation of the current query results, while shared query execution can remain in shell hooks until later extraction
+- `TracksPage` owns presentation of the current query results, while shared query execution lives in focused shell hooks
 - `SettingsPage` owns library import controls and reads shell-provided scan status without owning playback or playlist logic
 - `HomePage` and `QueuePage` stay mostly render-only and should not accumulate shell orchestration work
 
@@ -198,6 +198,7 @@ The app-shell hook remains responsible for cross-route coordination:
 - refreshing shared library and playlist data from the bridge
 - playback subscription wiring, queue derivation, and transport coordination
 - exposing route-grouped actions that route composition can hand to pages
+- delegating bootstrap/query work to `useShellQueryState` and playback work to `usePlaybackCoordinator`, each with smaller focused helper hooks beneath them
 
 The result should be a simple rule: if state must survive route changes or feeds more than one persistent shell surface, keep it in shell hooks; if it only exists to complete one screen workflow, keep it in that page.
 
