@@ -5,7 +5,7 @@ mod playback;
 mod playlists;
 mod presence;
 
-use commands::{
+use crate::commands::{
     add_track_to_playlist, bootstrap_app, complete_playback, create_playlist, delete_playlist,
     describe_playback_contract, describe_playlist_contract, get_playlist, get_shell_state,
     handoff_playlist_to_queue, list_playlists, load_playback_track, move_playlist_entry,
@@ -13,9 +13,9 @@ use commands::{
     report_playback_error, resolve_artwork_source, resolve_track_playback_source,
     scan_local_library, seek_playback, sync_playback_timing, update_playlist, DatabaseState,
 };
-use database::AppDatabase;
-use playback::PlaybackRuntimeState;
-use presence::{register_global_presence, PresenceRuntimeState};
+use crate::database::AppDatabase;
+use crate::playback::PlaybackRuntimeState;
+use crate::presence::{register_global_presence, PresenceRuntimeState};
 
 pub fn run() {
     let app_database =

@@ -147,7 +147,7 @@ export function setupAppDesktopHarness() {
 
     desktopMocks.bootstrapAppMock.mockResolvedValue({
       appName: "resona",
-      appVersion: "1.3.0",
+      appVersion: "1.5.1",
       windowTitle: "resona",
       platform: "macos",
       runtime: {
