@@ -74,6 +74,7 @@ Current milestone progress:
 - Playlist foundations now define storage and ordering contracts that Spotify import and smart playlists can reuse later
 - Playlist reordering now uses a handle-only drag interaction with explicit drop markers and queue-snapshot stability after handoff
 - Backend module hygiene now keeps playlist domain logic in focused files and splits playback runtime state from transport/native-output control paths so later queue and architecture work can land with smaller backend context windows
+- Album and artist foundation work should enter through home-search and track-context detail routes instead of expanding the top-level shell navigation
 
 Current release status:
 

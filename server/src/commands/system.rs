@@ -134,14 +134,6 @@ pub fn build_shell_state_with_playback(
                 label: "Tracks",
             },
             NavSection {
-                id: "albums",
-                label: "Albums",
-            },
-            NavSection {
-                id: "artists",
-                label: "Artists",
-            },
-            NavSection {
                 id: "queue",
                 label: "Queue",
             },

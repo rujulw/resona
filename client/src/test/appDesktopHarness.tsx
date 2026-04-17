@@ -159,8 +159,6 @@ export function setupAppDesktopHarness() {
     desktopMocks.getShellStateMock.mockResolvedValue({
       navSections: [
         { id: "tracks", label: "Tracks" },
-        { id: "albums", label: "Albums" },
-        { id: "artists", label: "Artists" },
         { id: "queue", label: "Queue" },
         { id: "settings", label: "Settings" },
       ],
