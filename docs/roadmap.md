@@ -42,11 +42,13 @@ resona aims to become a high-performance music system for private libraries, bal
 Current milestone progress:
 - The `tracks` route now exposes inline search, header-driven sort cycling, and a continuous scrollable library view backed by cursor-based query stitching
 - Local ingest now includes duration/artwork fallback improvements and cleaner sparse-tag row metadata
+- The backend library layer is now split more surgically across normalization helpers, metadata parsing, scan persistence, and query SQL construction so future feature work can stay local to the concern being changed
 - Public v1 now has a planned GitHub Actions gate for frontend smoke/build checks and backend Rust test/check coverage
 - Release polish now includes desktop packaging metadata and icon-aware shell controls
 - The client shell now runs through explicit route composition with `AppShell` and `AppShellRoutes` instead of keeping routing and chrome in one file
 - Query/bootstrap logic is now split across `hooks/shell/` modules and playback logic is split across `hooks/playback/` modules
 - Frontend tests are now modularized across route tests, bridge tests, and `appDesktopHarness` helpers instead of relying on a single oversized app test file
+- Backend Rust tests are now also moving into subsystem-owned `tests/` directories with shared support helpers instead of growing one large `tests.rs` file per module
 
 ## Milestone 4: Playback and Queue
 
@@ -71,6 +73,7 @@ Current milestone progress:
 - The app now includes first-class local playlists with persisted ordering and backend queue handoff
 - Playlist foundations now define storage and ordering contracts that Spotify import and smart playlists can reuse later
 - Playlist reordering now uses a handle-only drag interaction with explicit drop markers and queue-snapshot stability after handoff
+- Backend module hygiene now keeps playlist domain logic in focused files and splits playback runtime state from transport/native-output control paths so later queue and architecture work can land with smaller backend context windows
 
 Current release status:
 

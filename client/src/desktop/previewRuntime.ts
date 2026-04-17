@@ -17,7 +17,7 @@ export function isPreviewRuntime(): boolean {
 
 export const previewBootstrapPayload: BootstrapPayload = {
   appName: "resona",
-  appVersion: "1.3.0",
+  appVersion: "1.5.1",
   windowTitle: "resona",
   platform: "browser",
   runtime: {

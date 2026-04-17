@@ -62,11 +62,29 @@ The current Rust structure is organized around service ownership rather than aro
 - Owns the in-memory playback runtime for loaded-track and play/pause authority
 - Owns the current native local-output path, with `symphonia` and `cpal` still planned as the deeper decode/device stack
 
+Current submodules:
+
+- `mod`: playback contract types plus feature-facing exports
+- `state`: playback runtime state, snapshot shaping, queue state, and load-track ownership
+- `controls`: transport mutations, seek/completion/error handling, and native-output lifecycle control
+- `transport`: Tauri playback-event emission and the current native playback worker loop
+- `queue`: queue snapshot payloads and queue event emission
+
 ### `playlists`
 
 - Owns the local playlist design contract for the current desktop player
 - Defines playlist persistence shape, ordering rules, duplicate-entry behavior, and queue handoff semantics before CRUD/UI work lands
 - Keeps playlist identity separate from playback queue identity so saved playlists and transient playback state do not collapse into one model
+
+Current submodules:
+
+- `mod`: playlist store shell plus public exports
+- `contract`: playlist design contract and command guarantees
+- `metadata`: playlist CRUD and metadata normalization
+- `entries`: ordered-entry mutation, replacement, and queue handoff behavior
+- `queries`: shared SQLite reads, validation, id generation, and reorder helpers
+- `artwork`: playlist artwork import and cleanup
+- `types`: playlist-domain payloads and error types
 
 ### `library`
 
@@ -76,9 +94,13 @@ The current Rust structure is organized around service ownership rather than aro
 
 Current submodules:
 
-- `scanner`: recursive traversal, reconciliation, and transactional persistence
-- `normalization`: file discovery, MP3 filtering, metadata normalization, and stable identifiers
-- `query`: SQL shape generation, cursor encoding, sort helpers, and library result mapping
+- `scanner/mod`: scan orchestration, library summary reads, library queries, and playback/artwork source resolution
+- `scanner/persistence`: transactional reconciliation, upserts, artwork syncing, and persisted scan summaries
+- `normalization/mod`: track normalization flow and normalized-track assembly
+- `normalization/helpers`: file discovery, label cleanup, artwork-key generation, and stable identifiers
+- `normalization/metadata`: MP3/FLAC metadata parsing, advisory extraction, and duration/artwork decoding
+- `query/mod`: count/query helpers, cursor encoding, sort helpers, and query tests
+- `query/sql`: SQL generation for search, cursor, and stable ordering clauses
 - `models`: library-domain payloads, query inputs, and scan errors
 
 ### `database`
@@ -108,6 +130,7 @@ The backend is intentionally split so each layer has a clear responsibility boun
 - Lives in `library`
 - Responsible for local import, metadata normalization, reconciliation, and read/query behavior
 - Owns domain decisions like relative-path identity, cursor semantics, and sort-key validation
+- Uses narrower internal modules so metadata parsing, scan persistence, and query-shape work can evolve without reopening one oversized file
 
 ### Persistence Infrastructure Layer
 
@@ -458,6 +481,7 @@ The current Rust backend now reflects that direction more closely:
 - `library` owns scan, normalization, and query services
 - `database` owns runtime setup, migrations, and schema contracts
 - `playback` now defines the backend playback command and event contract for the shipped desktop player
+- backend subsystem tests now live in focused `tests/` directories when the coverage surface grows past a single `tests.rs`
 
 That separation is still early and can deepen further with repositories, playback services, and analysis services, but the code is no longer relying on one catch-all module per subsystem.
 
