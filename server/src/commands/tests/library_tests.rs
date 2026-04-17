@@ -66,8 +66,7 @@ fn playback_source_command_returns_local_path_for_indexed_track() {
     let root = std::env::temp_dir().join(unique_test_suffix("resona-playback-source"));
 
     std::fs::create_dir_all(root.join("disc")).expect("directories should be created");
-    std::fs::File::create(root.join("disc").join("alpha.mp3"))
-        .expect("track should be created");
+    std::fs::File::create(root.join("disc").join("alpha.mp3")).expect("track should be created");
 
     scan_local_library_with_database(
         &database_state.app_database,
@@ -105,8 +104,7 @@ fn load_playback_track_populates_runtime_snapshot() {
     let root = std::env::temp_dir().join(unique_test_suffix("resona-load-playback"));
 
     std::fs::create_dir_all(root.join("disc")).expect("directories should be created");
-    std::fs::File::create(root.join("disc").join("alpha.mp3"))
-        .expect("track should be created");
+    std::fs::File::create(root.join("disc").join("alpha.mp3")).expect("track should be created");
 
     scan_local_library_with_database(
         &database_state.app_database,

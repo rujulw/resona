@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, State};
 
-use super::{load_playback_track_with_database, DatabaseState};
+use super::{playback::load_playback_track_with_database, DatabaseState};
 use crate::database::AppDatabase;
 use crate::playback::{
     emit_playback_queue, emit_playback_state, PlaybackQueueSnapshot, PlaybackRuntimeState,

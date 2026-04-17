@@ -1,8 +1,9 @@
 use super::{test_database_state, unique_test_suffix};
 use crate::commands::{
     describe_playback_contract, load_playback_track_with_database, playback_action_with_runtime,
-    playback_state_for_action, report_playback_error_with_runtime, seek_playback_with_runtime,
-    scan_local_library_with_database, sync_playback_timing_with_runtime,
+    playback_state_for_action, report_playback_error_with_runtime,
+    scan_local_library_with_database, seek_playback_with_runtime,
+    sync_playback_timing_with_runtime,
 };
 use crate::playback::PlaybackRuntimeState;
 
@@ -39,8 +40,7 @@ fn load_playback_track_populates_runtime_snapshot() {
     let root = std::env::temp_dir().join(unique_test_suffix("resona-load-playback"));
 
     std::fs::create_dir_all(root.join("disc")).expect("directories should be created");
-    std::fs::File::create(root.join("disc").join("alpha.mp3"))
-        .expect("track should be created");
+    std::fs::File::create(root.join("disc").join("alpha.mp3")).expect("track should be created");
 
     scan_local_library_with_database(
         &database_state.app_database,
@@ -126,8 +126,7 @@ fn playback_runtime_commands_cover_backend_owned_state_sync() {
     let root = std::env::temp_dir().join(unique_test_suffix("resona-playback-sync"));
 
     std::fs::create_dir_all(root.join("disc")).expect("directories should be created");
-    std::fs::File::create(root.join("disc").join("alpha.mp3"))
-        .expect("track should be created");
+    std::fs::File::create(root.join("disc").join("alpha.mp3")).expect("track should be created");
 
     scan_local_library_with_database(
         &database_state.app_database,
@@ -178,8 +177,7 @@ fn native_playback_smoke_covers_launch_play_seek_pause_and_completion() {
     let root = std::env::temp_dir().join(unique_test_suffix("resona-native-smoke"));
 
     std::fs::create_dir_all(root.join("disc")).expect("directories should be created");
-    std::fs::File::create(root.join("disc").join("alpha.mp3"))
-        .expect("track should be created");
+    std::fs::File::create(root.join("disc").join("alpha.mp3")).expect("track should be created");
 
     scan_local_library_with_database(
         &database_state.app_database,

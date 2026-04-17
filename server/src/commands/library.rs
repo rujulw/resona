@@ -1,4 +1,4 @@
-use tauri::{State};
+use tauri::State;
 
 use super::DatabaseState;
 use crate::database::AppDatabase;

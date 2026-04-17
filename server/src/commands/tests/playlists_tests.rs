@@ -25,7 +25,10 @@ fn playlist_contract_exposes_local_ordering_and_queue_handoff_boundary() {
     assert!(payload.planned_commands[2]
         .summary
         .contains("full-order replacement"));
-    assert!(payload.queue_handoff.queue_order_rule.contains("drag targets"));
+    assert!(payload
+        .queue_handoff
+        .queue_order_rule
+        .contains("drag targets"));
 }
 
 #[test]
@@ -48,8 +51,8 @@ fn playlist_crud_commands_persist_metadata() {
     assert!(created.artwork_key.is_some());
     assert_eq!(created.entry_count, 0);
 
-    let listed = list_playlists_with_database(&database_state.app_database)
-        .expect("playlists should list");
+    let listed =
+        list_playlists_with_database(&database_state.app_database).expect("playlists should list");
     assert_eq!(listed.len(), 1);
     assert_eq!(listed[0].id, created.id);
 
@@ -115,9 +118,8 @@ fn playlist_entry_commands_cover_add_move_remove_and_replace() {
     )
     .expect("tracks should query");
 
-    let created =
-        create_playlist_with_database(&database_state.app_database, "Mix", None, None)
-            .expect("playlist should create");
+    let created = create_playlist_with_database(&database_state.app_database, "Mix", None, None)
+        .expect("playlist should create");
 
     let with_first = add_track_to_playlist_with_database(
         &database_state.app_database,
@@ -265,8 +267,7 @@ fn playlist_handoff_replaces_queue_from_playlist_order() {
 fn playlist_reorder_does_not_mutate_an_existing_handoff_queue_snapshot() {
     let database_state = test_database_state();
     let playback_runtime = PlaybackRuntimeState::default();
-    let root =
-        std::env::temp_dir().join(unique_test_suffix("resona-playlist-handoff-stability"));
+    let root = std::env::temp_dir().join(unique_test_suffix("resona-playlist-handoff-stability"));
 
     write_test_mp3(
         &root.join("alpha.mp3"),

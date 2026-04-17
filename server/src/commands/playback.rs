@@ -57,8 +57,7 @@ pub fn playback_action(
     action: &str,
 ) -> Result<PlaybackSnapshot, String> {
     let snapshot = playback_action_with_runtime(&playback_runtime_state, action);
-    emit_playback_state(&app_handle, &snapshot)
-        .map_err(|error: tauri::Error| error.to_string())?;
+    emit_playback_state(&app_handle, &snapshot).map_err(|error: tauri::Error| error.to_string())?;
     Ok(snapshot)
 }
 
@@ -109,8 +108,7 @@ pub fn sync_playback_timing(
     duration_seconds: Option<u32>,
 ) -> Result<PlaybackSnapshot, String> {
     let snapshot = playback_runtime_state.sync_timing(progress_seconds, duration_seconds);
-    emit_playback_state(&app_handle, &snapshot)
-        .map_err(|error: tauri::Error| error.to_string())?;
+    emit_playback_state(&app_handle, &snapshot).map_err(|error: tauri::Error| error.to_string())?;
     Ok(snapshot)
 }
 
@@ -121,8 +119,7 @@ pub fn seek_playback(
     position_seconds: u32,
 ) -> Result<PlaybackSnapshot, String> {
     let snapshot = playback_runtime_state.seek(position_seconds);
-    emit_playback_state(&app_handle, &snapshot)
-        .map_err(|error: tauri::Error| error.to_string())?;
+    emit_playback_state(&app_handle, &snapshot).map_err(|error: tauri::Error| error.to_string())?;
     Ok(snapshot)
 }
 
@@ -132,8 +129,7 @@ pub fn complete_playback(
     playback_runtime_state: State<'_, PlaybackRuntimeState>,
 ) -> Result<PlaybackSnapshot, String> {
     let snapshot = playback_runtime_state.complete();
-    emit_playback_state(&app_handle, &snapshot)
-        .map_err(|error: tauri::Error| error.to_string())?;
+    emit_playback_state(&app_handle, &snapshot).map_err(|error: tauri::Error| error.to_string())?;
     Ok(snapshot)
 }
 
@@ -144,8 +140,7 @@ pub fn report_playback_error(
     transport_label: Option<String>,
 ) -> Result<PlaybackSnapshot, String> {
     let snapshot = playback_runtime_state.report_error(transport_label.as_deref());
-    emit_playback_state(&app_handle, &snapshot)
-        .map_err(|error: tauri::Error| error.to_string())?;
+    emit_playback_state(&app_handle, &snapshot).map_err(|error: tauri::Error| error.to_string())?;
     Ok(snapshot)
 }
 

@@ -9,6 +9,9 @@ use crate::commands::DatabaseState;
 use crate::database::AppDatabase;
 
 pub mod library_tests;
+pub mod playback_tests;
+pub mod playlists_tests;
+pub mod system_tests;
 
 static TEST_COUNTER: AtomicU64 = AtomicU64::new(0);
 
@@ -29,8 +32,7 @@ pub fn test_database_state() -> DatabaseState {
     ));
 
     DatabaseState {
-        app_database: AppDatabase::initialize_at(db_path)
-            .expect("test database should initialize"),
+        app_database: AppDatabase::initialize_at(db_path).expect("test database should initialize"),
     }
 }
 
@@ -116,11 +118,8 @@ pub fn write_test_png(file_path: &std::path::Path) {
         std::fs::create_dir_all(parent).expect("parent directories should be created");
     }
 
-    std::fs::write(
-        file_path,
-        [137, 80, 78, 71, 13, 10, 26, 10, 1, 2, 3, 4],
-    )
-    .expect("png bytes should write");
+    std::fs::write(file_path, [137, 80, 78, 71, 13, 10, 26, 10, 1, 2, 3, 4])
+        .expect("png bytes should write");
 }
 
 fn build_test_flac_streaminfo(sample_rate: u32, total_samples: u64) -> Vec<u8> {
