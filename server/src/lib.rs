@@ -7,11 +7,12 @@ mod presence;
 
 use crate::commands::{
     add_track_to_playlist, bootstrap_app, complete_playback, create_playlist, delete_playlist,
-    describe_playback_contract, describe_playlist_contract, get_playlist, get_shell_state,
-    handoff_playlist_to_queue, list_playlists, load_playback_track, move_playlist_entry,
-    playback_action, query_library, remove_playlist_entry, replace_playlist_entries,
-    report_playback_error, resolve_artwork_source, resolve_track_playback_source,
-    scan_local_library, seek_playback, sync_playback_timing, update_playlist, DatabaseState,
+    describe_playback_contract, describe_playlist_contract, get_album, get_playlist,
+    get_shell_state, handoff_playlist_to_queue, list_albums, list_playlists, load_playback_track,
+    move_playlist_entry, playback_action, query_library, remove_playlist_entry,
+    replace_playlist_entries, report_playback_error, resolve_artwork_source,
+    resolve_track_playback_source, scan_local_library, seek_playback, sync_playback_timing,
+    update_playlist, DatabaseState,
 };
 use crate::database::AppDatabase;
 use crate::playback::PlaybackRuntimeState;
@@ -41,9 +42,11 @@ pub fn run() {
             delete_playlist,
             describe_playback_contract,
             describe_playlist_contract,
+            get_album,
             get_playlist,
             get_shell_state,
             handoff_playlist_to_queue,
+            list_albums,
             list_playlists,
             load_playback_track,
             move_playlist_entry,

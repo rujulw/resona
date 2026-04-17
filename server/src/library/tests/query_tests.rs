@@ -205,3 +205,48 @@ fn query_library_reflects_rescan_changes_in_results() {
     assert_eq!(titles, vec!["bravo".to_owned(), "charlie".to_owned()]);
     assert!(!titles.iter().any(|title| title == "alpha"));
 }
+
+#[test]
+fn album_queries_group_release_rows_and_hydrate_track_order() {
+    let root = unique_temp_dir();
+    write_test_mp3(
+        &root.join("north/disc1/alpha.mp3"),
+        Some("Alpha"),
+        Some("Signals"),
+        Some("North"),
+        false,
+        Some(true),
+    );
+    write_test_mp3(
+        &root.join("north/disc1/bravo.mp3"),
+        Some("Bravo"),
+        Some("Signals"),
+        Some("North"),
+        false,
+        Some(false),
+    );
+    let database_path = root.join("library.sqlite3");
+    let database = AppDatabase::initialize_at(&database_path).expect("db should initialize");
+    let scanner = LocalLibraryScanner::new(database);
+
+    scanner
+        .scan_path(&root, Some("Album Library"))
+        .expect("scan should persist");
+
+    let albums = scanner
+        .list_albums(Some("sig"))
+        .expect("album summaries should load");
+    assert_eq!(albums.len(), 1);
+    assert_eq!(albums[0].title, "Signals");
+    assert_eq!(albums[0].artist.as_deref(), Some("North"));
+    assert_eq!(albums[0].track_count, 2);
+
+    let detail = scanner
+        .get_album(&albums[0].id)
+        .expect("album detail should load")
+        .expect("album detail should exist");
+    assert_eq!(detail.album.title, "Signals");
+    assert_eq!(detail.tracks.len(), 2);
+    assert_eq!(detail.tracks[0].title, "Alpha");
+    assert_eq!(detail.tracks[1].title, "Bravo");
+}
