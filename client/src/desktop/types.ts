@@ -112,6 +112,32 @@ export type TrackListItem = {
   indexedAt: string;
 };
 
+export type AlbumSummary = {
+  id: string;
+  title: string;
+  artist: string | null;
+  trackCount: number;
+  totalDurationSeconds: number | null;
+  artworkKey: string | null;
+};
+
+export type AlbumTrackItem = {
+  id: string;
+  title: string;
+  artist: string | null;
+  advisory?: boolean | null;
+  durationSeconds: number | null;
+  artworkKey: string | null;
+  extension?: string;
+  trackNumber: number | null;
+  discNumber: number | null;
+};
+
+export type AlbumDetail = {
+  album: AlbumSummary;
+  tracks: AlbumTrackItem[];
+};
+
 export type PlaylistSummary = {
   id: string;
   name: string;

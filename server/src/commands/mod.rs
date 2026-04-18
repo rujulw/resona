@@ -1,5 +1,6 @@
 use crate::database::AppDatabase;
 
+pub mod albums;
 pub mod library;
 pub mod playback;
 pub mod playlists;
@@ -8,9 +9,9 @@ pub mod system;
 #[cfg(test)]
 pub mod tests;
 
+pub use albums::{get_album, list_albums};
 pub use library::{
-    get_album, list_albums, query_library, resolve_artwork_source, resolve_track_playback_source,
-    scan_local_library,
+    query_library, resolve_artwork_source, resolve_track_playback_source, scan_local_library,
 };
 pub use playback::{
     complete_playback, describe_playback_contract, load_playback_track, playback_action,
@@ -24,9 +25,12 @@ pub use playlists::{
 pub use system::{bootstrap_app, get_shell_state};
 
 #[cfg(test)]
+pub use albums::{get_album_with_database, list_albums_with_database};
+
+#[cfg(test)]
 pub use library::{
-    get_album_with_database, list_albums_with_database, query_library_with_database,
-    resolve_track_playback_source_with_database, scan_local_library_with_database,
+    query_library_with_database, resolve_track_playback_source_with_database,
+    scan_local_library_with_database,
 };
 
 #[cfg(test)]

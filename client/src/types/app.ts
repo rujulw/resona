@@ -1,4 +1,6 @@
 import type {
+  AlbumDetail,
+  AlbumSummary,
   BootstrapPayload,
   LibraryRow,
   PlaylistDetail,
@@ -85,6 +87,29 @@ export type PlaylistsState =
       message: string;
     };
 
+export type AlbumsState =
+  | {
+      status: "loading";
+      items: AlbumSummary[];
+      activeAlbumId: string | null;
+      activeAlbum: AlbumDetail | null;
+      message?: string;
+    }
+  | {
+      status: "ready";
+      items: AlbumSummary[];
+      activeAlbumId: string | null;
+      activeAlbum: AlbumDetail | null;
+      message?: string;
+    }
+  | {
+      status: "error";
+      items: AlbumSummary[];
+      activeAlbumId: string | null;
+      activeAlbum: AlbumDetail | null;
+      message: string;
+    };
+
 export type HomeRouteState = {
   libraryRows: LibraryRow[];
   trackCount: number;
@@ -96,6 +121,7 @@ export type TracksRouteState = {
   scanState: ScanState;
   tracksQueryState: TracksQueryState;
   tracksState: TracksState;
+  albumsState: AlbumsState;
 };
 
 export type PlaylistsRouteState = {
@@ -105,6 +131,10 @@ export type PlaylistsRouteState = {
 
 export type QueueRouteState = {
   queueState: QueueState;
+};
+
+export type AlbumsRouteState = {
+  albumsState: AlbumsState;
 };
 
 export type SettingsRouteState = {
@@ -127,6 +157,7 @@ export type AppShellRoutesState = {
   home: HomeRouteState;
   tracks: TracksRouteState;
   playlists: PlaylistsRouteState;
+  albums: AlbumsRouteState;
   queue: QueueRouteState;
   settings: SettingsRouteState;
 };
@@ -164,6 +195,11 @@ export type TracksRouteActions = {
   onTracksAlbumHeaderSort: () => void;
 };
 
+export type AlbumsRouteActions = {
+  onAlbumSelect: (albumId: string) => void;
+  onAlbumTrackSelect: (trackId: string) => void;
+};
+
 export type SettingsRouteActions = {
   onPickLibraryDirectory: () => void;
   onScan: () => void;
@@ -177,6 +213,7 @@ export type PlaybackChromeActions = {
 export type AppShellRouteActions = {
   playlists: PlaylistRouteActions;
   tracks: TracksRouteActions;
+  albums: AlbumsRouteActions;
   settings: SettingsRouteActions;
 };
 

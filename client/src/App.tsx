@@ -45,6 +45,10 @@ export default function App() {
         scanState: appShell.scanState,
         tracksQueryState: appShell.tracksQueryState,
         tracksState: appShell.tracksState,
+        albumsState: appShell.albumsState,
+      },
+      albums: {
+        albumsState: appShell.albumsState,
       },
       playlists: {
         playlistsState: appShell.playlistsState,
@@ -80,6 +84,10 @@ export default function App() {
         onTracksSearchSubmit: appShell.handleTracksSearchSubmit,
         onTracksTitleHeaderSort: appShell.handleTracksTitleHeaderSort,
         onTracksAlbumHeaderSort: appShell.handleTracksAlbumHeaderSort,
+      },
+      albums: {
+        onAlbumSelect: appShell.handleAlbumSelection,
+        onAlbumTrackSelect: appShell.handleAlbumTrackSelection,
       },
       settings: {
         onPickLibraryDirectory: appShell.handlePickLibraryDirectory,

@@ -9,14 +9,12 @@ use crate::database::AppDatabase;
 
 use self::persistence::persist_scan;
 use super::models::{
-    AlbumDetail, AlbumLookupKey, AlbumSummary, ArtworkSource, LibraryCursor, LibraryPage,
-    LibraryQuery, PersistedLibrarySummary, PlaybackSource, ResolvedPlaybackTrack, ScanError,
-    ScanSummary,
+    ArtworkSource, LibraryCursor, LibraryPage, LibraryQuery, PersistedLibrarySummary,
+    PlaybackSource, ResolvedPlaybackTrack, ScanError, ScanSummary,
 };
 use super::normalization::{build_library_root, discover_local_audio_files, normalize_track};
 use super::query::{
-    build_library_query_sql, count_matching_tracks, query_album_detail, query_album_summaries,
-    query_tracks, sort_value_for_item,
+    build_library_query_sql, count_matching_tracks, query_tracks, sort_value_for_item,
 };
 
 #[derive(Clone, Debug)]
@@ -246,24 +244,5 @@ impl LocalLibraryScanner {
             artwork_key: artwork_key.to_owned(),
             local_path: artwork_path.display().to_string(),
         }))
-    }
-
-    pub fn list_albums(&self, search: Option<&str>) -> Result<Vec<AlbumSummary>, ScanError> {
-        let connection = self.app_database.connect()?;
-        let search = search
-            .map(str::trim)
-            .filter(|value| !value.is_empty())
-            .map(|value| value.to_lowercase());
-
-        query_album_summaries(&connection, search.as_deref())
-    }
-
-    pub fn get_album(&self, album_id: &str) -> Result<Option<AlbumDetail>, ScanError> {
-        let Some(lookup_key) = AlbumLookupKey::decode(album_id) else {
-            return Ok(None);
-        };
-        let connection = self.app_database.connect()?;
-
-        query_album_detail(&connection, &lookup_key)
     }
 }

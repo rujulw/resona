@@ -4,6 +4,7 @@ import { cleanup } from "@testing-library/react";
 import { afterEach, beforeEach, vi } from "vitest";
 
 export const desktopMocks = {
+  getAlbumMock: vi.fn(),
   bootstrapAppMock: vi.fn(),
   createPlaylistMock: vi.fn(),
   deletePlaylistMock: vi.fn(),
@@ -11,6 +12,7 @@ export const desktopMocks = {
   getShellStateMock: vi.fn(),
   handoffPlaylistToQueueMock: vi.fn(),
   listPlaylistsMock: vi.fn(),
+  listAlbumsMock: vi.fn(),
   loadPlaybackTrackMock: vi.fn(),
   movePlaylistEntryMock: vi.fn(),
   replacePlaylistEntriesMock: vi.fn(),
@@ -93,6 +95,7 @@ export const appDesktopState: {
 
 vi.mock("../desktop", () => ({
   addTrackToPlaylist: (...args: unknown[]) => desktopMocks.addTrackToPlaylistMock(...args),
+  getAlbum: (...args: unknown[]) => desktopMocks.getAlbumMock(...args),
   bootstrapApp: () => desktopMocks.bootstrapAppMock(),
   createPlaylist: (...args: unknown[]) => desktopMocks.createPlaylistMock(...args),
   deletePlaylist: (...args: unknown[]) => desktopMocks.deletePlaylistMock(...args),
@@ -100,6 +103,7 @@ vi.mock("../desktop", () => ({
   getShellState: () => desktopMocks.getShellStateMock(),
   handoffPlaylistToQueue: (...args: unknown[]) => desktopMocks.handoffPlaylistToQueueMock(...args),
   listPlaylists: () => desktopMocks.listPlaylistsMock(),
+  listAlbums: (...args: unknown[]) => desktopMocks.listAlbumsMock(...args),
   loadPlaybackTrack: (...args: unknown[]) => desktopMocks.loadPlaybackTrackMock(...args),
   movePlaylistEntry: (...args: unknown[]) => desktopMocks.movePlaylistEntryMock(...args),
   replacePlaylistEntries: (...args: unknown[]) =>
@@ -191,6 +195,79 @@ export function setupAppDesktopHarness() {
         updatedAt: "1700000100",
       },
     ]);
+    desktopMocks.listAlbumsMock.mockResolvedValue([
+      {
+        id: "album:signals:north",
+        title: "Signals",
+        artist: "North",
+        trackCount: 1,
+        totalDurationSeconds: 182,
+        artworkKey: "alpha-cover.png",
+      },
+      {
+        id: "album:horizons:south",
+        title: "Horizons",
+        artist: "South",
+        trackCount: 1,
+        totalDurationSeconds: 205,
+        artworkKey: "bravo-cover.png",
+      },
+    ]);
+    desktopMocks.getAlbumMock.mockImplementation(async (albumId: string) => {
+      if (albumId === "album:signals:north") {
+        return {
+          album: {
+            id: "album:signals:north",
+            title: "Signals",
+            artist: "North",
+            trackCount: 1,
+            totalDurationSeconds: 182,
+            artworkKey: "alpha-cover.png",
+          },
+          tracks: [
+            {
+              id: "track-1",
+              title: "Alpha",
+              artist: "North",
+              advisory: null,
+              durationSeconds: 182,
+              artworkKey: "alpha-cover.png",
+              extension: "mp3",
+              trackNumber: 1,
+              discNumber: 1,
+            },
+          ],
+        };
+      }
+
+      if (albumId === "album:horizons:south") {
+        return {
+          album: {
+            id: "album:horizons:south",
+            title: "Horizons",
+            artist: "South",
+            trackCount: 1,
+            totalDurationSeconds: 205,
+            artworkKey: "bravo-cover.png",
+          },
+          tracks: [
+            {
+              id: "track-2",
+              title: "Bravo",
+              artist: "South",
+              advisory: null,
+              durationSeconds: 205,
+              artworkKey: "bravo-cover.png",
+              extension: "mp3",
+              trackNumber: 1,
+              discNumber: 1,
+            },
+          ],
+        };
+      }
+
+      return null;
+    });
     desktopMocks.getPlaylistMock.mockResolvedValue({
       playlist: {
         id: "playlist-1",

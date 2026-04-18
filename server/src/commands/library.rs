@@ -3,8 +3,8 @@ use tauri::State;
 use super::DatabaseState;
 use crate::database::AppDatabase;
 use crate::library::{
-    AlbumDetail, AlbumSummary, ArtworkSource, LibraryPage, LibraryQuery, LocalLibraryScanner,
-    PlaybackSource, ScanError, ScanSummary, SortDirection, TrackSortKey,
+    ArtworkSource, LibraryPage, LibraryQuery, LocalLibraryScanner, PlaybackSource, ScanError,
+    ScanSummary, SortDirection, TrackSortKey,
 };
 
 #[tauri::command]
@@ -75,39 +75,6 @@ pub fn query_library_with_database(
         sort_key,
         sort_direction,
     })
-}
-
-#[tauri::command]
-pub fn list_albums(
-    database_state: State<'_, DatabaseState>,
-    search: Option<String>,
-) -> Result<Vec<AlbumSummary>, String> {
-    list_albums_with_database(&database_state.app_database, search)
-        .map_err(|error| error.to_string())
-}
-
-pub fn list_albums_with_database(
-    app_database: &AppDatabase,
-    search: Option<String>,
-) -> Result<Vec<AlbumSummary>, ScanError> {
-    LocalLibraryScanner::new(app_database.clone()).list_albums(search.as_deref())
-}
-
-#[tauri::command]
-pub fn get_album(
-    database_state: State<'_, DatabaseState>,
-    album_id: String,
-) -> Result<AlbumDetail, String> {
-    get_album_with_database(&database_state.app_database, &album_id)
-        .map_err(|error| error.to_string())?
-        .ok_or_else(|| format!("No album found for {album_id}"))
-}
-
-pub fn get_album_with_database(
-    app_database: &AppDatabase,
-    album_id: &str,
-) -> Result<Option<AlbumDetail>, ScanError> {
-    LocalLibraryScanner::new(app_database.clone()).get_album(album_id)
 }
 
 #[tauri::command]

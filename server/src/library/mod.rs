@@ -1,4 +1,4 @@
-mod models;
+pub(crate) mod models;
 mod normalization;
 mod query;
 mod scanner;

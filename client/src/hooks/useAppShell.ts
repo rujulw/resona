@@ -15,6 +15,7 @@ export function useAppShell() {
 
   return {
     bootstrapState: shellQueryState.bootstrapState,
+    albumsState: shellQueryState.albumsState,
     playlistsState: shellQueryState.playlistsState,
     queueState: playbackCoordinator.queueState,
     shellState: shellQueryState.shellState,
@@ -23,6 +24,7 @@ export function useAppShell() {
     libraryPath: shellQueryState.libraryPath,
     scanState: shellQueryState.scanState,
     handlePickLibraryDirectory: shellQueryState.handlePickLibraryDirectory,
+    handleAlbumSelection: shellQueryState.handleAlbumSelection,
     handlePlaylistCreate: shellQueryState.handlePlaylistCreate,
     handlePlaylistDelete: shellQueryState.handlePlaylistDelete,
     handlePlaylistArtworkChange: shellQueryState.handlePlaylistArtworkChange,
@@ -36,6 +38,12 @@ export function useAppShell() {
     handlePlaybackAction: playbackCoordinator.handlePlaybackAction,
     handlePlaybackSeek: playbackCoordinator.handlePlaybackSeek,
     handleTrackSelection: playbackCoordinator.handleTrackSelection,
+    handleAlbumTrackSelection: (trackId: string) => {
+      const track = shellQueryState.trackCatalogRef.current.get(trackId);
+      if (track) {
+        playbackCoordinator.handleTrackSelection(track);
+      }
+    },
     handleScan: shellQueryState.handleScan,
     handleTracksSearchDraftChange: shellQueryState.handleTracksSearchDraftChange,
     handleTracksSearchSubmit: shellQueryState.handleTracksSearchSubmit,

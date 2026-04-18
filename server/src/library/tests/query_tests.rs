@@ -1,6 +1,7 @@
 use std::fs;
 use std::io::Write;
 
+use crate::albums::AlbumStore;
 use crate::database::AppDatabase;
 use crate::library::{LibraryQuery, LocalLibraryScanner, SortDirection, TrackSortKey};
 
@@ -227,13 +228,14 @@ fn album_queries_group_release_rows_and_hydrate_track_order() {
     );
     let database_path = root.join("library.sqlite3");
     let database = AppDatabase::initialize_at(&database_path).expect("db should initialize");
-    let scanner = LocalLibraryScanner::new(database);
+    let scanner = LocalLibraryScanner::new(database.clone());
+    let album_store = AlbumStore::new(database);
 
     scanner
         .scan_path(&root, Some("Album Library"))
         .expect("scan should persist");
 
-    let albums = scanner
+    let albums = album_store
         .list_albums(Some("sig"))
         .expect("album summaries should load");
     assert_eq!(albums.len(), 1);
@@ -241,7 +243,7 @@ fn album_queries_group_release_rows_and_hydrate_track_order() {
     assert_eq!(albums[0].artist.as_deref(), Some("North"));
     assert_eq!(albums[0].track_count, 2);
 
-    let detail = scanner
+    let detail = album_store
         .get_album(&albums[0].id)
         .expect("album detail should load")
         .expect("album detail should exist");

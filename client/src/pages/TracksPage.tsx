@@ -1,4 +1,7 @@
-import type { ScanState, TracksQueryState, TracksState } from "../types/app";
+import { Link } from "react-router-dom";
+
+import type { AlbumSummary } from "../desktop";
+import type { AlbumsState, ScanState, TracksQueryState, TracksState } from "../types/app";
 import { ArtworkTile } from "../components/ui/ArtworkTile";
 import { AdvisoryBadge } from "../components/ui/AdvisoryBadge";
 import { formatDuration } from "../utils/format";
@@ -8,6 +11,7 @@ export function TracksPage({
   scanState,
   tracksQueryState,
   tracksState,
+  albumsState,
   onTrackSelect,
   onTracksSearchDraftChange,
   onTracksSearchSubmit,
@@ -18,6 +22,7 @@ export function TracksPage({
   scanState: ScanState;
   tracksQueryState: TracksQueryState;
   tracksState: TracksState;
+  albumsState: AlbumsState;
   onTrackSelect: (track: TracksState["items"][number]) => void;
   onTracksSearchDraftChange: (value: string) => void;
   onTracksSearchSubmit: () => void;
@@ -92,8 +97,15 @@ export function TracksPage({
             </div>
           ) : null}
 
-          {tracksState.items.map((track) => (
-            <button
+          {tracksState.items.map((track) => {
+            const albumSummary = resolveAlbumSummary(
+              albumsState.items,
+              track.album,
+              track.artist,
+            );
+
+            return (
+            <div
               key={track.id}
               className={[
                 "grid w-full grid-cols-[minmax(320px,2fr)_minmax(180px,1.1fr)_96px] items-center gap-4 border-b border-white/5 px-5 py-3.5 text-left last:border-b-0",
@@ -101,11 +113,18 @@ export function TracksPage({
                   ? "bg-white/8"
                   : "hover:bg-white/3",
               ].join(" ")}
+              role="button"
+              tabIndex={0}
               aria-label={`Select ${track.title}`}
               aria-pressed={tracksState.selectedTrackId === track.id}
-              type="button"
               onClick={() => {
                 onTrackSelect(track);
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  onTrackSelect(track);
+                }
               }}
             >
               <div className="flex min-w-0 items-center gap-3">
@@ -125,19 +144,52 @@ export function TracksPage({
                   </div>
                 </div>
               </div>
-              <span className="truncate text-sm text-[#d4d4d4]">
-                {track.album ?? "unknown album"}
-              </span>
+              {albumSummary ? (
+                <Link
+                  to={`/albums/${albumSummary.id}`}
+                  className="truncate text-sm text-[#d4d4d4] underline-offset-4 hover:text-[#f2f2f2] hover:underline"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                  }}
+                >
+                  {track.album ?? "unknown album"}
+                </Link>
+              ) : (
+                <span className="truncate text-sm text-[#d4d4d4]">
+                  {track.album ?? "unknown album"}
+                </span>
+              )}
               <span className="text-sm text-[#8f8f8f]">
                 {track.durationSeconds
                   ? formatDuration(Math.round(track.durationSeconds))
                   : "--:--"}
               </span>
-            </button>
-          ))}
+            </div>
+            );
+          })}
         </div>
       </section>
     </div>
+  );
+}
+
+function resolveAlbumSummary(
+  albums: AlbumSummary[],
+  albumTitle: string | null,
+  artistName: string | null,
+) {
+  if (!albumTitle) {
+    return null;
+  }
+
+  return (
+    albums.find(
+      (album) =>
+        album.title === albumTitle &&
+        (album.artist ?? null) === (artistName ?? null),
+    ) ??
+    albums.find((album) => album.title === albumTitle) ??
+    null
   );
 }
 

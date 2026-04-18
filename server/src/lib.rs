@@ -1,3 +1,4 @@
+mod albums;
 mod commands;
 mod database;
 mod library;
