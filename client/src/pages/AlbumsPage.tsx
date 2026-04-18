@@ -8,11 +8,13 @@ export function AlbumsPage({
   albumsState,
   tracksState,
   onAlbumSelect,
+  onPlayAlbum,
   onAlbumTrackSelect,
 }: {
   albumsState: AlbumsState;
   tracksState: TracksState;
   onAlbumSelect: (albumId: string) => void;
+  onPlayAlbum: (albumId: string, startTrackId?: string) => void;
   onAlbumTrackSelect: (trackId: string) => void;
 }) {
   const { albumId } = useParams<{ albumId: string }>();
@@ -72,6 +74,11 @@ export function AlbumsPage({
           <AlbumDetailPanel
             albumDetail={albumsState.activeAlbum}
             activeTrackId={tracksState.selectedTrackId}
+            onPlayAlbum={(startTrackId?: string) => {
+              if (albumsState.activeAlbumId) {
+                onPlayAlbum(albumsState.activeAlbumId, startTrackId);
+              }
+            }}
             onTrackSelect={onAlbumTrackSelect}
           />
         </div>

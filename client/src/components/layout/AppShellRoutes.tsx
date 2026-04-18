@@ -52,6 +52,7 @@ export function AppShellRoutes({
             albumsState={routes.albums.albumsState}
             tracksState={routes.tracks.tracksState}
             onAlbumSelect={actions.albums.onAlbumSelect}
+            onPlayAlbum={actions.albums.onAlbumPlaybackHandoff}
             onAlbumTrackSelect={actions.albums.onAlbumTrackSelect}
           />
         }
@@ -63,6 +64,7 @@ export function AppShellRoutes({
             albumsState={routes.albums.albumsState}
             tracksState={routes.tracks.tracksState}
             onAlbumSelect={actions.albums.onAlbumSelect}
+            onPlayAlbum={actions.albums.onAlbumPlaybackHandoff}
             onAlbumTrackSelect={actions.albums.onAlbumTrackSelect}
           />
         }
@@ -73,6 +75,7 @@ export function AppShellRoutes({
           <PlaylistsPage
             playlistsState={routes.playlists.playlistsState}
             tracksState={routes.playlists.tracksState}
+            albumsState={routes.playlists.albumsState}
             onCreatePlaylist={actions.playlists.onCreatePlaylist}
             onPlaylistArtworkChange={actions.playlists.onPlaylistArtworkChange}
             onPlaylistDelete={actions.playlists.onPlaylistDelete}
@@ -92,6 +95,7 @@ export function AppShellRoutes({
           <PlaylistsPage
             playlistsState={routes.playlists.playlistsState}
             tracksState={routes.playlists.tracksState}
+            albumsState={routes.playlists.albumsState}
             onCreatePlaylist={actions.playlists.onCreatePlaylist}
             onPlaylistArtworkChange={actions.playlists.onPlaylistArtworkChange}
             onPlaylistDelete={actions.playlists.onPlaylistDelete}

@@ -1,3 +1,5 @@
+import { Play } from "lucide-react";
+
 import type { AlbumDetail } from "../../desktop";
 import { formatDuration } from "../../utils/format";
 import { AdvisoryBadge } from "./AdvisoryBadge";
@@ -6,10 +8,12 @@ import { ArtworkTile } from "./ArtworkTile";
 export function AlbumDetailPanel({
   albumDetail,
   activeTrackId,
+  onPlayAlbum,
   onTrackSelect,
 }: {
   albumDetail: AlbumDetail | null;
   activeTrackId: string | null;
+  onPlayAlbum: (startTrackId?: string) => void;
   onTrackSelect: (trackId: string) => void;
 }) {
   if (!albumDetail) {
@@ -52,6 +56,18 @@ export function AlbumDetailPanel({
             </p>
           </div>
         </div>
+        {albumDetail.tracks.length > 0 ? (
+          <button
+            type="button"
+            aria-label="Play album"
+            onClick={() => {
+              onPlayAlbum();
+            }}
+            className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/8 bg-white/3 text-[#d4d4d4] transition-colors hover:border-white/12 hover:bg-white/5 hover:text-[#f2f2f2]"
+          >
+            <Play className="h-4 w-4" strokeWidth={2} />
+          </button>
+        ) : null}
       </header>
 
       <section className="grid min-h-[62vh] grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-3xl border border-white/6 bg-[#1b1b1b]">
@@ -74,11 +90,13 @@ export function AlbumDetailPanel({
                 activeTrackId === track.id ? "bg-white/8" : "hover:bg-white/3",
               ].join(" ")}
               onClick={() => {
+                onPlayAlbum(track.id);
                 onTrackSelect(track.id);
               }}
               onKeyDown={(event) => {
                 if (event.key === "Enter" || event.key === " ") {
                   event.preventDefault();
+                  onPlayAlbum(track.id);
                   onTrackSelect(track.id);
                 }
               }}

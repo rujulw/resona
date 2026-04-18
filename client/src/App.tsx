@@ -53,6 +53,7 @@ export default function App() {
       playlists: {
         playlistsState: appShell.playlistsState,
         tracksState: appShell.tracksState,
+        albumsState: appShell.albumsState,
       },
       queue: {
         queueState: appShell.queueState,
@@ -87,6 +88,7 @@ export default function App() {
       },
       albums: {
         onAlbumSelect: appShell.handleAlbumSelection,
+        onAlbumPlaybackHandoff: appShell.handleAlbumPlaybackHandoff,
         onAlbumTrackSelect: appShell.handleAlbumTrackSelection,
       },
       settings: {

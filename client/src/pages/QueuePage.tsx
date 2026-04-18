@@ -6,6 +6,13 @@ export function QueuePage({
 }: {
   queueState: QueueState;
 }) {
+  const nextUpLabel =
+    queueState.sourceLabel === "album-handoff"
+      ? "queued from the current album order"
+      : queueState.sourceLabel === "playlist-handoff"
+        ? "queued from the current playlist order"
+        : "derived from the current local selection";
+
   return (
     <div className="grid gap-6 px-6 py-6">
       <header className="flex flex-wrap items-start justify-between gap-4">
@@ -45,7 +52,7 @@ export function QueuePage({
               <div>
                 <p className="m-0 text-[11px] tracking-[0.08em] text-[#8f8f8f]">next up</p>
                 <h3 className="mt-2 text-lg font-medium text-[#f2f2f2]">
-                  derived from the current local selection
+                  {nextUpLabel}
                 </h3>
               </div>
               <p className="m-0 text-sm text-[#8f8f8f]">

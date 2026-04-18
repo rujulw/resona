@@ -22,6 +22,7 @@ export function usePlaybackCoordinator({
   setPlaylistsState,
 }: PlaybackCoordinatorParams) {
   const [playbackQueueTrackIds, setPlaybackQueueTrackIds] = useState<string[]>([]);
+  const [playbackQueueSourceLabel, setPlaybackQueueSourceLabel] = useState<string | null>(null);
 
   usePlaybackRuntimeBridge({ setShellState });
 
@@ -41,7 +42,9 @@ export function usePlaybackCoordinator({
       trackCatalogRef,
       audioRef,
       playbackQueueTrackIds,
+      playbackQueueSourceLabel,
       setPlaybackQueueTrackIds,
+      setPlaybackQueueSourceLabel,
       setShellState,
       setTracksState,
       setPlaylistsState,
@@ -60,8 +63,19 @@ export function usePlaybackCoordinator({
   const playbackDurationSeconds = selectPlaybackDurationSeconds(shellState);
 
   const handleTrackSelection = useCallback(
-    (track: TrackListItem) => {
-      void startTrackPlayback(track, true);
+    (
+      track: TrackListItem,
+      options?: {
+        queueTrackIds?: string[];
+        queueItems?: TrackListItem[];
+        sourceLabel?: string;
+      },
+    ) => {
+      setPlaybackQueueSourceLabel(options?.sourceLabel ?? "library-selection");
+      void startTrackPlayback(track, true, {
+        queueTrackIds: options?.queueTrackIds,
+        queueItems: options?.queueItems,
+      });
     },
     [startTrackPlayback],
   );

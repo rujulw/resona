@@ -127,6 +127,7 @@ export type TracksRouteState = {
 export type PlaylistsRouteState = {
   playlistsState: PlaylistsState;
   tracksState: TracksState;
+  albumsState: AlbumsState;
 };
 
 export type QueueRouteState = {
@@ -197,6 +198,7 @@ export type TracksRouteActions = {
 
 export type AlbumsRouteActions = {
   onAlbumSelect: (albumId: string) => void;
+  onAlbumPlaybackHandoff: (albumId: string, startTrackId?: string) => void;
   onAlbumTrackSelect: (trackId: string) => void;
 };
 
