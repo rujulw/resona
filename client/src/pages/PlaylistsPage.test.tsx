@@ -40,6 +40,22 @@ describe("playlists page", () => {
     confirmMock.mockRestore();
   });
 
+  it("routes playlist entry album links into the albums page", async () => {
+    window.history.replaceState({}, "", "/playlists/playlist-1");
+
+    const { default: App } = await import("../App");
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Desk Set" });
+
+    fireEvent.click(screen.getByRole("link", { name: "Signals" }));
+
+    await waitFor(() => {
+      expect(desktopMocks.getAlbumMock).toHaveBeenCalledWith("album:signals:north");
+      expect(screen.getByRole("heading", { name: "Signals" })).toBeTruthy();
+    });
+  });
+
   it("smoke-covers the playlist route shell with saved order handoff controls and dialog creation", async () => {
     window.history.replaceState({}, "", "/playlists/playlist-1");
 
@@ -218,6 +234,29 @@ describe("playlists page", () => {
                   items: [],
                   total: 0,
                   selectedTrackId: null,
+                }}
+                albumsState={{
+                  status: "ready",
+                  items: [
+                    {
+                      id: "album:signals:north",
+                      title: "Signals",
+                      artist: "North",
+                      trackCount: 1,
+                      totalDurationSeconds: 182,
+                      artworkKey: "alpha-cover.png",
+                    },
+                    {
+                      id: "album:horizons:south",
+                      title: "Horizons",
+                      artist: "South",
+                      trackCount: 1,
+                      totalDurationSeconds: 205,
+                      artworkKey: "bravo-cover.png",
+                    },
+                  ],
+                  activeAlbumId: null,
+                  activeAlbum: null,
                 }}
                 onCreatePlaylist={vi.fn(async () => null)}
                 onPlaylistArtworkChange={vi.fn()}

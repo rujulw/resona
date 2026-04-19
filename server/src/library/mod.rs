@@ -1,4 +1,4 @@
-mod models;
+pub(crate) mod models;
 mod normalization;
 mod query;
 mod scanner;
@@ -6,7 +6,7 @@ mod scanner;
 mod tests;
 
 pub use models::{
-    ArtworkSource, LibraryPage, LibraryQuery, PlaybackSource, ResolvedPlaybackTrack, ScanError,
-    ScanSummary, SortDirection, TrackSortKey,
+    AlbumDetail, AlbumSummary, ArtworkSource, LibraryPage, LibraryQuery, PlaybackSource,
+    ResolvedPlaybackTrack, ScanError, ScanSummary, SortDirection, TrackSortKey,
 };
 pub use scanner::LocalLibraryScanner;

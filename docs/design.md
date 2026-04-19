@@ -22,7 +22,7 @@ resona is designed to feel immediate, controlled, and quiet. The interface shoul
 
 ### Library
 
-The working library view is a focused tracks table with an inline search field, header-driven sorting, compact artwork tiles, and a continuous scrollable body. Sidebar navigation should stay small and functional, covering home, tracks, playlists, queue, and settings without secondary content feeds. Import should begin from a clear folder-selection action in settings rather than from a raw path entry field embedded into the main track view. When tags are sparse, the library should still feel polished through filename-cleanup fallbacks, album-artist fallback, parent-folder album fallback, and duration estimates that avoid unnecessary blank rows.
+The working library view is a focused tracks table with an inline search field, header-driven sorting, compact artwork tiles, and a continuous scrollable body. Sidebar navigation should stay small and functional, covering home, tracks, playlists, queue, and settings without secondary content feeds. Albums and artists should not ship as first-class sidebar destinations; they should be reached from home search results or by selecting album/artist identity from track detail context. Import should begin from a clear folder-selection action in settings rather than from a raw path entry field embedded into the main track view. When tags are sparse, the library should still feel polished through filename-cleanup fallbacks, album-artist fallback, parent-folder album fallback, and duration estimates that avoid unnecessary blank rows.
 
 ### Playback
 
@@ -116,6 +116,18 @@ Design rules for the current drag-reorder slice:
 - playlist reorder should not silently mutate an already handed-off playback queue after playback has started
 - visual drop affordances should use an explicit insertion line instead of a full-row highlight that can read like selection state
 
+### Albums And Artists
+
+Albums and artists should behave like detail destinations rather than peer library roots.
+
+Design rules for the first album/artist slice:
+
+- the home route should own album and artist discovery through search-driven entrypoints instead of adding permanent sidebar tabs
+- album detail should be reachable from home search results and from track-detail album identity
+- artist detail should be reachable from home search results and from track-detail artist identity
+- album and artist views should preserve shell-level playback continuity without inventing separate navigation models
+- route contracts should stay narrow enough that later album/artist feature work can land behind the same search and deeplink entrypoints
+
 ### Insights
 
 Track insights from timbre should appear in secondary detail surfaces such as a side panel or detail drawer. Insight availability should never interrupt the core listening flow.
@@ -149,6 +161,7 @@ Track insights from timbre should appear in secondary detail surfaces such as a 
 - Format support should remain additive: new local codecs should fit the same normalization, query, and playback shell contracts instead of creating format-specific app modes
 - The app remains open source even when used with private Atlas-backed media libraries
 - The desktop client should use a persistent routed shell so home, tracks, playlists, queue, and settings share the same navigation and playback frame
+- Album and artist routes should enter through search and track-context deeplinks rather than through top-level shell navigation
 - The playback bar and queue route should both read from the same active-track state so transport and next-up behavior cannot drift apart
 - The playback contract moves command authority to Rust through a narrow Tauri contract and pushes playback snapshots back to the shell through named events
 - The shell should consume backend playback snapshots through `playback://state-changed` rather than inventing separate client-only transport truth

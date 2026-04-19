@@ -78,10 +78,26 @@ export function usePlaybackMediaRuntime({
   ]);
 
   const startTrackPlayback = useCallback(
-    async (track: TrackListItem, autoplay: boolean) => {
+    async (
+      track: TrackListItem,
+      autoplay: boolean,
+      options?: {
+        queueTrackIds?: string[];
+        queueItems?: TrackListItem[];
+      },
+    ) => {
       const requestId = playbackRequestIdRef.current + 1;
       playbackRequestIdRef.current = requestId;
+      if (options?.queueItems) {
+        for (const queueItem of options.queueItems) {
+          trackCatalogRef.current.set(queueItem.id, queueItem);
+        }
+      }
       setPlaybackQueueTrackIds((existing) => {
+        if (options?.queueTrackIds) {
+          return options.queueTrackIds;
+        }
+
         const visibleTrackIds = tracksState.items.map((item) => item.id);
         if (visibleTrackIds.includes(track.id)) {
           return visibleTrackIds;

@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 
 import type { AppShellRouteActions, AppShellRoutesState } from "../../types/app";
+import { AlbumsPage } from "../../pages/AlbumsPage";
 import { HomePage } from "../../pages/HomePage";
 import { PlaylistsPage } from "../../pages/PlaylistsPage";
 import { QueuePage } from "../../pages/QueuePage";
@@ -35,6 +36,7 @@ export function AppShellRoutes({
             scanState={routes.tracks.scanState}
             tracksQueryState={routes.tracks.tracksQueryState}
             tracksState={routes.tracks.tracksState}
+            albumsState={routes.tracks.albumsState}
             onTrackSelect={actions.tracks.onTrackSelect}
             onTracksSearchDraftChange={actions.tracks.onTracksSearchDraftChange}
             onTracksSearchSubmit={actions.tracks.onTracksSearchSubmit}
@@ -44,11 +46,36 @@ export function AppShellRoutes({
         }
       />
       <Route
+        path="/albums"
+        element={
+          <AlbumsPage
+            albumsState={routes.albums.albumsState}
+            tracksState={routes.tracks.tracksState}
+            onAlbumSelect={actions.albums.onAlbumSelect}
+            onPlayAlbum={actions.albums.onAlbumPlaybackHandoff}
+            onAlbumTrackSelect={actions.albums.onAlbumTrackSelect}
+          />
+        }
+      />
+      <Route
+        path="/albums/:albumId"
+        element={
+          <AlbumsPage
+            albumsState={routes.albums.albumsState}
+            tracksState={routes.tracks.tracksState}
+            onAlbumSelect={actions.albums.onAlbumSelect}
+            onPlayAlbum={actions.albums.onAlbumPlaybackHandoff}
+            onAlbumTrackSelect={actions.albums.onAlbumTrackSelect}
+          />
+        }
+      />
+      <Route
         path="/playlists"
         element={
           <PlaylistsPage
             playlistsState={routes.playlists.playlistsState}
             tracksState={routes.playlists.tracksState}
+            albumsState={routes.playlists.albumsState}
             onCreatePlaylist={actions.playlists.onCreatePlaylist}
             onPlaylistArtworkChange={actions.playlists.onPlaylistArtworkChange}
             onPlaylistDelete={actions.playlists.onPlaylistDelete}
@@ -68,6 +95,7 @@ export function AppShellRoutes({
           <PlaylistsPage
             playlistsState={routes.playlists.playlistsState}
             tracksState={routes.playlists.tracksState}
+            albumsState={routes.playlists.albumsState}
             onCreatePlaylist={actions.playlists.onCreatePlaylist}
             onPlaylistArtworkChange={actions.playlists.onPlaylistArtworkChange}
             onPlaylistDelete={actions.playlists.onPlaylistDelete}

@@ -1,4 +1,5 @@
 import { ArrowDown, ArrowUp, GripVertical, Play } from "lucide-react";
+import { Link } from "react-router-dom";
 import type {
   DragEvent,
   DragEvent as ReactDragEvent,
@@ -7,13 +8,14 @@ import type {
   MouseEvent as ReactMouseEvent,
 } from "react";
 
-import type { PlaylistDetail, PlaylistEntryItem } from "../../desktop";
+import type { AlbumSummary, PlaylistDetail, PlaylistEntryItem } from "../../desktop";
 import { AdvisoryBadge } from "./AdvisoryBadge";
 import { ArtworkTile } from "./ArtworkTile";
 import { formatDuration } from "../../utils/format";
 
 export function PlaylistEntriesSection({
   playlist,
+  albums,
   entries,
   selectedEntryId,
   draggedEntryId,
@@ -35,6 +37,7 @@ export function PlaylistEntriesSection({
   onMoveEntryDown,
 }: {
   playlist: PlaylistDetail;
+  albums: AlbumSummary[];
   entries: PlaylistEntryItem[];
   selectedEntryId: string | null;
   draggedEntryId: string | null;
@@ -83,6 +86,10 @@ export function PlaylistEntriesSection({
           </div>
         ) : (
           entries.map((entry) => (
+            (() => {
+              const albumSummary = resolveAlbumSummary(albums, entry.album, entry.artist);
+
+              return (
             <article
               key={entry.entryId}
               role="button"
@@ -148,9 +155,21 @@ export function PlaylistEntriesSection({
                 </div>
               </div>
 
-              <span className="truncate text-sm text-[#d4d4d4]">
-                {entry.album ?? "unknown album"}
-              </span>
+              {albumSummary ? (
+                <Link
+                  to={`/albums/${albumSummary.id}`}
+                  className="truncate text-sm text-[#d4d4d4] underline-offset-4 hover:text-[#f2f2f2] hover:underline"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                  }}
+                >
+                  {entry.album ?? "unknown album"}
+                </Link>
+              ) : (
+                <span className="truncate text-sm text-[#d4d4d4]">
+                  {entry.album ?? "unknown album"}
+                </span>
+              )}
 
               <span className="text-sm text-[#8f8f8f]">
                 {entry.durationSeconds != null
@@ -191,9 +210,31 @@ export function PlaylistEntriesSection({
                 </button>
               </div>
             </article>
+              );
+            })()
           ))
         )}
       </div>
     </section>
+  );
+}
+
+function resolveAlbumSummary(
+  albums: AlbumSummary[],
+  albumTitle: string | null,
+  artistName: string | null,
+) {
+  if (!albumTitle) {
+    return null;
+  }
+
+  return (
+    albums.find(
+      (album) =>
+        album.title === albumTitle &&
+        (album.artist ?? null) === (artistName ?? null),
+    ) ??
+    albums.find((album) => album.title === albumTitle) ??
+    null
   );
 }

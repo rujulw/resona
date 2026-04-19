@@ -23,7 +23,9 @@ export function usePlaybackQueueSync({
   trackCatalogRef,
   audioRef,
   playbackQueueTrackIds,
+  playbackQueueSourceLabel,
   setPlaybackQueueTrackIds,
+  setPlaybackQueueSourceLabel,
   setShellState,
   setTracksState,
   setPlaylistsState,
@@ -35,11 +37,20 @@ export function usePlaybackQueueSync({
   trackCatalogRef: MutableRefObject<Map<string, TrackListItem>>;
   audioRef: MutableRefObject<HTMLAudioElement | null>;
   playbackQueueTrackIds: string[];
+  playbackQueueSourceLabel: string | null;
   setPlaybackQueueTrackIds: Dispatch<SetStateAction<string[]>>;
+  setPlaybackQueueSourceLabel: Dispatch<SetStateAction<string | null>>;
   setShellState: Dispatch<SetStateAction<ShellState | null>>;
   setTracksState: Dispatch<SetStateAction<TracksState>>;
   setPlaylistsState: Dispatch<SetStateAction<PlaylistsState>>;
-  startTrackPlayback: (track: TrackListItem, autoplay: boolean) => Promise<void>;
+  startTrackPlayback: (
+    track: TrackListItem,
+    autoplay: boolean,
+    options?: {
+      queueTrackIds?: string[];
+      queueItems?: TrackListItem[];
+    },
+  ) => Promise<void>;
 }) {
 
   const isRustOutputPlayback = selectIsRustOutputPlayback(shellState);
@@ -50,11 +61,11 @@ export function usePlaybackQueueSync({
         trackCatalog: trackCatalogRef.current,
         playbackQueueTrackIds,
         activeTrackId: selectActivePlaybackTrackId(shellState, tracksState),
-        sourceLabel: playlistsState.playbackQueue?.sourceLabel,
+        sourceLabel: playbackQueueSourceLabel,
       }),
     [
       playbackQueueTrackIds,
-      playlistsState.playbackQueue?.sourceLabel,
+      playbackQueueSourceLabel,
       shellState?.playback.trackId,
       trackCatalogRef,
       tracksState.selectedTrackId,
@@ -65,6 +76,7 @@ export function usePlaybackQueueSync({
     void handoffPlaylistToQueue(playlistId, startEntryId ?? null)
       .then((payload) => {
         setPlaybackQueueTrackIds(payload.queue.trackIds);
+        setPlaybackQueueSourceLabel(payload.queue.sourceLabel);
         setShellState((existing) =>
           existing
             ? {

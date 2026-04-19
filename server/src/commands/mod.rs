@@ -1,5 +1,6 @@
 use crate::database::AppDatabase;
 
+pub mod albums;
 pub mod library;
 pub mod playback;
 pub mod playlists;
@@ -8,6 +9,7 @@ pub mod system;
 #[cfg(test)]
 pub mod tests;
 
+pub use albums::{get_album, list_albums};
 pub use library::{
     query_library, resolve_artwork_source, resolve_track_playback_source, scan_local_library,
 };
@@ -21,6 +23,9 @@ pub use playlists::{
     remove_playlist_entry, replace_playlist_entries, update_playlist,
 };
 pub use system::{bootstrap_app, get_shell_state};
+
+#[cfg(test)]
+pub use albums::{get_album_with_database, list_albums_with_database};
 
 #[cfg(test)]
 pub use library::{

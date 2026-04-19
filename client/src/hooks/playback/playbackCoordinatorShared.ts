@@ -1,9 +1,9 @@
 
 
+import type { PlaylistsState, ShellState, TracksState } from "../../types/app";
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 
 import type { TrackListItem } from "../../desktop";
-import type { PlaylistsState, ShellState, TracksState } from "../../types/app";
 
 export type PlaybackAction = "previous" | "toggle" | "next";
 

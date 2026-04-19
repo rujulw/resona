@@ -5,12 +5,14 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const bootstrapAppMock = vi.fn();
+const getAlbumMock = vi.fn();
 const createPlaylistMock = vi.fn();
 const deletePlaylistMock = vi.fn();
 const getPlaylistMock = vi.fn();
 const getShellStateMock = vi.fn();
 const handoffPlaylistToQueueMock = vi.fn();
 const listPlaylistsMock = vi.fn();
+const listAlbumsMock = vi.fn();
 const loadPlaybackTrackMock = vi.fn();
 const movePlaylistEntryMock = vi.fn();
 const replacePlaylistEntriesMock = vi.fn();
@@ -29,6 +31,7 @@ const mockAudioInstances: MockAudio[] = [];
 
 vi.mock("./desktop", () => ({
   addTrackToPlaylist: (...args: unknown[]) => addTrackToPlaylistMock(...args),
+  getAlbum: (...args: unknown[]) => getAlbumMock(...args),
   bootstrapApp: () => bootstrapAppMock(),
   createPlaylist: (...args: unknown[]) => createPlaylistMock(...args),
   deletePlaylist: (...args: unknown[]) => deletePlaylistMock(...args),
@@ -36,6 +39,7 @@ vi.mock("./desktop", () => ({
   getShellState: () => getShellStateMock(),
   handoffPlaylistToQueue: (...args: unknown[]) => handoffPlaylistToQueueMock(...args),
   listPlaylists: () => listPlaylistsMock(),
+  listAlbums: (...args: unknown[]) => listAlbumsMock(...args),
   loadPlaybackTrack: (...args: unknown[]) => loadPlaybackTrackMock(...args),
   movePlaylistEntry: (...args: unknown[]) => movePlaylistEntryMock(...args),
   replacePlaylistEntries: (...args: unknown[]) => replacePlaylistEntriesMock(...args),
@@ -136,12 +140,14 @@ describe("app shell smoke checks", () => {
 
   beforeEach(() => {
     bootstrapAppMock.mockReset();
+    getAlbumMock.mockReset();
     createPlaylistMock.mockReset();
     deletePlaylistMock.mockReset();
     getPlaylistMock.mockReset();
     getShellStateMock.mockReset();
     handoffPlaylistToQueueMock.mockReset();
     listPlaylistsMock.mockReset();
+    listAlbumsMock.mockReset();
     loadPlaybackTrackMock.mockReset();
     movePlaylistEntryMock.mockReset();
     replacePlaylistEntriesMock.mockReset();
@@ -194,8 +200,6 @@ describe("app shell smoke checks", () => {
     getShellStateMock.mockResolvedValue({
       navSections: [
         { id: "tracks", label: "Tracks" },
-        { id: "albums", label: "Albums" },
-        { id: "artists", label: "Artists" },
         { id: "queue", label: "Queue" },
         { id: "settings", label: "Settings" },
       ],
@@ -228,6 +232,53 @@ describe("app shell smoke checks", () => {
         updatedAt: "1700000100",
       },
     ]);
+    listAlbumsMock.mockResolvedValue([
+      {
+        id: "album:signals:north",
+        title: "Signals",
+        artist: "North",
+        trackCount: 1,
+        totalDurationSeconds: 182,
+        artworkKey: "alpha-cover.png",
+      },
+      {
+        id: "album:horizons:south",
+        title: "Horizons",
+        artist: "South",
+        trackCount: 1,
+        totalDurationSeconds: 205,
+        artworkKey: "bravo-cover.png",
+      },
+    ]);
+    getAlbumMock.mockImplementation(async (albumId: string) => {
+      if (albumId === "album:signals:north") {
+        return {
+          album: {
+            id: "album:signals:north",
+            title: "Signals",
+            artist: "North",
+            trackCount: 1,
+            totalDurationSeconds: 182,
+            artworkKey: "alpha-cover.png",
+          },
+          tracks: [
+            {
+              id: "track-1",
+              title: "Alpha",
+              artist: "North",
+              advisory: null,
+              durationSeconds: 182,
+              artworkKey: "alpha-cover.png",
+              extension: "mp3",
+              trackNumber: 1,
+              discNumber: 1,
+            },
+          ],
+        };
+      }
+
+      return null;
+    });
     getPlaylistMock.mockResolvedValue({
       playlist: {
         id: "playlist-1",
@@ -1110,7 +1161,22 @@ describe("app shell smoke checks", () => {
     });
   });
 
+  it("opens album detail routes from the tracks library search surface", async () => {
+    window.history.replaceState({}, "", "/tracks");
 
+    const { default: App } = await import("./App");
+    render(<App />);
 
+    const searchBox = await screen.findByPlaceholderText("Search title, artist, album");
+    fireEvent.change(searchBox, { target: { value: "signals" } });
+    fireEvent.keyDown(searchBox, { key: "Enter", code: "Enter" });
+    fireEvent.click(await screen.findByRole("link", { name: /signals/i }));
+
+    await waitFor(() => {
+      expect(getAlbumMock).toHaveBeenCalledWith("album:signals:north");
+      expect(screen.getByRole("heading", { name: "Signals" })).toBeTruthy();
+      expect(screen.getByText("Alpha")).toBeTruthy();
+    });
+  });
 
 });

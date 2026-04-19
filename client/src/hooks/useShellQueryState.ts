@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { bootstrapApp, getShellState, type TrackListItem } from "../desktop";
 import type { BootstrapState, ShellState } from "../types/app";
 import { useLibraryScan } from "./shell/useLibraryScan";
+import { useAlbumQueries } from "./shell/useAlbumQueries";
 import { usePlaylistQueries } from "./shell/usePlaylistQueries";
 import { useTracksQuery } from "./shell/useTracksQuery";
 import { toAsyncErrorMessage } from "./shell/shellQueryShared";
@@ -27,6 +28,13 @@ export function useShellQueryState() {
   } = useTracksQuery({
     trackCatalogRef,
   });
+
+  const {
+    albumsState,
+    setAlbumsState,
+    refreshAlbums,
+    handleAlbumSelection,
+  } = useAlbumQueries();
 
   const {
     playlistsState,
@@ -54,7 +62,10 @@ export function useShellQueryState() {
 
   const { libraryPath, scanState, handlePickLibraryDirectory, handleScan } = useLibraryScan({
     refreshShellState,
-    refreshTracks,
+    refreshTracks: (...args) => {
+      refreshTracks(...args);
+      refreshAlbums();
+    },
   });
 
   useEffect(() => {
@@ -77,6 +88,7 @@ export function useShellQueryState() {
           sortKey: "title",
           sortDirection: "asc",
         });
+        refreshAlbums();
         refreshPlaylists();
       })
       .catch((error: unknown) => {
@@ -95,6 +107,7 @@ export function useShellQueryState() {
 
   return {
     bootstrapState,
+    albumsState,
     playlistsState,
     shellState,
     tracksState,
@@ -106,7 +119,9 @@ export function useShellQueryState() {
     setTracksState,
     setTracksQueryState,
     setPlaylistsState,
+    setAlbumsState,
     handlePickLibraryDirectory,
+    handleAlbumSelection,
     handlePlaylistCreate,
     handlePlaylistDelete,
     handlePlaylistArtworkChange,

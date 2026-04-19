@@ -80,8 +80,6 @@ describe("desktop shell bridge", () => {
 
     expect(payload.navSections.map((section) => section.id)).toEqual([
       "tracks",
-      "albums",
-      "artists",
       "queue",
       "insights",
       "settings",

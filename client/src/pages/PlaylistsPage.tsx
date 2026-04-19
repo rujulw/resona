@@ -8,9 +8,10 @@ import { usePlaylistReorder } from "../hooks/playlists/usePlaylistReorder";
 
 import {
   pickPlaylistArtwork,
+  type AlbumSummary,
   type TrackListItem,
 } from "../desktop";
-import type { PlaylistsState, TracksState } from "../types/app";
+import type { AlbumsState, PlaylistsState, TracksState } from "../types/app";
 import { CreatePlaylistDialog } from "../components/ui/CreatePlaylistDialog";
 import { PlaylistDetailHeader } from "../components/ui/PlaylistDetailHeader";
 import { PlaylistEntriesSection } from "../components/ui/PlaylistEntriesSection";
@@ -19,6 +20,7 @@ import { PlaylistLibrarySection } from "../components/ui/PlaylistLibrarySection"
 export function PlaylistsPage({
   playlistsState,
   tracksState,
+  albumsState,
   onCreatePlaylist,
   onPlaylistArtworkChange,
   onPlaylistDelete,
@@ -32,6 +34,7 @@ export function PlaylistsPage({
 }: {
   playlistsState: PlaylistsState;
   tracksState: TracksState;
+  albumsState: AlbumsState;
   onCreatePlaylist: (
     name: string,
     description?: string | null,
@@ -218,6 +221,7 @@ export function PlaylistsPage({
         <div className="grid min-h-0 gap-4 overflow-y-auto pb-2">
           <PlaylistEntriesSection
             playlist={activePlaylist}
+            albums={albumsState.items}
             entries={orderedPlaylistEntries}
             selectedEntryId={selectedEntryId}
             draggedEntryId={draggedEntryId}
@@ -389,5 +393,25 @@ export function PlaylistsPage({
         onSubmit={handleEditSubmit}
       />
     </>
+  );
+}
+
+function resolveAlbumSummary(
+  albums: AlbumSummary[],
+  albumTitle: string | null,
+  artistName: string | null,
+) {
+  if (!albumTitle) {
+    return null;
+  }
+
+  return (
+    albums.find(
+      (album) =>
+        album.title === albumTitle &&
+        (album.artist ?? null) === (artistName ?? null),
+    ) ??
+    albums.find((album) => album.title === albumTitle) ??
+    null
   );
 }
