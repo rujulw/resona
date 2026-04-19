@@ -130,16 +130,24 @@ pub fn build_shell_state_with_playback(
     ShellStatePayload {
         nav_sections: vec![
             NavSection {
+                id: "home",
+                label: "Home",
+            },
+            NavSection {
                 id: "tracks",
                 label: "Tracks",
             },
             NavSection {
-                id: "queue",
-                label: "Queue",
+                id: "albums",
+                label: "Albums",
             },
             NavSection {
-                id: "insights",
-                label: "Insights",
+                id: "playlists",
+                label: "Playlists",
+            },
+            NavSection {
+                id: "queue",
+                label: "Queue",
             },
             NavSection {
                 id: "settings",
