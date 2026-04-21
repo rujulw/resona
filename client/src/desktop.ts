@@ -5,3 +5,4 @@ export * from "./desktop/playlists";
 export * from "./desktop/playback";
 export * from "./desktop/library";
 export * from "./desktop/albums";
+export * from "./desktop/conceptAlbums";

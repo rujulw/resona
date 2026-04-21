@@ -138,7 +138,49 @@ export type AlbumDetail = {
   tracks: AlbumTrackItem[];
 };
 
+export type ConceptAlbumSummary = {
+  artworkPath(artworkPath: any): unknown;
+  id: string;
+  title: string;
+  artist: string | null;
+  description: string | null;
+  artworkKey: string | null;
+  entryCount: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ConceptAlbumEntryItem = {
+  entryId: string;
+  conceptAlbumId: string;
+  trackId: string;
+  position: number;
+  addedAt: string;
+  updatedAt: string;
+  title: string;
+  artist: string | null;
+  album: string | null;
+  advisory?: boolean | null;
+  artworkKey: string | null;
+  extension?: string;
+  durationSeconds: number | null;
+  trackNumber: number | null;
+  discNumber: number | null;
+};
+
+export type ConceptAlbumDetail = {
+  conceptAlbum: ConceptAlbumSummary;
+  entries: ConceptAlbumEntryItem[];
+};
+
+export type ConceptAlbumEntryInput = {
+  entryId?: string;
+  trackId: string;
+  position: number;
+};
+
 export type PlaylistSummary = {
+  artworkPath(artworkPath: any): unknown;
   id: string;
   name: string;
   description: string | null;

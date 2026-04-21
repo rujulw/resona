@@ -63,6 +63,25 @@ export function normalizePlaylistMutationPayload(
   };
 }
 
+export function normalizeConceptAlbumMutationPayload(
+  title: string,
+  artist?: string | null,
+  description?: string | null,
+  artworkPath?: string | null,
+): {
+  title: string;
+  artist: string | null;
+  description: string | null;
+  artworkPath: string | null;
+} {
+  return {
+    title,
+    artist: normalizeOptionalText(artist),
+    description: normalizeOptionalText(description),
+    artworkPath: normalizeOptionalText(artworkPath),
+  };
+}
+
 export function normalizeTimingPayload(
   progressSeconds?: number,
   durationSeconds?: number,
