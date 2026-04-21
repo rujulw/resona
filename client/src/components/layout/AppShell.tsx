@@ -19,6 +19,7 @@ export function AppShell({
     <main className="grid h-screen grid-cols-[248px_minmax(0,1fr)] grid-rows-[minmax(0,1fr)_auto] overflow-hidden bg-[#121212] text-[#e5e5e5]">
       <Sidebar
         appName={chrome.appName}
+        conceptAlbums={chrome.conceptAlbums}
         playlists={chrome.playlists}
         runtimeLabel={chrome.runtimeLabel}
       />

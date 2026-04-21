@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Navigate, useNavigate, useParams } from "react-router-dom";
+import { Navigate, useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import { usePlaylistDialogs } from "../hooks/playlists/usePlaylistDialogs";
 import { usePlaylistLibrarySearch } from "../hooks/playlists/usePlaylistLibrarySearch";
@@ -57,6 +57,7 @@ export function PlaylistsPage({
 }) {
   const { playlistId } = useParams<{ playlistId: string }>();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const activePlaylistId = playlistId ?? playlistsState.activePlaylistId;
   const activePlaylist = playlistsState.activePlaylist;
   const { librarySearchDraft, setLibrarySearchDraft, visibleLibraryTracks } =
@@ -127,8 +128,14 @@ export function PlaylistsPage({
     playlistsState.status,
   ]);
 
+  useEffect(() => {
+    if (searchParams.get("create") === "playlist" && !isCreateDialogOpen) {
+      openCreateDialog();
+      setSearchParams({}, { replace: true });
+    }
+  }, [isCreateDialogOpen, openCreateDialog, searchParams, setSearchParams]);
 
-  if (!playlistId && playlistsState.items[0]) {
+  if (!playlistId && playlistsState.items[0] && searchParams.get("create") !== "playlist") {
     return <Navigate to={`/playlists/${playlistsState.items[0].id}`} replace />;
   }
 

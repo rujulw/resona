@@ -31,6 +31,7 @@ export default function App() {
       appName: appShell.bootstrapState.payload.appName,
       runtimeLabel: `${appShell.bootstrapState.payload.runtime.desktopShell} desktop shell`,
       playlists: appShell.playlistsState.items,
+      conceptAlbums: appShell.conceptAlbumsState.items,
       queueState: appShell.queueState,
       playback: appShell.shellState.playback,
     },
@@ -52,6 +53,11 @@ export default function App() {
       },
       playlists: {
         playlistsState: appShell.playlistsState,
+        tracksState: appShell.tracksState,
+        albumsState: appShell.albumsState,
+      },
+      conceptAlbums: {
+        conceptAlbumsState: appShell.conceptAlbumsState,
         tracksState: appShell.tracksState,
         albumsState: appShell.albumsState,
       },
@@ -90,6 +96,18 @@ export default function App() {
         onAlbumSelect: appShell.handleAlbumSelection,
         onAlbumPlaybackHandoff: appShell.handleAlbumPlaybackHandoff,
         onAlbumTrackSelect: appShell.handleAlbumTrackSelection,
+      },
+      conceptAlbums: {
+        onConceptAlbumCreate: appShell.handleConceptAlbumCreate,
+        onConceptAlbumArtworkChange: appShell.handleConceptAlbumArtworkChange,
+        onConceptAlbumDelete: appShell.handleConceptAlbumDelete,
+        onConceptAlbumEntryMove: appShell.handleConceptAlbumEntryMove,
+        onConceptAlbumEntriesReplace: appShell.handleConceptAlbumEntriesReplace,
+        onConceptAlbumEntryRemove: appShell.handleConceptAlbumEntryRemove,
+        onConceptAlbumPlaybackHandoff: appShell.handleConceptAlbumPlaybackHandoff,
+        onConceptAlbumRename: appShell.handleConceptAlbumRename,
+        onConceptAlbumSelect: appShell.handleConceptAlbumSelection,
+        onConceptAlbumTrackAdd: appShell.handleConceptAlbumTrackAdd,
       },
       settings: {
         onPickLibraryDirectory: appShell.handlePickLibraryDirectory,

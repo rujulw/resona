@@ -128,6 +128,22 @@ Design rules for the first album/artist slice:
 - album and artist views should preserve shell-level playback continuity without inventing separate navigation models
 - route contracts should stay narrow enough that later album/artist feature work can land behind the same search and deeplink entrypoints
 
+### Concept Albums
+
+Concept albums should behave like editable release objects rather than like locked library albums or loose working playlists.
+
+Design rules for the first concept-album slice:
+
+- concept albums should preserve album-style presentation with artwork, ordered tracklists, and release-like identity
+- concept albums should support app-owned metadata editing, track-order editing, and deliberate sequencing workflows
+- concept albums should feel more authored and release-oriented than playlists or mixtapes
+- concept albums should remain separate from derived local-library albums even when they borrow similar detail layouts
+- concept album edits must never rewrite local-library album tags, album grouping, or track metadata
+- concept albums may reuse tracks that also appear in playlists, but playlist edits and concept album edits must not share mutable ordering state
+- concept album detail hydration should reuse the same track metadata source as albums and playlists so title artist advisory artwork and duration stay consistent across surfaces
+- playback should hand off a stable ordered snapshot into the queue rather than create a live mirrored binding between edit state and active playback
+- reuse the quiet desktop utility tone of the current album and playlist surfaces instead of introducing a new creation-heavy workspace aesthetic
+
 ### Insights
 
 Track insights from timbre should appear in secondary detail surfaces such as a side panel or detail drawer. Insight availability should never interrupt the core listening flow.

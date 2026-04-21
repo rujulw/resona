@@ -2,6 +2,8 @@ import type {
   AlbumDetail,
   AlbumSummary,
   BootstrapPayload,
+  ConceptAlbumDetail,
+  ConceptAlbumSummary,
   LibraryRow,
   PlaylistDetail,
   PlaylistSummary,
@@ -110,6 +112,29 @@ export type AlbumsState =
       message: string;
     };
 
+export type ConceptAlbumsState =
+  | {
+      status: "loading";
+      items: ConceptAlbumSummary[];
+      activeConceptAlbumId: string | null;
+      activeConceptAlbum: ConceptAlbumDetail | null;
+      message?: string;
+    }
+  | {
+      status: "ready";
+      items: ConceptAlbumSummary[];
+      activeConceptAlbumId: string | null;
+      activeConceptAlbum: ConceptAlbumDetail | null;
+      message?: string;
+    }
+  | {
+      status: "error";
+      items: ConceptAlbumSummary[];
+      activeConceptAlbumId: string | null;
+      activeConceptAlbum: ConceptAlbumDetail | null;
+      message: string;
+    };
+
 export type HomeRouteState = {
   libraryRows: LibraryRow[];
   trackCount: number;
@@ -138,6 +163,12 @@ export type AlbumsRouteState = {
   albumsState: AlbumsState;
 };
 
+export type ConceptAlbumsRouteState = {
+  conceptAlbumsState: ConceptAlbumsState;
+  tracksState: TracksState;
+  albumsState: AlbumsState;
+};
+
 export type SettingsRouteState = {
   libraryRows: LibraryRow[];
   libraryPath: string;
@@ -150,6 +181,7 @@ export type AppShellChromeState = {
   appName: string;
   runtimeLabel: string;
   playlists: PlaylistSummary[];
+  conceptAlbums: ConceptAlbumSummary[];
   queueState: QueueState;
   playback: PlaybackShellState;
 };
@@ -159,6 +191,7 @@ export type AppShellRoutesState = {
   tracks: TracksRouteState;
   playlists: PlaylistsRouteState;
   albums: AlbumsRouteState;
+  conceptAlbums: ConceptAlbumsRouteState;
   queue: QueueRouteState;
   settings: SettingsRouteState;
 };
@@ -202,6 +235,40 @@ export type AlbumsRouteActions = {
   onAlbumTrackSelect: (trackId: string) => void;
 };
 
+export type ConceptAlbumsRouteActions = {
+  onConceptAlbumCreate: (
+    title: string,
+    artist?: string | null,
+    description?: string | null,
+    artworkPath?: string | null,
+  ) => Promise<string | null>;
+  onConceptAlbumArtworkChange: (conceptAlbumId: string, artworkPath: string) => void;
+  onConceptAlbumDelete: (conceptAlbumId: string) => void;
+  onConceptAlbumEntryMove: (
+    conceptAlbumId: string,
+    entryId: string,
+    targetPosition: number,
+  ) => void;
+  onConceptAlbumEntriesReplace: (
+    conceptAlbumId: string,
+    entries: Array<{ entryId?: string; trackId: string; position: number }>,
+  ) => void;
+  onConceptAlbumEntryRemove: (conceptAlbumId: string, entryId: string) => void;
+  onConceptAlbumPlaybackHandoff: (
+    conceptAlbumId: string,
+    startEntryId?: string,
+  ) => void;
+  onConceptAlbumRename: (
+    conceptAlbumId: string,
+    title: string,
+    artist?: string | null,
+    description?: string | null,
+    artworkPath?: string | null,
+  ) => void;
+  onConceptAlbumSelect: (conceptAlbumId: string) => void;
+  onConceptAlbumTrackAdd: (conceptAlbumId: string, track: TrackListItem) => void;
+};
+
 export type SettingsRouteActions = {
   onPickLibraryDirectory: () => void;
   onScan: () => void;
@@ -216,6 +283,7 @@ export type AppShellRouteActions = {
   playlists: PlaylistRouteActions;
   tracks: TracksRouteActions;
   albums: AlbumsRouteActions;
+  conceptAlbums: ConceptAlbumsRouteActions;
   settings: SettingsRouteActions;
 };
 

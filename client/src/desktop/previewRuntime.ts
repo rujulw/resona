@@ -1,5 +1,8 @@
 import type {
   BootstrapPayload,
+  ConceptAlbumDetail,
+  ConceptAlbumEntryInput,
+  ConceptAlbumSummary,
   ShellStatePayload,
   PlaybackShellState,
   PlaylistDetail,
@@ -17,7 +20,7 @@ export function isPreviewRuntime(): boolean {
 
 export const previewBootstrapPayload: BootstrapPayload = {
   appName: "resona",
-  appVersion: "1.5.1",
+  appVersion: "2.1.0",
   windowTitle: "resona",
   platform: "browser",
   runtime: {
@@ -84,13 +87,19 @@ export function getPreviewPlaybackError(
 
 let playlistCounter = 0;
 let playlistEntryCounter = 0;
+let conceptAlbumCounter = 0;
+let conceptAlbumEntryCounter = 0;
 
 const playlists = new Map<string, PlaylistDetail>();
+const conceptAlbums = new Map<string, ConceptAlbumDetail>();
 
 export function resetPreviewRuntimeState(): void {
   playlistCounter = 0;
   playlistEntryCounter = 0;
+  conceptAlbumCounter = 0;
+  conceptAlbumEntryCounter = 0;
   playlists.clear();
+  conceptAlbums.clear();
 }
 
 export function getPreviewPlaylists(): PlaylistSummary[] {
@@ -101,6 +110,259 @@ export function getPreviewPlaylists(): PlaylistSummary[] {
 
 export function getPreviewPlaylist(playlistId: string): PlaylistDetail | null {
   return playlists.get(playlistId) ?? null;
+}
+
+export function getPreviewConceptAlbums(): ConceptAlbumSummary[] {
+  return Array.from(conceptAlbums.values())
+    .map((detail) => detail.conceptAlbum)
+    .sort((a, b) => a.title.localeCompare(b.title));
+}
+
+export function getPreviewConceptAlbum(
+  conceptAlbumId: string,
+): ConceptAlbumDetail | null {
+  return conceptAlbums.get(conceptAlbumId) ?? null;
+}
+
+export function createPreviewConceptAlbum(
+  title: string,
+  artist: string | null,
+  description: string | null,
+  artworkPath: string | null,
+): ConceptAlbumSummary {
+  conceptAlbumCounter += 1;
+  const now = `${Date.now()}`;
+
+  const conceptAlbum: ConceptAlbumSummary = {
+    id: `browser-concept-album-${conceptAlbumCounter}`,
+    title: title.trim(),
+    artist,
+    description,
+    artworkKey: artworkPath
+      ? `browser-concept-album-artwork-${conceptAlbumCounter}`
+      : null,
+    artworkPath,
+    entryCount: 0,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  conceptAlbums.set(conceptAlbum.id, {
+    conceptAlbum,
+    entries: [],
+  });
+
+  return conceptAlbum;
+}
+
+export function updatePreviewConceptAlbum(
+  conceptAlbumId: string,
+  title: string,
+  artist: string | null,
+  description: string | null,
+  artworkPath: string | null,
+): ConceptAlbumSummary {
+  const existing = conceptAlbums.get(conceptAlbumId);
+  if (!existing) {
+    throw new Error(`concept album ${conceptAlbumId} was not found`);
+  }
+
+  const updatedSummary: ConceptAlbumSummary = {
+    ...existing.conceptAlbum,
+    title: title.trim(),
+    artist,
+    description,
+    artworkKey: artworkPath
+      ? `browser-concept-album-artwork-${conceptAlbumId}`
+      : existing.conceptAlbum.artworkKey,
+    artworkPath,
+    updatedAt: `${Date.now()}`,
+  };
+
+  conceptAlbums.set(conceptAlbumId, {
+    ...existing,
+    conceptAlbum: updatedSummary,
+  });
+
+  return updatedSummary;
+}
+
+export function deletePreviewConceptAlbum(conceptAlbumId: string): void {
+  conceptAlbums.delete(conceptAlbumId);
+}
+
+export function addPreviewTrackToConceptAlbum(
+  conceptAlbumId: string,
+  track: TrackListItem,
+): ConceptAlbumDetail {
+  const existing = conceptAlbums.get(conceptAlbumId);
+  if (!existing) {
+    throw new Error(`concept album ${conceptAlbumId} was not found`);
+  }
+
+  conceptAlbumEntryCounter += 1;
+  const now = `${Date.now()}`;
+
+  const nextEntry = {
+    entryId: `browser-concept-album-entry-${conceptAlbumEntryCounter}`,
+    conceptAlbumId,
+    trackId: track.id,
+    position: existing.entries.length,
+    addedAt: now,
+    updatedAt: now,
+    title: track.title,
+    artist: track.artist,
+    album: track.album,
+    advisory: track.advisory ?? null,
+    artworkKey: track.artworkKey,
+    extension: track.extension,
+    durationSeconds: track.durationSeconds,
+    trackNumber: null,
+    discNumber: null,
+  };
+
+  const detail: ConceptAlbumDetail = {
+    conceptAlbum: {
+      ...existing.conceptAlbum,
+      entryCount: existing.entries.length + 1,
+      updatedAt: now,
+    },
+    entries: [...existing.entries, nextEntry],
+  };
+
+  conceptAlbums.set(conceptAlbumId, detail);
+  return detail;
+}
+
+export function removePreviewConceptAlbumEntry(
+  conceptAlbumId: string,
+  entryId: string,
+): ConceptAlbumDetail {
+  const existing = conceptAlbums.get(conceptAlbumId);
+  if (!existing) {
+    throw new Error(`concept album ${conceptAlbumId} was not found`);
+  }
+
+  const nextEntries = existing.entries.filter(
+    (entry) => entry.entryId !== entryId,
+  );
+  if (nextEntries.length === existing.entries.length) {
+    throw new Error(`concept album entry ${entryId} was not found`);
+  }
+
+  const detail: ConceptAlbumDetail = {
+    conceptAlbum: {
+      ...existing.conceptAlbum,
+      entryCount: nextEntries.length,
+      updatedAt: `${Date.now()}`,
+    },
+    entries: nextEntries.map((entry, index) => ({
+      ...entry,
+      position: index,
+    })),
+  };
+
+  conceptAlbums.set(conceptAlbumId, detail);
+  return detail;
+}
+
+export function movePreviewConceptAlbumEntry(
+  conceptAlbumId: string,
+  entryId: string,
+  targetPosition: number,
+): ConceptAlbumDetail {
+  const existing = conceptAlbums.get(conceptAlbumId);
+  if (!existing) {
+    throw new Error(`concept album ${conceptAlbumId} was not found`);
+  }
+
+  const nextEntries = [...existing.entries];
+  const currentIndex = nextEntries.findIndex(
+    (entry) => entry.entryId === entryId,
+  );
+  if (currentIndex < 0) {
+    throw new Error(`concept album entry ${entryId} was not found`);
+  }
+
+  const [movedEntry] = nextEntries.splice(currentIndex, 1);
+  const boundedTarget = Math.max(
+    0,
+    Math.min(targetPosition, nextEntries.length),
+  );
+  nextEntries.splice(boundedTarget, 0, movedEntry);
+
+  const detail: ConceptAlbumDetail = {
+    conceptAlbum: {
+      ...existing.conceptAlbum,
+      updatedAt: `${Date.now()}`,
+    },
+    entries: nextEntries.map((entry, index) => ({
+      ...entry,
+      position: index,
+    })),
+  };
+
+  conceptAlbums.set(conceptAlbumId, detail);
+  return detail;
+}
+
+export function replacePreviewConceptAlbumEntries(
+  conceptAlbumId: string,
+  entries: ConceptAlbumEntryInput[],
+): ConceptAlbumDetail {
+  const existing = conceptAlbums.get(conceptAlbumId);
+  if (!existing) {
+    throw new Error(`concept album ${conceptAlbumId} was not found`);
+  }
+
+  const trackByEntryId = new Map(
+    existing.entries.map((entry) => [entry.entryId, entry]),
+  );
+  const now = `${Date.now()}`;
+
+  const nextEntries = entries.map((entry, index) => {
+    const existingEntry =
+      entry.entryId != null ? trackByEntryId.get(entry.entryId) : undefined;
+
+    if (existingEntry) {
+      return {
+        ...existingEntry,
+        position: index,
+        updatedAt: now,
+      };
+    }
+
+    conceptAlbumEntryCounter += 1;
+    return {
+      entryId: `browser-concept-album-entry-${conceptAlbumEntryCounter}`,
+      conceptAlbumId,
+      trackId: entry.trackId,
+      position: index,
+      addedAt: now,
+      updatedAt: now,
+      title: entry.trackId,
+      artist: null,
+      album: null,
+      advisory: null,
+      artworkKey: null,
+      extension: "mp3",
+      durationSeconds: null,
+      trackNumber: null,
+      discNumber: null,
+    };
+  });
+
+  const detail: ConceptAlbumDetail = {
+    conceptAlbum: {
+      ...existing.conceptAlbum,
+      entryCount: nextEntries.length,
+      updatedAt: now,
+    },
+    entries: nextEntries,
+  };
+
+  conceptAlbums.set(conceptAlbumId, detail);
+  return detail;
 }
 
 export function createPreviewPlaylist(
@@ -118,6 +380,7 @@ export function createPreviewPlaylist(
     artworkKey: artworkPath
       ? `browser-playlist-artwork-${playlistCounter}`
       : null,
+    artworkPath,
     entryCount: 0,
     createdAt: now,
     updatedAt: now,
@@ -370,6 +633,7 @@ export function updatePreviewPlaylist(
     artworkKey: artworkPath
       ? `browser-playlist-artwork-${playlistId}`
       : existing.playlist.artworkKey,
+    artworkPath,
     updatedAt: `${Date.now()}`,
   };
 
@@ -484,10 +748,7 @@ export function getPreviewPlaybackContract(): PlaybackContractPayload {
   return previewPlaybackContract;
 }
 
-import type {
-  LoadedPlaybackTrackPayload,
-  PlaybackSource,
-} from "./types";
+import type { LoadedPlaybackTrackPayload, PlaybackSource } from "./types";
 
 export function getPreviewLoadedPlaybackTrack(
   trackId: string,
@@ -510,8 +771,10 @@ export function getPreviewPlaybackTimingState(
 ): PlaybackShellState {
   return {
     ...previewShellState.playback,
-    progressSeconds: progressSeconds ?? previewShellState.playback.progressSeconds,
-    durationSeconds: durationSeconds ?? previewShellState.playback.durationSeconds,
+    progressSeconds:
+      progressSeconds ?? previewShellState.playback.progressSeconds,
+    durationSeconds:
+      durationSeconds ?? previewShellState.playback.durationSeconds,
   };
 }
 export function getPreviewPlaybackActionState(

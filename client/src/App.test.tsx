@@ -6,16 +6,23 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const bootstrapAppMock = vi.fn();
 const getAlbumMock = vi.fn();
+const createConceptAlbumMock = vi.fn();
 const createPlaylistMock = vi.fn();
+const deleteConceptAlbumMock = vi.fn();
 const deletePlaylistMock = vi.fn();
+const getConceptAlbumMock = vi.fn();
 const getPlaylistMock = vi.fn();
 const getShellStateMock = vi.fn();
 const handoffPlaylistToQueueMock = vi.fn();
+const listConceptAlbumsMock = vi.fn();
 const listPlaylistsMock = vi.fn();
 const listAlbumsMock = vi.fn();
 const loadPlaybackTrackMock = vi.fn();
+const moveConceptAlbumEntryMock = vi.fn();
 const movePlaylistEntryMock = vi.fn();
+const replaceConceptAlbumEntriesMock = vi.fn();
 const replacePlaylistEntriesMock = vi.fn();
+const removeConceptAlbumEntryMock = vi.fn();
 const removePlaylistEntryMock = vi.fn();
 const queryLibraryMock = vi.fn();
 const pickLibraryDirectoryMock = vi.fn();
@@ -25,24 +32,36 @@ const subscribePlaybackStateMock = vi.fn();
 const resolveArtworkSourceMock = vi.fn();
 const resolveTrackPlaybackSourceMock = vi.fn();
 const scanLocalLibraryMock = vi.fn();
+const updateConceptAlbumMock = vi.fn();
 const updatePlaylistMock = vi.fn();
+const addTrackToConceptAlbumMock = vi.fn();
 const addTrackToPlaylistMock = vi.fn();
 const mockAudioInstances: MockAudio[] = [];
 
 vi.mock("./desktop", () => ({
+  addTrackToConceptAlbum: (...args: unknown[]) => addTrackToConceptAlbumMock(...args),
   addTrackToPlaylist: (...args: unknown[]) => addTrackToPlaylistMock(...args),
   getAlbum: (...args: unknown[]) => getAlbumMock(...args),
   bootstrapApp: () => bootstrapAppMock(),
+  createConceptAlbum: (...args: unknown[]) => createConceptAlbumMock(...args),
   createPlaylist: (...args: unknown[]) => createPlaylistMock(...args),
+  deleteConceptAlbum: (...args: unknown[]) => deleteConceptAlbumMock(...args),
   deletePlaylist: (...args: unknown[]) => deletePlaylistMock(...args),
+  getConceptAlbum: (...args: unknown[]) => getConceptAlbumMock(...args),
   getPlaylist: (...args: unknown[]) => getPlaylistMock(...args),
   getShellState: () => getShellStateMock(),
   handoffPlaylistToQueue: (...args: unknown[]) => handoffPlaylistToQueueMock(...args),
+  listConceptAlbums: () => listConceptAlbumsMock(),
   listPlaylists: () => listPlaylistsMock(),
   listAlbums: (...args: unknown[]) => listAlbumsMock(...args),
   loadPlaybackTrack: (...args: unknown[]) => loadPlaybackTrackMock(...args),
+  moveConceptAlbumEntry: (...args: unknown[]) => moveConceptAlbumEntryMock(...args),
   movePlaylistEntry: (...args: unknown[]) => movePlaylistEntryMock(...args),
+  replaceConceptAlbumEntries: (...args: unknown[]) =>
+    replaceConceptAlbumEntriesMock(...args),
   replacePlaylistEntries: (...args: unknown[]) => replacePlaylistEntriesMock(...args),
+  removeConceptAlbumEntry: (...args: unknown[]) =>
+    removeConceptAlbumEntryMock(...args),
   removePlaylistEntry: (...args: unknown[]) => removePlaylistEntryMock(...args),
   pickLibraryDirectory: (...args: unknown[]) => pickLibraryDirectoryMock(...args),
   queryLibrary: (...args: unknown[]) => queryLibraryMock(...args),
@@ -52,6 +71,7 @@ vi.mock("./desktop", () => ({
   resolveArtworkSource: (...args: unknown[]) => resolveArtworkSourceMock(...args),
   resolveTrackPlaybackSource: (...args: unknown[]) => resolveTrackPlaybackSourceMock(...args),
   scanLocalLibrary: (...args: unknown[]) => scanLocalLibraryMock(...args),
+  updateConceptAlbum: (...args: unknown[]) => updateConceptAlbumMock(...args),
   updatePlaylist: (...args: unknown[]) => updatePlaylistMock(...args),
 }));
 
@@ -141,16 +161,23 @@ describe("app shell smoke checks", () => {
   beforeEach(() => {
     bootstrapAppMock.mockReset();
     getAlbumMock.mockReset();
+    createConceptAlbumMock.mockReset();
     createPlaylistMock.mockReset();
+    deleteConceptAlbumMock.mockReset();
     deletePlaylistMock.mockReset();
+    getConceptAlbumMock.mockReset();
     getPlaylistMock.mockReset();
     getShellStateMock.mockReset();
     handoffPlaylistToQueueMock.mockReset();
+    listConceptAlbumsMock.mockReset();
     listPlaylistsMock.mockReset();
     listAlbumsMock.mockReset();
     loadPlaybackTrackMock.mockReset();
+    moveConceptAlbumEntryMock.mockReset();
     movePlaylistEntryMock.mockReset();
+    replaceConceptAlbumEntriesMock.mockReset();
     replacePlaylistEntriesMock.mockReset();
+    removeConceptAlbumEntryMock.mockReset();
     removePlaylistEntryMock.mockReset();
     queryLibraryMock.mockReset();
     pickLibraryDirectoryMock.mockReset();
@@ -160,7 +187,9 @@ describe("app shell smoke checks", () => {
     resolveArtworkSourceMock.mockReset();
     resolveTrackPlaybackSourceMock.mockReset();
     scanLocalLibraryMock.mockReset();
+    updateConceptAlbumMock.mockReset();
     updatePlaylistMock.mockReset();
+    addTrackToConceptAlbumMock.mockReset();
     addTrackToPlaylistMock.mockReset();
     mockAudioInstances.length = 0;
     mockBackendPlayback = {
@@ -232,6 +261,18 @@ describe("app shell smoke checks", () => {
         updatedAt: "1700000100",
       },
     ]);
+    listConceptAlbumsMock.mockResolvedValue([
+      {
+        id: "concept-album-1",
+        title: "Night Archive",
+        artist: "North",
+        description: "city sequence",
+        artworkKey: "night-cover.png",
+        entryCount: 2,
+        createdAt: "1700000100",
+        updatedAt: "1700000200",
+      },
+    ]);
     listAlbumsMock.mockResolvedValue([
       {
         id: "album:signals:north",
@@ -278,6 +319,60 @@ describe("app shell smoke checks", () => {
       }
 
       return null;
+    });
+    getConceptAlbumMock.mockImplementation(async (conceptAlbumId: string) => {
+      if (conceptAlbumId !== "concept-album-1") {
+        return null;
+      }
+
+      return {
+        conceptAlbum: {
+          id: "concept-album-1",
+          title: "Night Archive",
+          artist: "North",
+          description: "city sequence",
+          artworkKey: "night-cover.png",
+          entryCount: 2,
+          createdAt: "1700000100",
+          updatedAt: "1700000200",
+        },
+        entries: [
+          {
+            entryId: "concept-entry-1",
+            conceptAlbumId: "concept-album-1",
+            trackId: "track-1",
+            position: 0,
+            addedAt: "1700000100",
+            updatedAt: "1700000100",
+            title: "Alpha",
+            artist: "North",
+            album: "Signals",
+            advisory: null,
+            artworkKey: "alpha-cover.png",
+            extension: "mp3",
+            durationSeconds: 182,
+            trackNumber: 1,
+            discNumber: 1,
+          },
+          {
+            entryId: "concept-entry-2",
+            conceptAlbumId: "concept-album-1",
+            trackId: "track-2",
+            position: 1,
+            addedAt: "1700000200",
+            updatedAt: "1700000200",
+            title: "Bravo",
+            artist: "South",
+            album: "Horizons",
+            advisory: null,
+            artworkKey: "bravo-cover.png",
+            extension: "mp3",
+            durationSeconds: 205,
+            trackNumber: 2,
+            discNumber: 1,
+          },
+        ],
+      };
     });
     getPlaylistMock.mockResolvedValue({
       playlist: {
@@ -586,9 +681,10 @@ describe("app shell smoke checks", () => {
     render(<App />);
 
     await screen.findByText("desktop music utility");
+    const primaryRoutes = within(screen.getByRole("navigation", { name: "primary routes" }));
 
     expect(screen.getByText("resona")).toBeTruthy();
-    expect(screen.getByRole("link", { name: /tracks/i })).toBeTruthy();
+    expect(primaryRoutes.getByRole("link", { name: /tracks/i })).toBeTruthy();
     expect(screen.getByText("Nothing playing")).toBeTruthy();
     expect(bootstrapAppMock).toHaveBeenCalledTimes(1);
     expect(getShellStateMock).toHaveBeenCalledTimes(1);
@@ -596,11 +692,32 @@ describe("app shell smoke checks", () => {
     expect(listPlaylistsMock).toHaveBeenCalledTimes(1);
   });
 
+  it("opens playlist and concept album creation from the sidebar create menu", async () => {
+    const { default: App } = await import("./App");
+    render(<App />);
 
+    await screen.findByText("desktop music utility");
 
+    fireEvent.click(await screen.findByRole("button", { name: "Create collection" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: /playlists/i }));
 
+    await waitFor(() => {
+      expect(screen.getByRole("dialog", { name: "Create playlist" })).toBeTruthy();
+    });
 
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
 
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog", { name: "Create playlist" })).toBeNull();
+    });
+
+    fireEvent.click(await screen.findByRole("button", { name: "Create collection" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: /concept albums/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("dialog", { name: "Create concept album" })).toBeTruthy();
+    });
+  });
 
   it("smoke-covers explicit metadata shell rendering without badging clean or unknown tracks", async () => {
     window.history.replaceState({}, "", "/tracks");
@@ -1089,7 +1206,11 @@ describe("app shell smoke checks", () => {
       expect(screen.getAllByText("0").length).toBeGreaterThan(0);
     });
 
-    fireEvent.click(screen.getByRole("link", { name: /tracks/i }));
+    fireEvent.click(
+      within(screen.getByRole("navigation", { name: "primary routes" })).getByRole("link", {
+        name: /tracks/i,
+      }),
+    );
 
     await waitFor(() => {
       expect(screen.getByText("No audio files found in Empty Root.")).toBeTruthy();
@@ -1153,7 +1274,11 @@ describe("app shell smoke checks", () => {
       expect(screen.getByText("Indexed 2 track(s) from Fresh Root.")).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByRole("link", { name: /tracks/i }));
+    fireEvent.click(
+      within(screen.getByRole("navigation", { name: "primary routes" })).getByRole("link", {
+        name: /tracks/i,
+      }),
+    );
 
     await waitFor(() => {
       expect(screen.getByText("Fresh Start")).toBeTruthy();

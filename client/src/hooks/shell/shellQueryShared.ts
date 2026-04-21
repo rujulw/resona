@@ -1,5 +1,9 @@
-import type { PlaylistDetail } from "../../desktop";
-import type { PlaylistsState, TracksQueryState } from "../../types/app";
+import type { ConceptAlbumDetail, PlaylistDetail } from "../../desktop";
+import type {
+  ConceptAlbumsState,
+  PlaylistsState,
+  TracksQueryState,
+} from "../../types/app";
 
 export function toAsyncErrorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
@@ -35,5 +39,19 @@ export function withActivePlaylistDetail(
     activePlaylistId: detail.playlist.id,
     activePlaylist: detail,
     playbackQueue: existing.playbackQueue,
+  };
+}
+
+export function withActiveConceptAlbumDetail(
+  existing: ConceptAlbumsState,
+  detail: ConceptAlbumDetail,
+): ConceptAlbumsState {
+  return {
+    status: "ready",
+    items: existing.items.map((item) =>
+      item.id === detail.conceptAlbum.id ? detail.conceptAlbum : item,
+    ),
+    activeConceptAlbumId: detail.conceptAlbum.id,
+    activeConceptAlbum: detail,
   };
 }
