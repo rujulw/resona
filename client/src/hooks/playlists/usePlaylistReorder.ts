@@ -6,31 +6,37 @@ import {
   useRef,
   useState,
 } from "react";
-import type { PlaylistEntryInput, PlaylistEntryItem } from "../../desktop";
 import type { PlaylistsState } from "../../types/app";
 
-type UsePlaylistReorderArgs = {
-  activePlaylistId: string | null;
-  activePlaylistEntries: PlaylistEntryItem[];
-  activePlaylistUpdatedAt?: string;
-  playlistsStatus: PlaylistsState["status"];
-  onPlaylistEntriesReplace: (
-    playlistId: string,
-    entries: PlaylistEntryInput[],
-  ) => void;
+type ReorderableEntry = {
+  entryId: string;
+  trackId: string;
+  position: number;
 };
 
-export function usePlaylistReorder({
+type UsePlaylistReorderArgs<
+  TEntry extends ReorderableEntry,
+  TEntryInput extends { entryId?: string; trackId: string; position: number },
+> = {
+  activePlaylistId: string | null;
+  activePlaylistEntries: TEntry[];
+  activePlaylistUpdatedAt?: string;
+  playlistsStatus: PlaylistsState["status"] | "loading" | "ready" | "error";
+  onPlaylistEntriesReplace: (playlistId: string, entries: TEntryInput[]) => void;
+};
+
+export function usePlaylistReorder<
+  TEntry extends ReorderableEntry,
+  TEntryInput extends { entryId?: string; trackId: string; position: number },
+>({
   activePlaylistId,
   activePlaylistEntries,
   activePlaylistUpdatedAt,
   playlistsStatus,
   onPlaylistEntriesReplace,
-}: UsePlaylistReorderArgs) {
+}: UsePlaylistReorderArgs<TEntry, TEntryInput>) {
   const [draggedEntryId, setDraggedEntryId] = useState<string | null>(null);
-  const [optimisticEntries, setOptimisticEntries] = useState<
-    PlaylistEntryItem[] | null
-  >(null);
+  const [optimisticEntries, setOptimisticEntries] = useState<TEntry[] | null>(null);
   const draggedEntryIdRef = useRef<string | null>(null);
   const [dropIndicator, setDropIndicator] = useState<{
     entryId: string;
@@ -77,11 +83,11 @@ export function usePlaylistReorder({
   };
 
   const reorderEntries = (
-    entries: PlaylistEntryItem[],
+    entries: TEntry[],
     movingEntryId: string,
     targetEntryId: string,
     placement: "before" | "after",
-  ): PlaylistEntryItem[] | null => {
+  ): TEntry[] | null => {
     const nextEntries = [...entries];
     const movingIndex = nextEntries.findIndex(
       (entry) => entry.entryId === movingEntryId,
@@ -189,7 +195,7 @@ export function usePlaylistReorder({
           entryId: nextEntry.entryId,
           trackId: nextEntry.trackId,
           position: nextEntry.position,
-        })),
+        })) as TEntryInput[],
       );
     }
     draggedEntryIdRef.current = null;

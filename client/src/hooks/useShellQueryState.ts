@@ -4,6 +4,7 @@ import { bootstrapApp, getShellState, type TrackListItem } from "../desktop";
 import type { BootstrapState, ShellState } from "../types/app";
 import { useLibraryScan } from "./shell/useLibraryScan";
 import { useAlbumQueries } from "./shell/useAlbumQueries";
+import { useConceptAlbumQueries } from "./shell/useConceptAlbumQueries";
 import { usePlaylistQueries } from "./shell/usePlaylistQueries";
 import { useTracksQuery } from "./shell/useTracksQuery";
 import { toAsyncErrorMessage } from "./shell/shellQueryShared";
@@ -51,6 +52,21 @@ export function useShellQueryState() {
     handlePlaylistEntryRemove,
   } = usePlaylistQueries();
 
+  const {
+    conceptAlbumsState,
+    setConceptAlbumsState,
+    refreshConceptAlbums,
+    handleConceptAlbumSelection,
+    handleConceptAlbumCreate,
+    handleConceptAlbumRename,
+    handleConceptAlbumArtworkChange,
+    handleConceptAlbumDelete,
+    handleConceptAlbumTrackAdd,
+    handleConceptAlbumEntryMove,
+    handleConceptAlbumEntriesReplace,
+    handleConceptAlbumEntryRemove,
+  } = useConceptAlbumQueries();
+
   const refreshShellState = () => {
     void getShellState().then((shellPayload) => {
       setShellState((existing) => ({
@@ -65,6 +81,7 @@ export function useShellQueryState() {
     refreshTracks: (...args) => {
       refreshTracks(...args);
       refreshAlbums();
+      refreshConceptAlbums();
     },
   });
 
@@ -90,6 +107,7 @@ export function useShellQueryState() {
         });
         refreshAlbums();
         refreshPlaylists();
+        refreshConceptAlbums();
       })
       .catch((error: unknown) => {
         if (cancelled) {
@@ -108,6 +126,7 @@ export function useShellQueryState() {
   return {
     bootstrapState,
     albumsState,
+    conceptAlbumsState,
     playlistsState,
     shellState,
     tracksState,
@@ -120,8 +139,18 @@ export function useShellQueryState() {
     setTracksQueryState,
     setPlaylistsState,
     setAlbumsState,
+    setConceptAlbumsState,
     handlePickLibraryDirectory,
     handleAlbumSelection,
+    handleConceptAlbumSelection,
+    handleConceptAlbumCreate,
+    handleConceptAlbumDelete,
+    handleConceptAlbumArtworkChange,
+    handleConceptAlbumEntryMove,
+    handleConceptAlbumEntriesReplace,
+    handleConceptAlbumEntryRemove,
+    handleConceptAlbumRename,
+    handleConceptAlbumTrackAdd,
     handlePlaylistCreate,
     handlePlaylistDelete,
     handlePlaylistArtworkChange,

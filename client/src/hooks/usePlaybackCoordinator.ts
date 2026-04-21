@@ -16,11 +16,13 @@ export function usePlaybackCoordinator({
   shellState,
   tracksState,
   playlistsState,
+  conceptAlbumsState,
   trackCatalogRef,
   setShellState,
   setTracksState,
   setPlaylistsState,
 }: PlaybackCoordinatorParams) {
+  void conceptAlbumsState;
   const [playbackQueueTrackIds, setPlaybackQueueTrackIds] = useState<string[]>([]);
   const [playbackQueueSourceLabel, setPlaybackQueueSourceLabel] = useState<string | null>(null);
 

@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { ImagePlus } from "lucide-react";
 
 import { pickPlaylistArtwork } from "../../desktop";
@@ -5,6 +6,12 @@ import { pickPlaylistArtwork } from "../../desktop";
 export function CreatePlaylistDialog({
   isOpen,
   isSubmitting,
+  entityLabel,
+  nameLabel,
+  namePlaceholder,
+  descriptionPlaceholder,
+  coverLabel,
+  extraFields,
   dialogTitle,
   dialogDescription,
   submitLabel,
@@ -19,6 +26,12 @@ export function CreatePlaylistDialog({
 }: {
   isOpen: boolean;
   isSubmitting?: boolean;
+  entityLabel?: string;
+  nameLabel?: string;
+  namePlaceholder?: string;
+  descriptionPlaceholder?: string;
+  coverLabel?: string;
+  extraFields?: ReactNode;
   dialogTitle?: string;
   dialogDescription?: string;
   submitLabel?: string;
@@ -44,7 +57,9 @@ export function CreatePlaylistDialog({
         className="grid w-full max-w-lg gap-5 rounded-3xl border border-white/8 bg-[#181818] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.55)]"
       >
         <div className="grid gap-2">
-          <p className="m-0 text-[11px] tracking-[0.08em] text-[#8f8f8f]">playlist</p>
+          <p className="m-0 text-[11px] tracking-[0.08em] text-[#8f8f8f]">
+            {entityLabel ?? "playlist"}
+          </p>
           <h2 className="m-0 text-2xl font-medium tracking-[-0.04em] text-[#f2f2f2]">
             {(dialogTitle ?? "Create playlist").toLowerCase()}
           </h2>
@@ -69,14 +84,14 @@ export function CreatePlaylistDialog({
               }}
               className="rounded-xl border border-white/8 bg-white/3 px-3 py-2 text-xs text-[#d4d4d4] transition-colors hover:border-white/12 hover:bg-white/5 hover:text-[#f2f2f2]"
             >
-              Choose cover
+              {coverLabel ?? "Choose cover"}
             </button>
           </div>
 
           <div className="grid gap-4">
             <label className="grid gap-2 text-sm text-[#d7d7d7]">
               <span className="text-[11px] tracking-[0.08em] text-[#8f8f8f]">
-                playlist name
+                {nameLabel ?? "playlist name"}
               </span>
               <input
                 value={nameDraft}
@@ -87,7 +102,7 @@ export function CreatePlaylistDialog({
                     onSubmit();
                   }
                 }}
-                placeholder="Late night mix"
+                placeholder={namePlaceholder ?? "Late night mix"}
                 className="w-full rounded-2xl border border-white/8 bg-white/3 px-4 py-3 text-sm text-[#f2f2f2] outline-none placeholder:text-[#6f6f6f]"
               />
             </label>
@@ -101,11 +116,13 @@ export function CreatePlaylistDialog({
                   value={descriptionDraft ?? ""}
                   onChange={(event) => onDescriptionDraftChange(event.target.value)}
                   rows={3}
-                  placeholder="Late drive through the city"
+                  placeholder={descriptionPlaceholder ?? "Late drive through the city"}
                   className="w-full resize-none rounded-2xl border border-white/8 bg-white/3 px-4 py-3 text-sm text-[#f2f2f2] outline-none placeholder:text-[#6f6f6f]"
                 />
               </label>
             ) : null}
+
+            {extraFields}
 
             <div className="grid gap-1">
               <p className="m-0 text-[11px] tracking-[0.08em] text-[#8f8f8f]">cover</p>
