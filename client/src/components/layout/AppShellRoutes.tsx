@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 
 import type { AppShellRouteActions, AppShellRoutesState } from "../../types/app";
 import { AlbumsPage } from "../../pages/AlbumsPage";
+import { ConceptAlbumsPage } from "../../pages/ConceptAlbumsPage";
 import { HomePage } from "../../pages/HomePage";
 import { PlaylistsPage } from "../../pages/PlaylistsPage";
 import { QueuePage } from "../../pages/QueuePage";
@@ -106,6 +107,50 @@ export function AppShellRoutes({
             onPlaylistRename={actions.playlists.onPlaylistRename}
             onPlaylistSelect={actions.playlists.onPlaylistSelect}
             onTrackAdd={actions.playlists.onTrackAdd}
+          />
+        }
+      />
+      <Route
+        path="/concept-albums"
+        element={
+          <ConceptAlbumsPage
+            conceptAlbumsState={routes.conceptAlbums.conceptAlbumsState}
+            tracksState={routes.conceptAlbums.tracksState}
+            albumsState={routes.conceptAlbums.albumsState}
+            onConceptAlbumCreate={actions.conceptAlbums.onConceptAlbumCreate}
+            onConceptAlbumArtworkChange={actions.conceptAlbums.onConceptAlbumArtworkChange}
+            onConceptAlbumDelete={actions.conceptAlbums.onConceptAlbumDelete}
+            onConceptAlbumEntryMove={actions.conceptAlbums.onConceptAlbumEntryMove}
+            onConceptAlbumEntriesReplace={actions.conceptAlbums.onConceptAlbumEntriesReplace}
+            onConceptAlbumEntryRemove={actions.conceptAlbums.onConceptAlbumEntryRemove}
+            onConceptAlbumPlaybackHandoff={
+              actions.conceptAlbums.onConceptAlbumPlaybackHandoff
+            }
+            onConceptAlbumRename={actions.conceptAlbums.onConceptAlbumRename}
+            onConceptAlbumSelect={actions.conceptAlbums.onConceptAlbumSelect}
+            onConceptAlbumTrackAdd={actions.conceptAlbums.onConceptAlbumTrackAdd}
+          />
+        }
+      />
+      <Route
+        path="/concept-albums/:conceptAlbumId"
+        element={
+          <ConceptAlbumsPage
+            conceptAlbumsState={routes.conceptAlbums.conceptAlbumsState}
+            tracksState={routes.conceptAlbums.tracksState}
+            albumsState={routes.conceptAlbums.albumsState}
+            onConceptAlbumCreate={actions.conceptAlbums.onConceptAlbumCreate}
+            onConceptAlbumArtworkChange={actions.conceptAlbums.onConceptAlbumArtworkChange}
+            onConceptAlbumDelete={actions.conceptAlbums.onConceptAlbumDelete}
+            onConceptAlbumEntryMove={actions.conceptAlbums.onConceptAlbumEntryMove}
+            onConceptAlbumEntriesReplace={actions.conceptAlbums.onConceptAlbumEntriesReplace}
+            onConceptAlbumEntryRemove={actions.conceptAlbums.onConceptAlbumEntryRemove}
+            onConceptAlbumPlaybackHandoff={
+              actions.conceptAlbums.onConceptAlbumPlaybackHandoff
+            }
+            onConceptAlbumRename={actions.conceptAlbums.onConceptAlbumRename}
+            onConceptAlbumSelect={actions.conceptAlbums.onConceptAlbumSelect}
+            onConceptAlbumTrackAdd={actions.conceptAlbums.onConceptAlbumTrackAdd}
           />
         }
       />
