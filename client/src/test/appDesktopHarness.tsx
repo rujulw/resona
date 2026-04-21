@@ -4,18 +4,26 @@ import { cleanup } from "@testing-library/react";
 import { afterEach, beforeEach, vi } from "vitest";
 
 export const desktopMocks = {
+  addTrackToConceptAlbumMock: vi.fn(),
   getAlbumMock: vi.fn(),
   bootstrapAppMock: vi.fn(),
+  createConceptAlbumMock: vi.fn(),
   createPlaylistMock: vi.fn(),
+  deleteConceptAlbumMock: vi.fn(),
   deletePlaylistMock: vi.fn(),
+  getConceptAlbumMock: vi.fn(),
   getPlaylistMock: vi.fn(),
   getShellStateMock: vi.fn(),
+  listConceptAlbumsMock: vi.fn(),
   handoffPlaylistToQueueMock: vi.fn(),
   listPlaylistsMock: vi.fn(),
   listAlbumsMock: vi.fn(),
   loadPlaybackTrackMock: vi.fn(),
+  moveConceptAlbumEntryMock: vi.fn(),
   movePlaylistEntryMock: vi.fn(),
+  removeConceptAlbumEntryMock: vi.fn(),
   replacePlaylistEntriesMock: vi.fn(),
+  replaceConceptAlbumEntriesMock: vi.fn(),
   removePlaylistEntryMock: vi.fn(),
   queryLibraryMock: vi.fn(),
   pickLibraryDirectoryMock: vi.fn(),
@@ -25,6 +33,7 @@ export const desktopMocks = {
   resolveArtworkSourceMock: vi.fn(),
   resolveTrackPlaybackSourceMock: vi.fn(),
   scanLocalLibraryMock: vi.fn(),
+  updateConceptAlbumMock: vi.fn(),
   updatePlaylistMock: vi.fn(),
   addTrackToPlaylistMock: vi.fn(),
 };
@@ -94,18 +103,28 @@ export const appDesktopState: {
 };
 
 vi.mock("../desktop", () => ({
+  addTrackToConceptAlbum: (...args: unknown[]) => desktopMocks.addTrackToConceptAlbumMock(...args),
   addTrackToPlaylist: (...args: unknown[]) => desktopMocks.addTrackToPlaylistMock(...args),
   getAlbum: (...args: unknown[]) => desktopMocks.getAlbumMock(...args),
   bootstrapApp: () => desktopMocks.bootstrapAppMock(),
+  createConceptAlbum: (...args: unknown[]) => desktopMocks.createConceptAlbumMock(...args),
   createPlaylist: (...args: unknown[]) => desktopMocks.createPlaylistMock(...args),
+  deleteConceptAlbum: (...args: unknown[]) => desktopMocks.deleteConceptAlbumMock(...args),
   deletePlaylist: (...args: unknown[]) => desktopMocks.deletePlaylistMock(...args),
+  getConceptAlbum: (...args: unknown[]) => desktopMocks.getConceptAlbumMock(...args),
   getPlaylist: (...args: unknown[]) => desktopMocks.getPlaylistMock(...args),
   getShellState: () => desktopMocks.getShellStateMock(),
   handoffPlaylistToQueue: (...args: unknown[]) => desktopMocks.handoffPlaylistToQueueMock(...args),
+  listConceptAlbums: () => desktopMocks.listConceptAlbumsMock(),
   listPlaylists: () => desktopMocks.listPlaylistsMock(),
   listAlbums: (...args: unknown[]) => desktopMocks.listAlbumsMock(...args),
   loadPlaybackTrack: (...args: unknown[]) => desktopMocks.loadPlaybackTrackMock(...args),
+  moveConceptAlbumEntry: (...args: unknown[]) => desktopMocks.moveConceptAlbumEntryMock(...args),
   movePlaylistEntry: (...args: unknown[]) => desktopMocks.movePlaylistEntryMock(...args),
+  removeConceptAlbumEntry: (...args: unknown[]) =>
+    desktopMocks.removeConceptAlbumEntryMock(...args),
+  replaceConceptAlbumEntries: (...args: unknown[]) =>
+    desktopMocks.replaceConceptAlbumEntriesMock(...args),
   replacePlaylistEntries: (...args: unknown[]) =>
     desktopMocks.replacePlaylistEntriesMock(...args),
   removePlaylistEntry: (...args: unknown[]) => desktopMocks.removePlaylistEntryMock(...args),
@@ -118,6 +137,7 @@ vi.mock("../desktop", () => ({
   resolveTrackPlaybackSource: (...args: unknown[]) =>
     desktopMocks.resolveTrackPlaybackSourceMock(...args),
   scanLocalLibrary: (...args: unknown[]) => desktopMocks.scanLocalLibraryMock(...args),
+  updateConceptAlbum: (...args: unknown[]) => desktopMocks.updateConceptAlbumMock(...args),
   updatePlaylist: (...args: unknown[]) => desktopMocks.updatePlaylistMock(...args),
 }));
 
@@ -195,6 +215,18 @@ export function setupAppDesktopHarness() {
         updatedAt: "1700000100",
       },
     ]);
+    desktopMocks.listConceptAlbumsMock.mockResolvedValue([
+      {
+        id: "concept-album-1",
+        title: "Night Archive",
+        artist: "North",
+        description: "city sequence",
+        artworkKey: "night-cover.png",
+        entryCount: 2,
+        createdAt: "1700000100",
+        updatedAt: "1700000200",
+      },
+    ]);
     desktopMocks.listAlbumsMock.mockResolvedValue([
       {
         id: "album:signals:north",
@@ -267,6 +299,60 @@ export function setupAppDesktopHarness() {
       }
 
       return null;
+    });
+    desktopMocks.getConceptAlbumMock.mockImplementation(async (conceptAlbumId: string) => {
+      if (conceptAlbumId !== "concept-album-1") {
+        return null;
+      }
+
+      return {
+        conceptAlbum: {
+          id: "concept-album-1",
+          title: "Night Archive",
+          artist: "North",
+          description: "city sequence",
+          artworkKey: "night-cover.png",
+          entryCount: 2,
+          createdAt: "1700000100",
+          updatedAt: "1700000200",
+        },
+        entries: [
+          {
+            entryId: "concept-entry-1",
+            conceptAlbumId: "concept-album-1",
+            trackId: "track-1",
+            position: 0,
+            addedAt: "1700000100",
+            updatedAt: "1700000100",
+            title: "Alpha",
+            artist: "North",
+            album: "Signals",
+            advisory: null,
+            artworkKey: "alpha-cover.png",
+            extension: "mp3",
+            durationSeconds: 182,
+            trackNumber: 1,
+            discNumber: 1,
+          },
+          {
+            entryId: "concept-entry-2",
+            conceptAlbumId: "concept-album-1",
+            trackId: "track-2",
+            position: 1,
+            addedAt: "1700000200",
+            updatedAt: "1700000200",
+            title: "Bravo",
+            artist: "South",
+            album: "Horizons",
+            advisory: null,
+            artworkKey: "bravo-cover.png",
+            extension: "mp3",
+            durationSeconds: 205,
+            trackNumber: 2,
+            discNumber: 1,
+          },
+        ],
+      };
     });
     desktopMocks.getPlaylistMock.mockResolvedValue({
       playlist: {
