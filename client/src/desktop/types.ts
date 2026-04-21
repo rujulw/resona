@@ -139,7 +139,7 @@ export type AlbumDetail = {
 };
 
 export type ConceptAlbumSummary = {
-  artworkPath(artworkPath: any): unknown;
+  artworkPath: string | null;
   id: string;
   title: string;
   artist: string | null;
@@ -180,7 +180,7 @@ export type ConceptAlbumEntryInput = {
 };
 
 export type PlaylistSummary = {
-  artworkPath(artworkPath: any): unknown;
+  artworkPath: string | null;
   id: string;
   name: string;
   description: string | null;

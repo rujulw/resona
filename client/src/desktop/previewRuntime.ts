@@ -20,7 +20,7 @@ export function isPreviewRuntime(): boolean {
 
 export const previewBootstrapPayload: BootstrapPayload = {
   appName: "resona",
-  appVersion: "1.5.1",
+  appVersion: "2.1.0",
   windowTitle: "resona",
   platform: "browser",
   runtime: {
@@ -141,6 +141,7 @@ export function createPreviewConceptAlbum(
     artworkKey: artworkPath
       ? `browser-concept-album-artwork-${conceptAlbumCounter}`
       : null,
+    artworkPath,
     entryCount: 0,
     createdAt: now,
     updatedAt: now,
@@ -174,6 +175,7 @@ export function updatePreviewConceptAlbum(
     artworkKey: artworkPath
       ? `browser-concept-album-artwork-${conceptAlbumId}`
       : existing.conceptAlbum.artworkKey,
+    artworkPath,
     updatedAt: `${Date.now()}`,
   };
 
@@ -241,7 +243,9 @@ export function removePreviewConceptAlbumEntry(
     throw new Error(`concept album ${conceptAlbumId} was not found`);
   }
 
-  const nextEntries = existing.entries.filter((entry) => entry.entryId !== entryId);
+  const nextEntries = existing.entries.filter(
+    (entry) => entry.entryId !== entryId,
+  );
   if (nextEntries.length === existing.entries.length) {
     throw new Error(`concept album entry ${entryId} was not found`);
   }
@@ -273,13 +277,18 @@ export function movePreviewConceptAlbumEntry(
   }
 
   const nextEntries = [...existing.entries];
-  const currentIndex = nextEntries.findIndex((entry) => entry.entryId === entryId);
+  const currentIndex = nextEntries.findIndex(
+    (entry) => entry.entryId === entryId,
+  );
   if (currentIndex < 0) {
     throw new Error(`concept album entry ${entryId} was not found`);
   }
 
   const [movedEntry] = nextEntries.splice(currentIndex, 1);
-  const boundedTarget = Math.max(0, Math.min(targetPosition, nextEntries.length));
+  const boundedTarget = Math.max(
+    0,
+    Math.min(targetPosition, nextEntries.length),
+  );
   nextEntries.splice(boundedTarget, 0, movedEntry);
 
   const detail: ConceptAlbumDetail = {
@@ -306,7 +315,9 @@ export function replacePreviewConceptAlbumEntries(
     throw new Error(`concept album ${conceptAlbumId} was not found`);
   }
 
-  const trackByEntryId = new Map(existing.entries.map((entry) => [entry.entryId, entry]));
+  const trackByEntryId = new Map(
+    existing.entries.map((entry) => [entry.entryId, entry]),
+  );
   const now = `${Date.now()}`;
 
   const nextEntries = entries.map((entry, index) => {
@@ -369,6 +380,7 @@ export function createPreviewPlaylist(
     artworkKey: artworkPath
       ? `browser-playlist-artwork-${playlistCounter}`
       : null,
+    artworkPath,
     entryCount: 0,
     createdAt: now,
     updatedAt: now,
@@ -621,6 +633,7 @@ export function updatePreviewPlaylist(
     artworkKey: artworkPath
       ? `browser-playlist-artwork-${playlistId}`
       : existing.playlist.artworkKey,
+    artworkPath,
     updatedAt: `${Date.now()}`,
   };
 
@@ -735,10 +748,7 @@ export function getPreviewPlaybackContract(): PlaybackContractPayload {
   return previewPlaybackContract;
 }
 
-import type {
-  LoadedPlaybackTrackPayload,
-  PlaybackSource,
-} from "./types";
+import type { LoadedPlaybackTrackPayload, PlaybackSource } from "./types";
 
 export function getPreviewLoadedPlaybackTrack(
   trackId: string,
@@ -761,8 +771,10 @@ export function getPreviewPlaybackTimingState(
 ): PlaybackShellState {
   return {
     ...previewShellState.playback,
-    progressSeconds: progressSeconds ?? previewShellState.playback.progressSeconds,
-    durationSeconds: durationSeconds ?? previewShellState.playback.durationSeconds,
+    progressSeconds:
+      progressSeconds ?? previewShellState.playback.progressSeconds,
+    durationSeconds:
+      durationSeconds ?? previewShellState.playback.durationSeconds,
   };
 }
 export function getPreviewPlaybackActionState(
