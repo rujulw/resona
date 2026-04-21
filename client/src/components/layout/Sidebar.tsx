@@ -97,7 +97,6 @@ export function Sidebar({ conceptAlbums, playlists }: SidebarProps) {
 
   return (
     <aside className="flex h-full w-64 flex-col border-r border-white/5 bg-black">
-      
       {/* HEADER */}
       <div className="px-6 py-4">
         <h1 className="m-0 text-[1.75rem] font-medium tracking-[-0.04em] text-white">
@@ -147,7 +146,6 @@ export function Sidebar({ conceptAlbums, playlists }: SidebarProps) {
 
       {/* LIBRARY */}
       <div className="flex min-h-0 flex-1 flex-col px-3 py-6">
-        
         {/* Library header */}
         <div className="mb-4 flex items-center justify-between px-3">
           <div className="text-sm text-neutral-500">Library</div>
@@ -155,6 +153,9 @@ export function Sidebar({ conceptAlbums, playlists }: SidebarProps) {
           <div className="relative" ref={createMenuRef}>
             <button
               type="button"
+              aria-label="Create collection"
+              aria-haspopup="menu"
+              aria-expanded={isCreateMenuOpen}
               onClick={() => setIsCreateMenuOpen((v) => !v)}
               className="group flex h-7 w-7 items-center justify-center rounded-sm bg-white/5 transition-all hover:bg-white/10"
             >
@@ -162,24 +163,32 @@ export function Sidebar({ conceptAlbums, playlists }: SidebarProps) {
             </button>
 
             {isCreateMenuOpen && (
-              <div className="absolute right-0 top-10 z-20 min-w-47.5 rounded-sm border border-white/10 bg-neutral-900 p-1.5 shadow-2xl">
+              <div
+                role="menu"
+                aria-label="Create collection"
+                className="absolute right-0 top-10 z-20 min-w-47.5 rounded-sm border border-white/10 bg-neutral-900 p-1.5 shadow-2xl"
+              >
                 <button
+                  type="button"
+                  role="menuitem"
                   onClick={() => {
                     setIsCreateMenuOpen(false);
                     navigate("/playlists?create=playlist");
                   }}
                   className="flex w-full rounded-sm px-3 py-2.5 text-sm text-neutral-300 hover:bg-white/10 hover:text-white"
                 >
-                  Playlist
+                  Playlists
                 </button>
                 <button
+                  type="button"
+                  role="menuitem"
                   onClick={() => {
                     setIsCreateMenuOpen(false);
                     navigate("/concept-albums?create=concept-album");
                   }}
                   className="flex w-full rounded-sm px-3 py-2.5 text-sm text-neutral-300 hover:bg-white/10 hover:text-white"
                 >
-                  Concept Album
+                  Concept albums
                 </button>
               </div>
             )}
@@ -203,10 +212,17 @@ export function Sidebar({ conceptAlbums, playlists }: SidebarProps) {
                 }
               >
                 <div className="flex items-center gap-3">
-                  <CollectionArtwork artworkKey={playlist.artworkKey} title={playlist.name} />
+                  <CollectionArtwork
+                    artworkKey={playlist.artworkKey}
+                    title={playlist.name}
+                  />
                   <div className="min-w-0">
-                    <div className="truncate text-sm tracking-wide">{playlist.name}</div>
-                    <div className="mt-0.5 text-xs text-neutral-600">playlist</div>
+                    <div className="truncate text-sm tracking-wide">
+                      {playlist.name}
+                    </div>
+                    <div className="mt-0.5 text-xs text-neutral-600">
+                      playlist
+                    </div>
                   </div>
                 </div>
               </NavLink>
@@ -226,10 +242,17 @@ export function Sidebar({ conceptAlbums, playlists }: SidebarProps) {
                 }
               >
                 <div className="flex items-center gap-3">
-                  <CollectionArtwork artworkKey={conceptAlbum.artworkKey} title={conceptAlbum.title} />
+                  <CollectionArtwork
+                    artworkKey={conceptAlbum.artworkKey}
+                    title={conceptAlbum.title}
+                  />
                   <div className="min-w-0">
-                    <div className="truncate text-sm tracking-wide">{conceptAlbum.title}</div>
-                    <div className="mt-0.5 text-xs text-neutral-600">concept album</div>
+                    <div className="truncate text-sm tracking-wide">
+                      {conceptAlbum.title}
+                    </div>
+                    <div className="mt-0.5 text-xs text-neutral-600">
+                      concept album
+                    </div>
                   </div>
                 </div>
               </NavLink>

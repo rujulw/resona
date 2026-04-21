@@ -698,8 +698,8 @@ describe("app shell smoke checks", () => {
 
     await screen.findByText("desktop music utility");
 
-    fireEvent.click(screen.getByRole("button", { name: "Create collection" }));
-    fireEvent.click(screen.getByRole("menuitem", { name: "playlists" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Create collection" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: /playlists/i }));
 
     await waitFor(() => {
       expect(screen.getByRole("dialog", { name: "Create playlist" })).toBeTruthy();
@@ -711,8 +711,8 @@ describe("app shell smoke checks", () => {
       expect(screen.queryByRole("dialog", { name: "Create playlist" })).toBeNull();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Create collection" }));
-    fireEvent.click(screen.getByRole("menuitem", { name: "concept albums" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Create collection" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: /concept albums/i }));
 
     await waitFor(() => {
       expect(screen.getByRole("dialog", { name: "Create concept album" })).toBeTruthy();
