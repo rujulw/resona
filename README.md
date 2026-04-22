@@ -110,6 +110,25 @@ Build a private, performance-first music player that feels closer to a system ut
 - Saved-order rows now support selection, keyboard removal, double-click playback from the playlist's own ordering context, and explicit before-or-after drop markers while reordering
 - Queue handoff stays snapshot-based: changing saved playlist order later does not silently rewrite an already active playback queue
 
+## Current Albums and Artists Baseline
+
+- Added first-class album and artist browse and detail flows so the library can surface grouped releases and performer views beyond track lists.
+- Implemented backend aggregation queries and command wiring to shape album and artist metadata consistently.
+- Wired album and artist interactions into the existing shell navigation and playback flows, keeping the broader desktop experience unchanged.
+
+## Current Concept Albums Baseline
+
+- Added first-class concept album flows to support editable release-style projects alongside locked albums and freeform playlists.
+- Implemented concept album storage, detail hydration, and ordered-entry shaping by reusing proven playlist mutation patterns and album-style presentation contracts.
+- Wired concept album creation, editing, reordering, and playback handoff behavior through the existing shell and queue flows.
+
+## Current Mixtapes Baseline
+
+- Introduced a "Turn to mixtape" flow that allows users to permanently lock a playlist's contents and sequence.
+- Extended the existing playlist model to support a locked mixtape state, reusing the established playlist UI and backend primitives.
+- Updated the frontend to disable adding new tracks, reordering, or editing once a playlist is converted into a mixtape.
+- Replaced individual track artwork placeholders in the mixtape view with the mixtape's cover image for a unified aesthetic.
+
 ## Current Playback Contract
 
 The playback boundary is implemented in code rather than only described as a roadmap note.

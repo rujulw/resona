@@ -144,6 +144,27 @@ Design rules for the first concept-album slice:
 - playback should hand off a stable ordered snapshot into the queue rather than create a live mirrored binding between edit state and active playback
 - reuse the quiet desktop utility tone of the current album and playlist surfaces instead of introducing a new creation-heavy workspace aesthetic
 
+### Mixtapes
+
+Mixtapes should behave like finalized sequence-driven listening objects created from playlists once their order has been intentionally locked.
+
+Design rules for the first mixtape slice:
+
+- mixtapes should be created by converting an existing playlist instead of introducing a separate parallel creation flow
+- conversion should preserve the playlist's current ordered entries as the authored listening sequence that defines the mixtape
+- once a playlist becomes a mixtape, tracks may no longer be added removed or reordered through mixtape or playlist editing flows
+- mixtapes should preserve sequence-first playback behavior so listening starts from a deliberate point inside a fixed authored order
+- mixtapes should feel more intentional and order-dependent than playlists while remaining lighter-weight and less release-oriented than concept albums
+- mixtape playback must hand off a stable ordered snapshot into the queue rather than maintain a live mirrored binding between locked collection state and active playback
+- mixtapes may continue to allow lightweight metadata edits such as title description and artwork so presentation can be polished without reopening sequence edits
+- mixtapes should reuse playlist storage query and rendering primitives wherever possible so the locked-sequence behavior is additive rather than a parallel collection system
+- playlist conversion into a mixtape should be explicit and confirm that the current order will be locked before the state transition is committed
+- mixtapes should remain distinct from playlists in labeling and library presentation even when both reuse the same underlying collection contracts
+- locked mixtape state must be enforced by backend mutation guards rather than by frontend affordances alone
+- mixtape ordering must never silently mutate an already handed-off playback queue after playback has started
+- individual track artwork placeholders in the mixtape view should use the mixtape's cover image as a fallback to enforce a unified, tape-like aesthetic
+- reuse the quiet desktop utility tone of the current playlist and concept album surfaces instead of introducing a nostalgic scrapbook or novelty cassette aesthetic
+
 ### Insights
 
 Track insights from timbre should appear in secondary detail surfaces such as a side panel or detail drawer. Insight availability should never interrupt the core listening flow.
