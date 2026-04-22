@@ -57,6 +57,7 @@ pub(super) fn load_playlists(
           playlists.name,
           playlists.description,
           playlists.artwork_key,
+          playlists.is_mixtape,
           playlists.created_at,
           playlists.updated_at,
           COUNT(playlist_entries.id) AS entry_count
@@ -67,6 +68,7 @@ pub(super) fn load_playlists(
           playlists.name,
           playlists.description,
           playlists.artwork_key,
+          playlists.is_mixtape,
           playlists.created_at,
           playlists.updated_at
         ORDER BY lower(playlists.name) ASC, playlists.created_at ASC
@@ -79,9 +81,10 @@ pub(super) fn load_playlists(
             name: row.get(1)?,
             description: row.get(2)?,
             artwork_key: row.get(3)?,
-            created_at: row.get(4)?,
-            updated_at: row.get(5)?,
-            entry_count: row.get::<_, i64>(6)? as usize,
+            is_mixtape: row.get::<_, i64>(4)? != 0,
+            created_at: row.get(5)?,
+            updated_at: row.get(6)?,
+            entry_count: row.get::<_, i64>(7)? as usize,
         })
     })?;
 
@@ -105,6 +108,7 @@ pub(super) fn load_playlist_summary(
               playlists.name,
               playlists.description,
               playlists.artwork_key,
+              playlists.is_mixtape,
               playlists.created_at,
               playlists.updated_at,
               COUNT(playlist_entries.id) AS entry_count
@@ -116,6 +120,7 @@ pub(super) fn load_playlist_summary(
               playlists.name,
               playlists.description,
               playlists.artwork_key,
+              playlists.is_mixtape,
               playlists.created_at,
               playlists.updated_at
             ",
@@ -126,9 +131,10 @@ pub(super) fn load_playlist_summary(
                     name: row.get(1)?,
                     description: row.get(2)?,
                     artwork_key: row.get(3)?,
-                    created_at: row.get(4)?,
-                    updated_at: row.get(5)?,
-                    entry_count: row.get::<_, i64>(6)? as usize,
+                    is_mixtape: row.get::<_, i64>(4)? != 0,
+                    created_at: row.get(5)?,
+                    updated_at: row.get(6)?,
+                    entry_count: row.get::<_, i64>(7)? as usize,
                 })
             },
         )
@@ -210,6 +216,30 @@ pub(super) fn ensure_playlist_exists(
     } else {
         Ok(())
     }
+}
+
+pub(super) fn ensure_playlist_is_editable(
+    transaction: &Transaction<'_>,
+    playlist_id: &str,
+) -> Result<(), PlaylistError> {
+    let is_mixtape: i64 = transaction
+        .query_row(
+            "SELECT is_mixtape FROM playlists WHERE id = ?1",
+            [playlist_id],
+            |row| row.get(0),
+        )
+        .optional()?
+        .ok_or_else(|| {
+            PlaylistError::NotFound(format!("playlist {playlist_id} was not found"))
+        })?;
+
+    if is_mixtape != 0 {
+        return Err(PlaylistError::InvalidInput(
+            "mixtapes are locked and cannot have their sequences edited".to_owned(),
+        ));
+    }
+
+    Ok(())
 }
 
 pub(super) fn ensure_track_exists(

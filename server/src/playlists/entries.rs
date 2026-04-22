@@ -1,7 +1,7 @@
 use rusqlite::{params, OptionalExtension};
 
 use super::queries::{
-    ensure_playlist_exists, ensure_track_exists, generated_identifier, load_entry_ids_in_order,
+    ensure_playlist_is_editable, ensure_track_exists, generated_identifier, load_entry_ids_in_order,
     rewrite_positions, timestamp_now, touch_playlist, validate_entry_positions,
 };
 use super::types::{PlaylistDetail, PlaylistEntryRecord, PlaylistError, PlaylistQueueHandoff};
@@ -15,7 +15,7 @@ impl PlaylistStore {
     ) -> Result<PlaylistDetail, PlaylistError> {
         let mut connection = self.app_database.connect()?;
         let transaction = connection.transaction()?;
-        ensure_playlist_exists(&transaction, playlist_id)?;
+        ensure_playlist_is_editable(&transaction, playlist_id)?;
         ensure_track_exists(&transaction, track_id)?;
 
         let next_position = load_entry_ids_in_order(&transaction, playlist_id)?.len();
@@ -46,7 +46,7 @@ impl PlaylistStore {
     ) -> Result<PlaylistDetail, PlaylistError> {
         let mut connection = self.app_database.connect()?;
         let transaction = connection.transaction()?;
-        ensure_playlist_exists(&transaction, playlist_id)?;
+        ensure_playlist_is_editable(&transaction, playlist_id)?;
         let removed_position = transaction
             .query_row(
                 "
@@ -91,7 +91,7 @@ impl PlaylistStore {
     ) -> Result<PlaylistDetail, PlaylistError> {
         let mut connection = self.app_database.connect()?;
         let transaction = connection.transaction()?;
-        ensure_playlist_exists(&transaction, playlist_id)?;
+        ensure_playlist_is_editable(&transaction, playlist_id)?;
 
         let mut entry_ids = load_entry_ids_in_order(&transaction, playlist_id)?;
         let current_index = entry_ids
@@ -129,7 +129,7 @@ impl PlaylistStore {
     ) -> Result<PlaylistDetail, PlaylistError> {
         let mut connection = self.app_database.connect()?;
         let transaction = connection.transaction()?;
-        ensure_playlist_exists(&transaction, playlist_id)?;
+        ensure_playlist_is_editable(&transaction, playlist_id)?;
         validate_entry_positions(entries)?;
 
         transaction.execute(

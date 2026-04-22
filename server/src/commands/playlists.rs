@@ -123,6 +123,22 @@ pub fn delete_playlist_with_database(
 }
 
 #[tauri::command]
+pub fn turn_playlist_to_mixtape(
+    database_state: State<'_, DatabaseState>,
+    playlist_id: String,
+) -> Result<PlaylistSummary, String> {
+    turn_playlist_to_mixtape_with_database(&database_state.app_database, &playlist_id)
+        .map_err(|error: PlaylistError| error.to_string())
+}
+
+pub fn turn_playlist_to_mixtape_with_database(
+    app_database: &AppDatabase,
+    playlist_id: &str,
+) -> Result<PlaylistSummary, PlaylistError> {
+    PlaylistStore::new(app_database.clone()).turn_to_mixtape(playlist_id)
+}
+
+#[tauri::command]
 pub fn add_track_to_playlist(
     database_state: State<'_, DatabaseState>,
     playlist_id: String,

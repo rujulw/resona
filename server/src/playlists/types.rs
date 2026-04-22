@@ -40,6 +40,7 @@ pub struct PlaylistSummary {
     pub description: Option<String>,
     pub artwork_key: Option<String>,
     pub entry_count: usize,
+    pub is_mixtape: bool,
     pub created_at: String,
     pub updated_at: String,
 }
