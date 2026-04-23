@@ -12,7 +12,7 @@ export function AdvisoryBadge({
   return (
     <span
       className={[
-        "inline-flex items-center rounded-md border border-amber-200/30 bg-amber-300/12 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-amber-100",
+        "inline-flex h-[13px] w-[13px] items-center justify-center rounded-[3px] bg-[#a5a5a5] text-[9px] font-bold text-black",
         className,
       ].join(" ")}
     >
