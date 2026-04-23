@@ -221,7 +221,7 @@ export function Sidebar({ conceptAlbums, playlists }: SidebarProps) {
                       {playlist.name}
                     </div>
                     <div className="mt-0.5 text-xs text-neutral-600">
-                      playlist
+                      {playlist.isMixtape ? "mixtape" : "playlist"}
                     </div>
                   </div>
                 </div>
