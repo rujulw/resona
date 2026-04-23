@@ -148,7 +148,10 @@ export function PlaylistEntriesSection({
                   <Play className="h-4 w-4" strokeWidth={2} />
                 </button>
                 <ArtworkTile
-                  artworkKey={entry.artworkKey}
+                  artworkKey={
+                    entry.artworkKey ||
+                    (playlist.playlist.isMixtape ? playlist.playlist.artworkKey : null)
+                  }
                   title={entry.title}
                   sizeClassName="h-11 w-11"
                   roundedClassName="rounded-sm"
