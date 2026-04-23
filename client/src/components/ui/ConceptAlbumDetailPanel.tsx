@@ -89,9 +89,9 @@ export function ConceptAlbumDetailPanel({
   );
 
   return (
-    <section className="grid min-h-0 gap-5">
-      <header className="flex flex-wrap items-start justify-between gap-6 rounded-3xl border border-white/6 bg-[#181818] px-6 py-7">
-        <div className="flex min-w-0 items-start gap-5">
+    <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-black">
+      <header className="flex flex-wrap items-end justify-between gap-6 px-8 pb-4 pt-10 bg-gradient-to-b from-white/[0.07] to-transparent">
+        <div className="flex min-w-0 items-end gap-6">
           <button
             type="button"
             onClick={onArtworkPick}
@@ -102,26 +102,26 @@ export function ConceptAlbumDetailPanel({
               <ArtworkTile
                 artworkKey={conceptAlbum.conceptAlbum.artworkKey}
                 title={conceptAlbum.conceptAlbum.title}
-                sizeClassName="h-36 w-36"
-                roundedClassName="rounded-sm"
+                sizeClassName="h-52 w-52 shadow-2xl shadow-black/40"
+                roundedClassName="rounded-md"
                 fallbackClassName="bg-white/[0.04]"
               />
             ) : (
-              <div className="grid h-36 w-36 place-items-center rounded-sm border border-white/8 bg-white/4 text-[#8f8f8f]">
-                <ImagePlus className="h-10 w-10" strokeWidth={1.75} />
+              <div className="grid h-52 w-52 place-items-center rounded-md border border-white/8 bg-white/4 text-[#8f8f8f] shadow-2xl shadow-black/40">
+                <ImagePlus className="h-12 w-12" strokeWidth={1.75} />
               </div>
             )}
           </button>
 
-          <div className="min-w-0 pt-1">
-            <p className="m-0 text-[11px] tracking-[0.08em] text-[#8f8f8f]">concept album</p>
-            <h2 className="mt-4 text-6xl font-medium tracking-[-0.06em] text-[#f2f2f2]">
+          <div className="min-w-0 pb-1">
+            <p className="m-0 text-[11px] tracking-[0.08em] text-[#f2f2f2]/80">concept album</p>
+            <h2 className="mt-2 text-7xl font-bold tracking-[-0.04em] text-white text-wrap break-words">
               {conceptAlbum.conceptAlbum.title}
             </h2>
             <p className="mt-4 text-base text-[#d4d4d4]">
               {conceptAlbum.conceptAlbum.artist ?? "unknown artist"}
             </p>
-            <p className="mt-3 text-sm text-[#8f8f8f]">
+            <p className="mt-2 text-sm text-[#8f8f8f]">
               {conceptAlbum.conceptAlbum.entryCount} track
               {conceptAlbum.conceptAlbum.entryCount === 1 ? "" : "s"} ·{" "}
               {conceptAlbum.entries.length > 0
@@ -136,34 +136,37 @@ export function ConceptAlbumDetailPanel({
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-3">
           {conceptAlbum.entries.length > 0 ? (
-            <HeaderIconButton
-              label="Play concept album"
+            <button
+              type="button"
+              aria-label="Play concept album"
               onClick={() => onPlayConceptAlbum()}
-              icon={<Play className="h-4 w-4" strokeWidth={2} />}
-            />
+              className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-white text-black hover:bg-white/90 transition-all"
+            >
+              <Play className="h-6 w-6 ml-1" fill="currentColor" strokeWidth={0} />
+            </button>
           ) : null}
           <HeaderIconButton
             label="Edit concept album"
             onClick={onEditConceptAlbum}
-            icon={<Pencil className="h-4 w-4" strokeWidth={2} />}
+            icon={<Pencil className="h-5 w-5" strokeWidth={2} />}
           />
           <HeaderIconButton
             label="Delete concept album"
             onClick={onDeleteConceptAlbum}
-            icon={<Trash2 className="h-4 w-4" strokeWidth={2} />}
+            icon={<Trash2 className="h-5 w-5" strokeWidth={2} />}
           />
         </div>
       </header>
 
-      <section className="grid min-h-[64vh] gap-4">
-        <section className="grid min-h-[48vh] grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-3xl border border-white/6 bg-[#1b1b1b]">
-          <div className="grid grid-cols-[40px_minmax(0,1fr)_96px_72px] gap-4 border-b border-white/6 px-3 py-3 text-[11px] tracking-[0.08em] text-[#8f8f8f]">
-            <span>track</span>
+      <div className="grid min-h-0 overflow-y-auto px-8 pb-8 pt-0 gap-8">
+        <section className="grid min-h-[50vh] grid-rows-[auto_minmax(0,1fr)] bg-gradient-to-b from-white/[0.04] to-transparent">
+          <div className="grid grid-cols-[32px_minmax(0,1fr)_100px_48px] gap-4 border-t border-white/10 px-8 py-3 text-[11px] tracking-[0.08em] text-[#a5a5a5]">
+            <span className="text-center">#</span>
             <span>title</span>
             <span>duration</span>
-            <span>order</span>
+            <span></span>
           </div>
 
           <div className="min-h-0 overflow-y-auto" tabIndex={0} onKeyDown={onContainerKeyDown}>
@@ -191,8 +194,8 @@ export function ConceptAlbumDetailPanel({
                     onDoubleClick={() => onEntryPlay(entry.entryId)}
                     onKeyDown={(event) => onEntryKeyDown(event, entry.entryId)}
                     className={[
-                      "relative grid grid-cols-[30px_minmax(0,1fr)_96px_72px] items-center gap-4 border-b border-white/5 px-5 py-3.5 text-left last:border-b-0",
-                      selectedEntryId === entry.entryId ? "bg-white/8" : "hover:bg-white/3",
+                      "group relative grid grid-cols-[32px_minmax(0,1fr)_100px_48px] items-center gap-4 px-8 py-2.5 text-left transition-colors",
+                      selectedEntryId === entry.entryId ? "bg-white/10" : "hover:bg-white/5",
                       draggedEntryId === entry.entryId ? "opacity-60" : "",
                     ].join(" ")}
                   >
@@ -211,30 +214,44 @@ export function ConceptAlbumDetailPanel({
                       />
                     ) : null}
 
-                    <span className="text-sm text-[#8f8f8f]">
-                      {entry.trackNumber ?? entry.position + 1}
-                    </span>
+                    <div className="flex w-8 justify-center text-[#a5a5a5]">
+                      <span className="text-[15px] tabular-nums group-hover:hidden group-focus-within:hidden">
+                        {entry.trackNumber ?? entry.position + 1}
+                      </span>
+                      <button
+                        type="button"
+                        aria-label={`Play ${entry.title}`}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onEntryPlay(entry.entryId);
+                        }}
+                        className="hidden text-white group-hover:block group-focus-within:block focus:outline-none"
+                      >
+                        <Play className="h-4 w-4 ml-0.5" fill="currentColor" strokeWidth={0} />
+                      </button>
+                    </div>
 
-                    <span className="grid min-w-0 gap-1">
+                    <span className="grid min-w-0 gap-0.5">
+                      <span className="truncate text-[15px] font-medium text-[#f2f2f2] group-hover:text-white transition-colors">{entry.title}</span>
                       <span className="flex min-w-0 items-center gap-2">
-                        <span className="truncate text-sm text-[#f2f2f2]">{entry.title}</span>
                         <AdvisoryBadge advisory={entry.advisory} />
-                      </span>
-                      <span className="truncate text-xs text-[#8f8f8f]">
-                        {entry.artist ?? conceptAlbum.conceptAlbum.artist ?? "unknown artist"}
+                        <span className="truncate text-[13px] text-[#a5a5a5] group-hover:text-[#f2f2f2] transition-colors">
+                          {entry.artist ?? conceptAlbum.conceptAlbum.artist ?? "unknown artist"}
+                        </span>
                       </span>
                     </span>
 
-                    <span className="text-sm text-[#8f8f8f]">
+                    <span className="text-[13px] text-[#a5a5a5] group-hover:text-[#f2f2f2] transition-colors">
                       {entry.durationSeconds != null
                         ? formatDuration(Math.round(entry.durationSeconds))
                         : "--:--"}
                     </span>
 
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center justify-end">
                       <OrderButton
                         label={`Drag ${entry.title}`}
                         draggable
+                        className="opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 focus:opacity-100"
                         onClick={(event) => onDragHandleClick(event, entry.entryId)}
                         onMouseDown={(event) => onDragHandleMouseDown(event, entry.entryId)}
                         onDragStart={(event) => onDragHandleStart(event, entry.entryId)}
@@ -249,10 +266,10 @@ export function ConceptAlbumDetailPanel({
           </div>
         </section>
 
-        <section className="grid min-h-[44vh] grid-rows-[auto_auto_minmax(0,1fr)] overflow-hidden rounded-3xl border border-white/6 bg-[#1b1b1b]">
-          <label className="block min-w-0 border-b border-white/6 px-5 py-4">
+        <section className="grid min-h-[44vh] grid-rows-[auto_auto_minmax(0,1fr)] bg-gradient-to-b from-white/[0.04] to-transparent">
+          <label className="block min-w-0 px-8 py-4">
             <input
-              className="w-full rounded-2xl border border-white/8 bg-white/3 px-4 py-3 text-sm text-[#f2f2f2] outline-none placeholder:text-[#6f6f6f]"
+              className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-[#f2f2f2] outline-none placeholder:text-[#6f6f6f] focus:border-white/20 focus:bg-white/10 transition-colors"
               type="text"
               value={librarySearchDraft}
               placeholder="Search title, artist, album"
@@ -262,21 +279,21 @@ export function ConceptAlbumDetailPanel({
             />
           </label>
 
-          <div className="grid grid-cols-[minmax(220px,1.8fr)_minmax(160px,1fr)_72px] gap-4 border-b border-white/6 px-5 py-3 text-[11px] tracking-[0.08em] text-[#8f8f8f]">
+          <div className="grid grid-cols-[minmax(220px,1.8fr)_minmax(160px,1fr)_48px] gap-4 border-t border-white/10 px-8 py-3 text-[11px] tracking-[0.08em] text-[#a5a5a5]">
             <span>library handoff</span>
             <span>album</span>
-            <span>add</span>
+            <span></span>
           </div>
 
           <div className="min-h-0 overflow-y-auto">
             {tracksState.status === "loading" ? (
-              <div className="px-5 py-8 text-sm text-[#8f8f8f]">Loading indexed tracks...</div>
+              <div className="px-8 py-8 text-sm text-[#8f8f8f]">Loading indexed tracks...</div>
             ) : null}
             {tracksState.status === "error" ? (
-              <div className="px-5 py-8 text-sm text-[#8f8f8f]">{tracksState.message}</div>
+              <div className="px-8 py-8 text-sm text-[#8f8f8f]">{tracksState.message}</div>
             ) : null}
             {tracksState.status !== "loading" && visibleLibraryTracks.length === 0 ? (
-              <div className="grid gap-2 px-5 py-8">
+              <div className="grid gap-2 px-8 py-8">
                 <p className="m-0 text-sm text-[#e5e5e5]">
                   {tracksState.items.length === 0 ? "No indexed tracks yet." : "No matching tracks."}
                 </p>
@@ -296,42 +313,44 @@ export function ConceptAlbumDetailPanel({
               return (
                 <div
                   key={track.id}
-                  className="grid grid-cols-[minmax(220px,1.8fr)_minmax(160px,1fr)_72px] items-center gap-4 border-b border-white/5 px-5 py-3.5 last:border-b-0"
+                  className="group grid grid-cols-[minmax(220px,1.8fr)_minmax(160px,1fr)_48px] items-center gap-4 px-8 py-3.5 hover:bg-white/5 transition-colors"
                 >
-                  <div className="flex min-w-0 items-center gap-3">
+                  <div className="flex min-w-0 items-center gap-4">
                     <ArtworkTile
                       artworkKey={track.artworkKey}
                       title={track.title}
-                      sizeClassName="h-11 w-11"
+                      sizeClassName="h-12 w-12 shadow-md shadow-black/40"
                       roundedClassName="rounded-sm"
                       fallbackClassName="bg-white/[0.04]"
                     />
-                    <div className="grid min-w-0 gap-1">
-                      <span className="truncate text-sm text-[#f2f2f2]">{track.title}</span>
-                      <span className="truncate text-xs text-[#8f8f8f]">
+                    <div className="grid min-w-0 gap-0.5">
+                      <span className="truncate text-[15px] font-medium text-[#f2f2f2] group-hover:text-white transition-colors">{track.title}</span>
+                      <span className="truncate text-[13px] text-[#a5a5a5] group-hover:text-[#f2f2f2] transition-colors">
                         {track.artist ?? "unknown artist"}
                         {duplicateCount > 0 ? ` • already sequenced ${duplicateCount}x` : ""}
                       </span>
                     </div>
                   </div>
-                  <span className="truncate text-sm text-[#d4d4d4]">
+                  <span className="truncate text-[13px] text-[#a5a5a5] group-hover:text-[#f2f2f2] transition-colors">
                     {track.album ?? "unknown album"}
                   </span>
-                  <button
-                    type="button"
-                    aria-label={`Add ${track.title} to ${conceptAlbum.conceptAlbum.title}`}
-                    onClick={() => onTrackAdd(track)}
-                    className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/8 bg-white/3 text-[#d4d4d4] transition-colors hover:border-white/12 hover:bg-white/5 hover:text-[#f2f2f2]"
-                  >
-                    <Plus className="h-4 w-4" strokeWidth={2} />
-                  </button>
+                  <div className="flex items-center justify-end">
+                    <button
+                      type="button"
+                      aria-label={`Add ${track.title} to ${conceptAlbum.conceptAlbum.title}`}
+                      onClick={() => onTrackAdd(track)}
+                      className="hidden items-center justify-center rounded-full bg-white text-black hover:bg-white/90 transition-all h-8 w-8 group-hover:flex"
+                    >
+                      <Plus className="h-4 w-4" strokeWidth={3} />
+                    </button>
+                  </div>
                 </div>
               );
             })}
           </div>
         </section>
-      </section>
-    </section>
+      </div>
+    </div>
   );
 }
 
@@ -366,6 +385,7 @@ function OrderButton({
   onDragStart,
   onDragEnd,
   tone = "default",
+  className,
 }: {
   label: string;
   icon: ReactNode;
@@ -376,6 +396,7 @@ function OrderButton({
   onDragStart?: (event: ReactDragEvent<HTMLButtonElement>) => void;
   onDragEnd?: () => void;
   tone?: "default" | "muted";
+  className?: string;
 }) {
   return (
     <button
@@ -392,6 +413,7 @@ function OrderButton({
         tone === "muted"
           ? "cursor-grab text-[#8f8f8f] hover:border-white/12 hover:bg-white/5 active:cursor-grabbing"
           : "text-[#d4d4d4] hover:border-white/12 hover:bg-white/5 hover:text-[#f2f2f2]",
+        className,
       ].join(" ")}
     >
       {icon}
