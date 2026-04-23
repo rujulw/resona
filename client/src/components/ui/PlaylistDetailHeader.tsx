@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { ImagePlus, Lock, Pencil, Play, Plus, Trash2 } from "lucide-react";
+import { ImagePlus, CassetteTape, Pencil, Play, Plus, Trash2 } from "lucide-react";
 
 import type { PlaylistDetail } from "../../desktop";
 import { ArtworkTile } from "./ArtworkTile";
@@ -90,7 +90,7 @@ export function PlaylistDetailHeader({
           <IconActionButton
             label="Turn to mixtape"
             onClick={onTurnToMixtape}
-            icon={<Lock className="h-4 w-4" strokeWidth={2} />}
+            icon={<CassetteTape className="h-4 w-4" strokeWidth={2} />}
           />
         ) : null}
         <IconActionButton

@@ -161,6 +161,128 @@ describe("playlists page", () => {
     });
   });
 
+  it("converts a playlist to a mixtape via the detail header action", async () => {
+    window.history.replaceState({}, "", "/playlists/playlist-1");
+    const confirmMock = vi.spyOn(window, "confirm").mockReturnValue(true);
+
+    const { default: App } = await import("../App");
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Desk Set" });
+
+
+    fireEvent.click(screen.getByRole("button", { name: /turn to mixtape/i }));
+
+    await waitFor(() => {
+      expect(desktopMocks.turnPlaylistToMixtapeMock).toHaveBeenCalledWith("playlist-1");
+    });
+    
+    confirmMock.mockRestore();
+  });
+
+  it("renders a locked mixtape without edit controls and falls back to mixtape artwork", async () => {
+    const { PlaylistsPage } = await import("./PlaylistsPage");
+
+    render(
+      <MemoryRouter initialEntries={["/playlists/playlist-1"]}>
+        <Routes>
+          <Route
+            path="/playlists/:playlistId"
+            element={
+              <PlaylistsPage
+                playlistsState={{
+                  status: "ready",
+                  items: [
+                    {
+                      id: "playlist-1",
+                      name: "Desk Set",
+                      description: "focused hours",
+                      artworkKey: "mixtape-cover.png",
+                      artworkPath: null,
+                      entryCount: 1,
+                      isMixtape: true,
+                      createdAt: "1700000100",
+                      updatedAt: "1700000200",
+                    },
+                  ],
+                  activePlaylistId: "playlist-1",
+                  activePlaylist: {
+                    playlist: {
+                      id: "playlist-1",
+                      name: "Desk Set",
+                      description: "focused hours",
+                      artworkKey: "mixtape-cover.png",
+                      artworkPath: null,
+                      entryCount: 1,
+                      isMixtape: true,
+                      createdAt: "1700000100",
+                      updatedAt: "1700000200",
+                    },
+                    entries: [
+                      {
+                        entryId: "playlist-entry-1",
+                        playlistId: "playlist-1",
+                        trackId: "track-1",
+                        position: 0,
+                        addedAt: "1700000100",
+                        updatedAt: "1700000100",
+                        title: "Alpha",
+                        artist: "North",
+                        album: "Signals",
+                        artworkKey: null,
+                        extension: "mp3",
+                        durationSeconds: 182,
+                      },
+                    ],
+                  },
+                  playbackQueue: null,
+                }}
+                tracksState={{
+                  status: "ready",
+                  items: [],
+                  total: 0,
+                  selectedTrackId: null,
+                }}
+                albumsState={{
+                  status: "ready",
+                  items: [],
+                  activeAlbumId: null,
+                  activeAlbum: null,
+                }}
+                onCreatePlaylist={vi.fn(async () => null)}
+                onPlaylistArtworkChange={vi.fn()}
+                onPlaylistDelete={vi.fn()}
+                onPlaylistEntryMove={vi.fn()}
+                onPlaylistEntriesReplace={vi.fn()}
+                onPlaylistEntryRemove={vi.fn()}
+                onPlaylistPlaybackHandoff={vi.fn()}
+                onPlaylistRename={vi.fn()}
+                onPlaylistSelect={vi.fn()}
+                onPlaylistTurnToMixtape={vi.fn()}
+                onTrackAdd={vi.fn()}
+              />
+            }
+          />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Desk Set" });
+
+    // Should indicate it's a mixtape
+    expect(screen.getByText("mixtape")).toBeTruthy();
+
+    // Edit controls should be hidden
+    expect(screen.queryByRole("button", { name: /create playlist/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /turn to mixtape/i })).toBeNull();
+    expect(screen.queryByText(/add tracks/i)).toBeNull();
+    expect(screen.queryByRole("button", { name: /drag alpha/i })).toBeNull();
+
+    // Artwork fallback (since track artwork is null, the rendered image should point to mixtape-cover.png)
+    const img = screen.getByAltText("Alpha artwork");
+    expect(img.getAttribute("src")).toContain("mixtape-cover.png");
+  });
+
   it("reorders saved-order rows only from the drag handle", async () => {
     const { PlaylistsPage } = await import("./PlaylistsPage");
     const onPlaylistEntriesReplace = vi.fn();

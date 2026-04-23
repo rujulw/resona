@@ -17,7 +17,7 @@ use crate::commands::{
     remove_concept_album_entry, remove_playlist_entry, replace_concept_album_entries,
     replace_playlist_entries, report_playback_error, resolve_artwork_source,
     resolve_track_playback_source, scan_local_library, seek_playback, sync_playback_timing,
-    update_concept_album, update_playlist, DatabaseState,
+    turn_playlist_to_mixtape, update_concept_album, update_playlist, DatabaseState,
 };
 use crate::database::AppDatabase;
 use crate::playback::PlaybackRuntimeState;
@@ -74,6 +74,7 @@ pub fn run() {
             playback_action,
             seek_playback,
             sync_playback_timing,
+            turn_playlist_to_mixtape,
             update_concept_album,
             update_playlist
         ])
