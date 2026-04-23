@@ -206,7 +206,7 @@ export function PlaylistsPage({
 
   return (
     <>
-      <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-5 overflow-hidden px-6 py-5">
+      <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-black">
         <PlaylistDetailHeader
           playlist={activePlaylist}
           onArtworkPick={() => {
@@ -232,7 +232,7 @@ export function PlaylistsPage({
           }}
         />
 
-        <div className="grid min-h-0 gap-4 overflow-y-auto pb-2">
+        <div className="grid min-h-0 overflow-y-auto px-8 pb-8 pt-0">
           <PlaylistEntriesSection
             playlist={activePlaylist}
             albums={albumsState.items}

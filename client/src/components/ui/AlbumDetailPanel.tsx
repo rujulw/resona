@@ -30,24 +30,25 @@ export function AlbumDetailPanel({
   }
 
   return (
-    <section className="grid min-h-0 gap-5">
-      <header className="flex flex-wrap items-start justify-between gap-6 rounded-3xl border border-white/6 bg-[#181818] px-6 py-7">
-        <div className="flex min-w-0 items-start gap-5">
+    <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-black">
+      <header className="flex flex-wrap items-end justify-between gap-6 px-8 pb-4 pt-10 bg-gradient-to-b from-white/[0.07] to-transparent">
+        <div className="flex min-w-0 items-end gap-6">
           <ArtworkTile
             artworkKey={albumDetail.album.artworkKey}
             title={albumDetail.album.title}
-            sizeClassName="h-36 w-36"
-            roundedClassName="rounded-sm"
+            sizeClassName="h-52 w-52 shadow-2xl shadow-black/40"
+            roundedClassName="rounded-md"
+            fallbackClassName="bg-white/[0.04]"
           />
-          <div className="min-w-0 pt-1">
-            <p className="m-0 text-[11px] tracking-[0.08em] text-[#8f8f8f]">album</p>
-            <h2 className="mt-4 text-6xl font-medium tracking-[-0.06em] text-[#f2f2f2]">
+          <div className="min-w-0 pb-1">
+            <p className="m-0 text-[11px] tracking-[0.08em] text-[#f2f2f2]/80">album</p>
+            <h2 className="mt-2 text-7xl font-bold tracking-[-0.04em] text-white text-wrap break-words">
               {albumDetail.album.title}
             </h2>
             <p className="mt-4 text-base text-[#d4d4d4]">
               {albumDetail.album.artist ?? "unknown artist"}
             </p>
-            <p className="mt-3 text-sm text-[#8f8f8f]">
+            <p className="mt-2 text-sm text-[#8f8f8f]">
               {albumDetail.album.trackCount} track
               {albumDetail.album.trackCount === 1 ? "" : "s"} ·{" "}
               {albumDetail.album.totalDurationSeconds
@@ -56,72 +57,95 @@ export function AlbumDetailPanel({
             </p>
           </div>
         </div>
+        
         {albumDetail.tracks.length > 0 ? (
-          <button
-            type="button"
-            aria-label="Play album"
-            onClick={() => {
-              onPlayAlbum();
-            }}
-            className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/8 bg-white/3 text-[#d4d4d4] transition-colors hover:border-white/12 hover:bg-white/5 hover:text-[#f2f2f2]"
-          >
-            <Play className="h-4 w-4" strokeWidth={2} />
-          </button>
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              aria-label="Play album"
+              onClick={() => {
+                onPlayAlbum();
+              }}
+              className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-white text-black hover:bg-white/90 transition-all"
+            >
+              <Play className="h-6 w-6 ml-1" fill="currentColor" strokeWidth={0} />
+            </button>
+          </div>
         ) : null}
       </header>
 
-      <section className="grid min-h-[62vh] grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-3xl border border-white/6 bg-[#1b1b1b]">
-        <div className="grid grid-cols-[40px_minmax(0,1fr)_112px] gap-4 border-b border-white/6 px-3 py-3 text-[11px] tracking-[0.08em] text-[#8f8f8f]">
-          <span>track</span>
-          <span>title</span>
-          <span>duration</span>
-        </div>
+      <div className="grid min-h-0 overflow-y-auto px-8 pb-8 pt-0">
+        <section className="grid min-h-[62vh] grid-rows-[auto_minmax(0,1fr)] bg-gradient-to-b from-white/[0.04] to-transparent">
+          <div className="grid grid-cols-[32px_minmax(0,1fr)_100px] gap-4 border-t border-white/10 px-8 py-3 text-[11px] tracking-[0.08em] text-[#a5a5a5]">
+            <span className="text-center">#</span>
+            <span>title</span>
+            <span>duration</span>
+          </div>
 
-        <div className="min-h-0 overflow-y-auto">
-          {albumDetail.tracks.map((track, index) => (
-            <article
-              key={track.id}
-              role="button"
-              tabIndex={0}
-              aria-label={`Select ${track.title}`}
-              aria-pressed={activeTrackId === track.id}
-              className={[
-                "grid grid-cols-[30px_minmax(0,1fr)_112px] items-center gap-4 border-b border-white/5 px-5 py-3.5 text-left last:border-b-0",
-                activeTrackId === track.id ? "bg-white/8" : "hover:bg-white/3",
-              ].join(" ")}
-              onClick={() => {
-                onPlayAlbum(track.id);
-                onTrackSelect(track.id);
-              }}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault();
+          <div className="min-h-0 overflow-y-auto">
+            {albumDetail.tracks.map((track, index) => (
+              <article
+                key={track.id}
+                role="button"
+                tabIndex={0}
+                aria-label={`Select ${track.title}`}
+                aria-pressed={activeTrackId === track.id}
+                className={[
+                  "group relative grid grid-cols-[32px_minmax(0,1fr)_100px] items-center gap-4 px-8 py-2.5 text-left transition-colors",
+                  activeTrackId === track.id ? "bg-white/10" : "hover:bg-white/5",
+                ].join(" ")}
+                onClick={() => {
                   onPlayAlbum(track.id);
                   onTrackSelect(track.id);
-                }
-              }}
-            >
-              <span className="text-sm text-[#8f8f8f]">
-                {track.trackNumber ?? index + 1}
-              </span>
-              <span className="grid min-w-0 gap-1">
-                <span className="flex min-w-0 items-center gap-2">
-                  <span className="truncate text-sm text-[#f2f2f2]">{track.title}</span>
-                  <AdvisoryBadge advisory={track.advisory} />
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    onPlayAlbum(track.id);
+                    onTrackSelect(track.id);
+                  }
+                }}
+              >
+                <div className="flex w-8 justify-center text-[#a5a5a5]">
+                  <span className="text-[15px] tabular-nums group-hover:hidden group-focus-within:hidden">
+                    {track.trackNumber ?? index + 1}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label={`Play ${track.title}`}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onPlayAlbum(track.id);
+                      onTrackSelect(track.id);
+                    }}
+                    className="hidden text-white group-hover:block group-focus-within:block focus:outline-none"
+                  >
+                    <Play className="h-4 w-4 ml-0.5" fill="currentColor" strokeWidth={0} />
+                  </button>
+                </div>
+                
+                <span className="grid min-w-0 gap-0.5">
+                  <span className="truncate text-[15px] font-medium text-[#f2f2f2] group-hover:text-white transition-colors">
+                    {track.title}
+                  </span>
+                  <span className="flex min-w-0 items-center gap-2">
+                    <AdvisoryBadge advisory={track.advisory} />
+                    <span className="truncate text-[13px] text-[#a5a5a5] group-hover:text-[#f2f2f2] transition-colors">
+                      {track.artist ?? albumDetail.album.artist ?? "unknown artist"}
+                    </span>
+                  </span>
                 </span>
-                <span className="truncate text-xs text-[#8f8f8f]">
-                  {track.artist ?? albumDetail.album.artist ?? "unknown artist"}
+                
+                <span className="text-[13px] text-[#a5a5a5] group-hover:text-[#f2f2f2] transition-colors">
+                  {track.durationSeconds
+                    ? formatDuration(Math.round(track.durationSeconds))
+                    : "--:--"}
                 </span>
-              </span>
-              <span className="text-sm text-[#8f8f8f]">
-                {track.durationSeconds
-                  ? formatDuration(Math.round(track.durationSeconds))
-                  : "--:--"}
-              </span>
-            </article>
-          ))}
-        </div>
-      </section>
-    </section>
+              </article>
+            ))}
+          </div>
+        </section>
+      </div>
+    </div>
   );
 }

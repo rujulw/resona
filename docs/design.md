@@ -172,9 +172,10 @@ Track insights from timbre should appear in secondary detail surfaces such as a 
 ## Visual Direction
 
 - Dark or low-glare desktop palette is acceptable, but contrast must remain high
-- Typography should feel utilitarian and compact
-- Dense information display is preferred over oversized spacing
-- Artwork is present but secondary to library and playback data
+- Collection views (Albums, Playlists, Mixtapes, Concept Albums) use an edge-to-edge AMOLED black aesthetic with seamless gradient fades and zero internal boxy containers
+- Typography should feel utilitarian and compact, with larger display sizing for collection headers
+- Dense information display is preferred over oversized spacing, with interactive elements like drag handles or play buttons appearing only on hover to reduce visual noise
+- Artwork is present but secondary to library and playback data, except in headers where it serves as a visual anchor
 - Persistent shell chrome should feel like a desktop player, with a left navigation rail and a fixed playback bar
 - Navigation and transport affordances should use restrained iconography rather than placeholder text glyphs once the app moves into release polish
 

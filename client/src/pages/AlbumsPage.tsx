@@ -68,21 +68,15 @@ export function AlbumsPage({
   }
 
   return (
-    <div className="grid h-full min-h-0 overflow-hidden px-6 py-5">
-      <div className="min-h-0 overflow-y-auto pb-2">
-        <div className="grid min-h-0 gap-5">
-          <AlbumDetailPanel
-            albumDetail={albumsState.activeAlbum}
-            activeTrackId={tracksState.selectedTrackId}
-            onPlayAlbum={(startTrackId?: string) => {
-              if (albumsState.activeAlbumId) {
-                onPlayAlbum(albumsState.activeAlbumId, startTrackId);
-              }
-            }}
-            onTrackSelect={onAlbumTrackSelect}
-          />
-        </div>
-      </div>
-    </div>
+    <AlbumDetailPanel
+      albumDetail={albumsState.activeAlbum}
+      activeTrackId={tracksState.selectedTrackId}
+      onPlayAlbum={(startTrackId?: string) => {
+        if (albumsState.activeAlbumId) {
+          onPlayAlbum(albumsState.activeAlbumId, startTrackId);
+        }
+      }}
+      onTrackSelect={onAlbumTrackSelect}
+    />
   );
 }

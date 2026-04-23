@@ -222,150 +222,146 @@ export function ConceptAlbumsPage({
 
   return (
     <>
-      <div className="grid h-full min-h-0 overflow-hidden px-6 py-5">
-        <div className="min-h-0 overflow-y-auto pb-2">
-          <ConceptAlbumDetailPanel
-            conceptAlbum={activeConceptAlbum}
-            entries={orderedConceptAlbumEntries}
-            tracksState={tracksState}
-            visibleLibraryTracks={visibleLibraryTracks}
-            librarySearchDraft={librarySearchDraft}
-            selectedEntryId={selectedEntryId}
-            draggedEntryId={draggedEntryId}
-            dropIndicator={dropIndicator}
-            onArtworkPick={() => {
-              void pickPlaylistArtwork().then((artworkPath) => {
-                if (artworkPath) {
-                  onConceptAlbumArtworkChange(activeConceptAlbum.conceptAlbum.id, artworkPath);
-                }
-              });
-            }}
-            onEditConceptAlbum={openEditDialog}
-            onDeleteConceptAlbum={() => {
-              if (window.confirm(`Delete ${title}?`)) {
-                navigate("/concept-albums");
-                onConceptAlbumDelete(activeConceptAlbum.conceptAlbum.id);
-              }
-            }}
-            onPlayConceptAlbum={(startEntryId?: string) =>
-              onConceptAlbumPlaybackHandoff(activeConceptAlbum.conceptAlbum.id, startEntryId)
+      <ConceptAlbumDetailPanel
+        conceptAlbum={activeConceptAlbum}
+        entries={orderedConceptAlbumEntries}
+        tracksState={tracksState}
+        visibleLibraryTracks={visibleLibraryTracks}
+        librarySearchDraft={librarySearchDraft}
+        selectedEntryId={selectedEntryId}
+        draggedEntryId={draggedEntryId}
+        dropIndicator={dropIndicator}
+        onArtworkPick={() => {
+          void pickPlaylistArtwork().then((artworkPath) => {
+            if (artworkPath) {
+              onConceptAlbumArtworkChange(activeConceptAlbum.conceptAlbum.id, artworkPath);
             }
-            onContainerKeyDown={(event) => {
-              if ((event.key === "Backspace" || event.key === "Delete") && selectedEntryId) {
-                event.preventDefault();
-                onConceptAlbumEntryRemove(activeConceptAlbum.conceptAlbum.id, selectedEntryId);
-              }
-            }}
-            onEntrySelect={setSelectedEntryId}
-            onEntryDragOver={(event, entryId) => {
-              event.preventDefault();
-              const activeDragEntryId = resolveActiveDragEntryId(event, selectedEntryId);
-              if (!activeDragEntryId || activeDragEntryId === entryId) {
-                clearDropIndicator(entryId);
-                return;
-              }
+          });
+        }}
+        onEditConceptAlbum={openEditDialog}
+        onDeleteConceptAlbum={() => {
+          if (window.confirm(`Delete ${title}?`)) {
+            navigate("/concept-albums");
+            onConceptAlbumDelete(activeConceptAlbum.conceptAlbum.id);
+          }
+        }}
+        onPlayConceptAlbum={(startEntryId?: string) =>
+          onConceptAlbumPlaybackHandoff(activeConceptAlbum.conceptAlbum.id, startEntryId)
+        }
+        onContainerKeyDown={(event) => {
+          if ((event.key === "Backspace" || event.key === "Delete") && selectedEntryId) {
+            event.preventDefault();
+            onConceptAlbumEntryRemove(activeConceptAlbum.conceptAlbum.id, selectedEntryId);
+          }
+        }}
+        onEntrySelect={setSelectedEntryId}
+        onEntryDragOver={(event, entryId) => {
+          event.preventDefault();
+          const activeDragEntryId = resolveActiveDragEntryId(event, selectedEntryId);
+          if (!activeDragEntryId || activeDragEntryId === entryId) {
+            clearDropIndicator(entryId);
+            return;
+          }
 
-              const nextIndicator = resolveDragPlacement(event, entryId);
-              setResolvedDropIndicator(nextIndicator.entryId, nextIndicator.placement);
-            }}
-            onEntryDragLeave={(event, entryId) => {
-              const relatedTarget = event.relatedTarget;
-              if (
-                relatedTarget instanceof Node &&
-                event.currentTarget.contains(relatedTarget)
-              ) {
-                return;
-              }
+          const nextIndicator = resolveDragPlacement(event, entryId);
+          setResolvedDropIndicator(nextIndicator.entryId, nextIndicator.placement);
+        }}
+        onEntryDragLeave={(event, entryId) => {
+          const relatedTarget = event.relatedTarget;
+          if (
+            relatedTarget instanceof Node &&
+            event.currentTarget.contains(relatedTarget)
+          ) {
+            return;
+          }
 
-              clearDropIndicator(entryId);
-            }}
-            onEntryMouseMove={(event, entryId) => {
-              if (!draggedEntryIdRef.current || draggedEntryIdRef.current === entryId) {
-                return;
-              }
+          clearDropIndicator(entryId);
+        }}
+        onEntryMouseMove={(event, entryId) => {
+          if (!draggedEntryIdRef.current || draggedEntryIdRef.current === entryId) {
+            return;
+          }
 
-              updateDropIndicatorFromPointer(event, entryId);
-            }}
-            onEntryMouseUp={(event, entryId) => {
-              const activeDragEntryId = draggedEntryIdRef.current;
-              if (!activeDragEntryId || activeDragEntryId === entryId) {
-                return;
-              }
+          updateDropIndicatorFromPointer(event, entryId);
+        }}
+        onEntryMouseUp={(event, entryId) => {
+          const activeDragEntryId = draggedEntryIdRef.current;
+          if (!activeDragEntryId || activeDragEntryId === entryId) {
+            return;
+          }
 
-              event.preventDefault();
-              updateDropIndicatorFromPointer(event, entryId);
-              const targetPlacement =
-                event.clientY >=
-                event.currentTarget.getBoundingClientRect().top +
-                  event.currentTarget.getBoundingClientRect().height / 2
-                  ? "after"
-                  : "before";
-              commitReorder(activeDragEntryId, entryId, targetPlacement);
-            }}
-            onEntryDrop={(event, entryId) => {
-              event.preventDefault();
-              const activeDragEntryId = resolveActiveDragEntryId(event, selectedEntryId);
-              if (!activeDragEntryId || activeDragEntryId === entryId) {
-                draggedEntryIdRef.current = null;
-                setDraggedEntryId(null);
-                clearDropIndicator();
-                return;
-              }
+          event.preventDefault();
+          updateDropIndicatorFromPointer(event, entryId);
+          const targetPlacement =
+            event.clientY >=
+            event.currentTarget.getBoundingClientRect().top +
+              event.currentTarget.getBoundingClientRect().height / 2
+              ? "after"
+              : "before";
+          commitReorder(activeDragEntryId, entryId, targetPlacement);
+        }}
+        onEntryDrop={(event, entryId) => {
+          event.preventDefault();
+          const activeDragEntryId = resolveActiveDragEntryId(event, selectedEntryId);
+          if (!activeDragEntryId || activeDragEntryId === entryId) {
+            draggedEntryIdRef.current = null;
+            setDraggedEntryId(null);
+            clearDropIndicator();
+            return;
+          }
 
-              const target =
-                dropIndicator?.entryId === entryId
-                  ? dropIndicator
-                  : resolveDragPlacement(event, entryId);
-              commitReorder(activeDragEntryId, target.entryId, target.placement);
-            }}
-            onEntryPlay={(entryId) => {
-              setSelectedEntryId(entryId);
-              onConceptAlbumPlaybackHandoff(activeConceptAlbum.conceptAlbum.id, entryId);
-            }}
-            onEntryKeyDown={(event, entryId) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                event.stopPropagation();
-                setSelectedEntryId(entryId);
-                return;
-              }
+          const target =
+            dropIndicator?.entryId === entryId
+              ? dropIndicator
+              : resolveDragPlacement(event, entryId);
+          commitReorder(activeDragEntryId, target.entryId, target.placement);
+        }}
+        onEntryPlay={(entryId) => {
+          setSelectedEntryId(entryId);
+          onConceptAlbumPlaybackHandoff(activeConceptAlbum.conceptAlbum.id, entryId);
+        }}
+        onEntryKeyDown={(event, entryId) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            event.stopPropagation();
+            setSelectedEntryId(entryId);
+            return;
+          }
 
-              if (event.key === "Backspace" || event.key === "Delete") {
-                event.preventDefault();
-                event.stopPropagation();
-                onConceptAlbumEntryRemove(activeConceptAlbum.conceptAlbum.id, entryId);
-              }
-            }}
-            onDragHandleClick={(event, entryId) => {
-              event.stopPropagation();
-              setSelectedEntryId(entryId);
-            }}
-            onDragHandleMouseDown={(event, entryId) => {
-              event.preventDefault();
-              event.stopPropagation();
-              draggedEntryIdRef.current = entryId;
-              setDraggedEntryId(entryId);
-              setSelectedEntryId(entryId);
-            }}
-            onDragHandleStart={(event, entryId) => {
-              event.dataTransfer.setData("text/plain", entryId);
-              event.dataTransfer.effectAllowed = "move";
-              draggedEntryIdRef.current = entryId;
-              setDraggedEntryId(entryId);
-              setSelectedEntryId(entryId);
-            }}
-            onDragHandleEnd={() => {
-              draggedEntryIdRef.current = null;
-              setDraggedEntryId(null);
-              clearDropIndicator();
-            }}
-            onTrackAdd={(track) =>
-              onConceptAlbumTrackAdd(activeConceptAlbum.conceptAlbum.id, track)
-            }
-            onLibrarySearchDraftChange={setLibrarySearchDraft}
-          />
-        </div>
-      </div>
+          if (event.key === "Backspace" || event.key === "Delete") {
+            event.preventDefault();
+            event.stopPropagation();
+            onConceptAlbumEntryRemove(activeConceptAlbum.conceptAlbum.id, entryId);
+          }
+        }}
+        onDragHandleClick={(event, entryId) => {
+          event.stopPropagation();
+          setSelectedEntryId(entryId);
+        }}
+        onDragHandleMouseDown={(event, entryId) => {
+          event.preventDefault();
+          event.stopPropagation();
+          draggedEntryIdRef.current = entryId;
+          setDraggedEntryId(entryId);
+          setSelectedEntryId(entryId);
+        }}
+        onDragHandleStart={(event, entryId) => {
+          event.dataTransfer.setData("text/plain", entryId);
+          event.dataTransfer.effectAllowed = "move";
+          draggedEntryIdRef.current = entryId;
+          setDraggedEntryId(entryId);
+          setSelectedEntryId(entryId);
+        }}
+        onDragHandleEnd={() => {
+          draggedEntryIdRef.current = null;
+          setDraggedEntryId(null);
+          clearDropIndicator();
+        }}
+        onTrackAdd={(track) =>
+          onConceptAlbumTrackAdd(activeConceptAlbum.conceptAlbum.id, track)
+        }
+        onLibrarySearchDraftChange={setLibrarySearchDraft}
+      />
 
       <ConceptAlbumDialog
         isOpen={isCreateDialogOpen}

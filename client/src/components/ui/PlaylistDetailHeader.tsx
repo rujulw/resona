@@ -24,8 +24,8 @@ export function PlaylistDetailHeader({
   const title = playlist.playlist.name;
 
   return (
-    <header className="flex flex-wrap items-start justify-between gap-6 rounded-3xl border border-white/6 bg-[#181818] px-6 py-7">
-      <div className="flex min-w-0 items-start gap-5">
+    <header className="flex flex-wrap items-end justify-between gap-6 px-8 pb-4 pt-10 bg-gradient-to-b from-white/[0.07] to-transparent">
+      <div className="flex min-w-0 items-end gap-6">
         <button
           type="button"
           onClick={onArtworkPick}
@@ -36,22 +36,22 @@ export function PlaylistDetailHeader({
             <ArtworkTile
               artworkKey={playlist.playlist.artworkKey}
               title={title}
-              sizeClassName="h-36 w-36"
-              roundedClassName="rounded-sm"
+              sizeClassName="h-52 w-52 shadow-2xl shadow-black/40"
+              roundedClassName="rounded-md"
               fallbackClassName="bg-white/[0.04]"
             />
           ) : (
-            <div className="grid h-36 w-36 place-items-center rounded-sm border border-white/8 bg-white/4 text-[#8f8f8f]">
-              <ImagePlus className="h-10 w-10" strokeWidth={1.75} />
+            <div className="grid h-52 w-52 place-items-center rounded-md border border-white/8 bg-white/4 text-[#8f8f8f] shadow-2xl shadow-black/40">
+              <ImagePlus className="h-12 w-12" strokeWidth={1.5} />
             </div>
           )}
         </button>
 
-        <div className="min-w-0 pt-1">
-          <p className="m-0 text-[11px] tracking-[0.08em] text-[#8f8f8f]">
+        <div className="min-w-0 pb-1">
+          <p className="m-0 text-[11px] tracking-[0.08em] text-[#f2f2f2]/80">
             {playlist.playlist.isMixtape ? "mixtape" : "playlist"}
           </p>
-          <h2 className="mt-4 truncate text-6xl font-medium tracking-[-0.06em] text-[#f2f2f2]">
+          <h2 className="mt-2 text-7xl font-bold tracking-[-0.04em] text-white text-wrap break-words">
             {title}
           </h2>
           <p className="mt-4 text-sm text-[#8f8f8f]">
@@ -66,7 +66,7 @@ export function PlaylistDetailHeader({
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-3">
         {!playlist.playlist.isMixtape ? (
           <IconActionButton
             label="Create playlist"
@@ -78,7 +78,8 @@ export function PlaylistDetailHeader({
           <IconActionButton
             label="Play playlist"
             onClick={onPlayPlaylist}
-            icon={<Play className="h-4 w-4" strokeWidth={2} />}
+            variant="primary"
+            icon={<Play className="h-6 w-6 ml-1" fill="currentColor" strokeWidth={0} />}
           />
         ) : null}
         <IconActionButton
@@ -107,17 +108,25 @@ function IconActionButton({
   label,
   onClick,
   icon,
+  variant = "secondary",
 }: {
   label: string;
   onClick: () => void;
   icon: ReactNode;
+  variant?: "primary" | "secondary";
 }) {
+  const isPrimary = variant === "primary";
+
   return (
     <button
       type="button"
       onClick={onClick}
       aria-label={label}
-      className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/8 bg-white/3 text-[#d4d4d4] transition-colors hover:border-white/12 hover:bg-white/5 hover:text-[#f2f2f2]"
+      className={`inline-flex items-center justify-center transition-all ${
+        isPrimary
+          ? "h-14 w-14 rounded-full bg-white text-black hover:bg-white/90"
+          : "h-11 w-11 rounded-xl border border-white/8 bg-white/3 text-[#d4d4d4] hover:border-white/12 hover:bg-white/5 hover:text-[#f2f2f2]"
+      }`}
     >
       {icon}
     </button>
