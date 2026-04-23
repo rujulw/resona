@@ -86,6 +86,7 @@ export function AppShellRoutes({
             onPlaylistPlaybackHandoff={actions.playlists.onPlaylistPlaybackHandoff}
             onPlaylistRename={actions.playlists.onPlaylistRename}
             onPlaylistSelect={actions.playlists.onPlaylistSelect}
+            onPlaylistTurnToMixtape={actions.playlists.onPlaylistTurnToMixtape}
             onTrackAdd={actions.playlists.onTrackAdd}
           />
         }
@@ -106,6 +107,7 @@ export function AppShellRoutes({
             onPlaylistPlaybackHandoff={actions.playlists.onPlaylistPlaybackHandoff}
             onPlaylistRename={actions.playlists.onPlaylistRename}
             onPlaylistSelect={actions.playlists.onPlaylistSelect}
+            onPlaylistTurnToMixtape={actions.playlists.onPlaylistTurnToMixtape}
             onTrackAdd={actions.playlists.onTrackAdd}
           />
         }

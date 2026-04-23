@@ -27,7 +27,7 @@ pub use playback::{
 pub use playlists::{
     add_track_to_playlist, create_playlist, delete_playlist, describe_playlist_contract,
     get_playlist, handoff_playlist_to_queue, list_playlists, move_playlist_entry,
-    remove_playlist_entry, replace_playlist_entries, update_playlist,
+    remove_playlist_entry, replace_playlist_entries, turn_playlist_to_mixtape, update_playlist,
 };
 pub use system::{bootstrap_app, get_shell_state};
 
@@ -61,7 +61,8 @@ pub use playlists::{
     delete_playlist_with_database, get_playlist_with_database,
     handoff_playlist_to_queue_with_database, list_playlists_with_database,
     move_playlist_entry_with_database, remove_playlist_entry_with_database,
-    replace_playlist_entries_with_database, update_playlist_with_database,
+    replace_playlist_entries_with_database, turn_playlist_to_mixtape_with_database,
+    update_playlist_with_database,
 };
 
 #[cfg(test)]

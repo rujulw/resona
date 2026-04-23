@@ -382,6 +382,7 @@ export function createPreviewPlaylist(
       : null,
     artworkPath,
     entryCount: 0,
+    isMixtape: false,
     createdAt: now,
     updatedAt: now,
   };
@@ -634,6 +635,26 @@ export function updatePreviewPlaylist(
       ? `browser-playlist-artwork-${playlistId}`
       : existing.playlist.artworkKey,
     artworkPath,
+    updatedAt: `${Date.now()}`,
+  };
+
+  playlists.set(playlistId, {
+    ...existing,
+    playlist: updatedSummary,
+  });
+
+  return updatedSummary;
+}
+
+export function turnPreviewPlaylistToMixtape(playlistId: string): PlaylistSummary {
+  const existing = playlists.get(playlistId);
+  if (!existing) {
+    throw new Error(`playlist ${playlistId} was not found`);
+  }
+
+  const updatedSummary: PlaylistSummary = {
+    ...existing.playlist,
+    isMixtape: true,
     updatedAt: `${Date.now()}`,
   };
 

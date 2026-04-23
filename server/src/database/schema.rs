@@ -14,6 +14,8 @@ pub const PLAYLIST_ARTWORK_MIGRATION: &str =
     include_str!("../../db/migrations/0006_playlist_artwork.sql");
 pub const CONCEPT_ALBUMS_FOUNDATION_MIGRATION: &str =
     include_str!("../../db/migrations/0007_concept_albums_foundation.sql");
+pub const MIXTAPES_FOUNDATION_MIGRATION: &str =
+    include_str!("../../db/migrations/0008_mixtapes_foundation.sql");
 
 pub const TABLE_LIBRARY_ROOTS: &str = "library_roots";
 pub const TABLE_TRACKS: &str = "tracks";
@@ -102,7 +104,7 @@ mod tests {
     use super::{
         AnalysisStatus, CacheState, SourceMode, TrackSourceStatus,
         CONCEPT_ALBUMS_FOUNDATION_MIGRATION, EXPLICIT_ADVISORY_METADATA_MIGRATION,
-        INITIAL_SCHEMA_MIGRATION, LOCAL_PLAYLISTS_FOUNDATION_MIGRATION, PLAYLIST_ARTWORK_MIGRATION,
+        INITIAL_SCHEMA_MIGRATION, LOCAL_PLAYLISTS_FOUNDATION_MIGRATION, MIXTAPES_FOUNDATION_MIGRATION, PLAYLIST_ARTWORK_MIGRATION,
         TABLE_ANALYSIS_RESULTS, TABLE_CACHE_ENTRIES, TABLE_CONCEPT_ALBUMS,
         TABLE_CONCEPT_ALBUM_ENTRIES, TABLE_LIBRARY_ROOTS, TABLE_PLAYLISTS, TABLE_PLAYLIST_ENTRIES,
         TABLE_TRACKS, TABLE_TRACK_SOURCES,
@@ -129,6 +131,7 @@ mod tests {
         assert!(CONCEPT_ALBUMS_FOUNDATION_MIGRATION.contains(TABLE_CONCEPT_ALBUM_ENTRIES));
         assert!(EXPLICIT_ADVISORY_METADATA_MIGRATION.contains("advisory"));
         assert!(PLAYLIST_ARTWORK_MIGRATION.contains("artwork_key"));
+        assert!(MIXTAPES_FOUNDATION_MIGRATION.contains("is_mixtape"));
     }
 
     #[test]

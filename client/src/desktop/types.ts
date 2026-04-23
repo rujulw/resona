@@ -186,6 +186,7 @@ export type PlaylistSummary = {
   description: string | null;
   artworkKey: string | null;
   entryCount: number;
+  isMixtape: boolean;
   createdAt: string;
   updatedAt: string;
 };

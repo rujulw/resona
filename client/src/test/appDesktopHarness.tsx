@@ -36,6 +36,7 @@ export const desktopMocks = {
   updateConceptAlbumMock: vi.fn(),
   updatePlaylistMock: vi.fn(),
   addTrackToPlaylistMock: vi.fn(),
+  turnPlaylistToMixtapeMock: vi.fn(),
 };
 
 type PlaybackSnapshot = {
@@ -139,6 +140,7 @@ vi.mock("../desktop", () => ({
   scanLocalLibrary: (...args: unknown[]) => desktopMocks.scanLocalLibraryMock(...args),
   updateConceptAlbum: (...args: unknown[]) => desktopMocks.updateConceptAlbumMock(...args),
   updatePlaylist: (...args: unknown[]) => desktopMocks.updatePlaylistMock(...args),
+  turnPlaylistToMixtape: (...args: unknown[]) => desktopMocks.turnPlaylistToMixtapeMock(...args),
 }));
 
 export function setupAppDesktopHarness() {
@@ -211,6 +213,7 @@ export function setupAppDesktopHarness() {
         name: "Desk Set",
         description: "focused hours",
         entryCount: 1,
+        isMixtape: false,
         createdAt: "1700000100",
         updatedAt: "1700000100",
       },
@@ -360,6 +363,7 @@ export function setupAppDesktopHarness() {
         name: "Desk Set",
         description: "focused hours",
         entryCount: 1,
+        isMixtape: false,
         createdAt: "1700000100",
         updatedAt: "1700000100",
       },
@@ -500,6 +504,7 @@ export function setupAppDesktopHarness() {
         name,
         description: description ?? null,
         entryCount: 1,
+        isMixtape: false,
         createdAt: "1700000100",
         updatedAt: "1700000200",
       }),
@@ -523,6 +528,7 @@ export function setupAppDesktopHarness() {
           name: "Desk Set",
           description: "focused hours",
           entryCount: 2,
+          isMixtape: false,
           createdAt: "1700000100",
           updatedAt: "1700000300",
         },
@@ -565,6 +571,7 @@ export function setupAppDesktopHarness() {
           name: "Desk Set",
           description: "focused hours",
           entryCount: 1,
+          isMixtape: false,
           createdAt: "1700000100",
           updatedAt: "1700000400",
         },
@@ -596,6 +603,7 @@ export function setupAppDesktopHarness() {
           name: "Desk Set",
           description: "focused hours",
           entryCount: entries.length,
+          isMixtape: false,
           createdAt: "1700000100",
           updatedAt: "1700000400",
         },
@@ -623,6 +631,7 @@ export function setupAppDesktopHarness() {
           description: "focused hours",
           artworkKey: null,
           entryCount: 1,
+          isMixtape: false,
           createdAt: "1700000100",
           updatedAt: "1700000400",
         },
@@ -667,6 +676,15 @@ export function setupAppDesktopHarness() {
         activeEntryId: startEntryId ?? "playlist-entry-1",
       }),
     );
+    desktopMocks.turnPlaylistToMixtapeMock.mockImplementation(async (playlistId: string) => ({
+      id: playlistId,
+      name: "Desk Set",
+      description: "focused hours",
+      entryCount: 1,
+      isMixtape: true,
+      createdAt: "1700000100",
+      updatedAt: "1700000500",
+    }));
 
     window.history.replaceState({}, "", "/");
   });

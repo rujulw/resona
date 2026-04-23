@@ -2,6 +2,7 @@ mod artwork;
 mod contract;
 mod entries;
 mod metadata;
+mod mixtapes;
 mod queries;
 mod types;
 

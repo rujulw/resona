@@ -34,8 +34,8 @@ impl PlaylistStore {
 
         connection.execute(
             "
-            INSERT INTO playlists (id, name, description, artwork_key, created_at, updated_at)
-            VALUES (?1, ?2, ?3, ?4, ?5, ?5)
+            INSERT INTO playlists (id, name, description, artwork_key, is_mixtape, created_at, updated_at)
+            VALUES (?1, ?2, ?3, ?4, 0, ?5, ?5)
             ",
             params![
                 playlist_id,

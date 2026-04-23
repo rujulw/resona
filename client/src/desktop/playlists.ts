@@ -21,6 +21,7 @@ import {
   getPreviewPlaylists,
   updatePreviewPlaylist,
   deletePreviewPlaylist,
+  turnPreviewPlaylistToMixtape,
 } from "./previewRuntime";
 
 export async function listPlaylists(): Promise<PlaylistSummary[]> {
@@ -77,6 +78,16 @@ export async function deletePlaylist(playlistId: string): Promise<void> {
   return invokeWithPreviewFallback("delete_playlist", { playlistId }, () => {
     deletePreviewPlaylist(playlistId);
   });
+}
+
+export async function turnPlaylistToMixtape(
+  playlistId: string,
+): Promise<PlaylistSummary> {
+  return invokeWithPreviewFallback(
+    "turn_playlist_to_mixtape",
+    { playlistId },
+    () => turnPreviewPlaylistToMixtape(playlistId),
+  );
 }
 
 export async function addTrackToPlaylist(

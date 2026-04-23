@@ -69,11 +69,17 @@ export function PlaylistEntriesSection({
 }) {
   return (
     <section className="grid min-h-[62vh] grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-3xl border border-white/6 bg-[#1b1b1b]">
-      <div className="grid grid-cols-[minmax(320px,2fr)_minmax(180px,1.1fr)_96px_112px] gap-4 border-b border-white/6 px-5 py-3 text-[11px] tracking-[0.08em] text-[#8f8f8f]">
+      <div
+        className={`grid gap-4 border-b border-white/6 px-5 py-3 text-[11px] tracking-[0.08em] text-[#8f8f8f] ${
+          playlist.playlist.isMixtape
+            ? "grid-cols-[minmax(320px,2fr)_minmax(180px,1.1fr)_96px]"
+            : "grid-cols-[minmax(320px,2fr)_minmax(180px,1.1fr)_96px_112px]"
+        }`}
+      >
         <span>saved order</span>
         <span>album</span>
         <span>duration</span>
-        <span>actions</span>
+        {!playlist.playlist.isMixtape ? <span>actions</span> : null}
       </div>
 
       <div className="min-h-0 overflow-y-auto" tabIndex={0} onKeyDown={onContainerKeyDown}>
@@ -105,7 +111,11 @@ export function PlaylistEntriesSection({
               onDoubleClick={() => onEntryPlay(entry.entryId)}
               onKeyDown={(event) => onEntryKeyDown(event, entry.entryId)}
               className={[
-                "relative grid w-full grid-cols-[minmax(320px,2fr)_minmax(180px,1.1fr)_96px_112px] items-center gap-4 border-b border-white/5 px-5 py-3.5 text-left last:border-b-0",
+                `relative grid w-full items-center gap-4 border-b border-white/5 px-5 py-3.5 text-left last:border-b-0 ${
+                  playlist.playlist.isMixtape
+                    ? "grid-cols-[minmax(320px,2fr)_minmax(180px,1.1fr)_96px]"
+                    : "grid-cols-[minmax(320px,2fr)_minmax(180px,1.1fr)_96px_112px]"
+                }`,
                 selectedEntryId === entry.entryId ? "bg-white/8" : "hover:bg-white/3",
                 draggedEntryId === entry.entryId ? "opacity-60" : "",
               ].join(" ")}
@@ -138,7 +148,9 @@ export function PlaylistEntriesSection({
                   <Play className="h-4 w-4" strokeWidth={2} />
                 </button>
                 <ArtworkTile
-                  artworkKey={entry.artworkKey}
+                  artworkKey={
+                    playlist.playlist.isMixtape ? playlist.playlist.artworkKey : entry.artworkKey
+                  }
                   title={entry.title}
                   sizeClassName="h-11 w-11"
                   roundedClassName="rounded-sm"
@@ -177,38 +189,40 @@ export function PlaylistEntriesSection({
                   : "--:--"}
               </span>
 
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  draggable
-                  aria-label={`Drag ${entry.title}`}
-                  onClick={(event) => onDragHandleClick(event, entry.entryId)}
-                  onMouseDown={(event) => onDragHandleMouseDown(event, entry.entryId)}
-                  onDragStart={(event) => onDragHandleStart(event, entry.entryId)}
-                  onDragEnd={onDragHandleEnd}
-                  className="inline-flex h-9 w-9 cursor-grab items-center justify-center rounded-xl border border-white/8 bg-white/3 text-[#8f8f8f] transition-colors hover:border-white/12 hover:bg-white/5 active:cursor-grabbing"
-                >
-                  <GripVertical className="h-4 w-4" strokeWidth={1.8} />
-                </button>
-                <button
-                  type="button"
-                  aria-label={`Move ${entry.title} up`}
-                  disabled={entry.position === 0}
-                  onClick={(event) => onMoveEntryUp(event, entry)}
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/8 bg-white/3 text-[#d4d4d4] transition-colors hover:border-white/12 hover:bg-white/5 hover:text-[#f2f2f2] disabled:cursor-not-allowed disabled:opacity-35"
-                >
-                  <ArrowUp className="h-4 w-4" strokeWidth={2} />
-                </button>
-                <button
-                  type="button"
-                  aria-label={`Move ${entry.title} down`}
-                  disabled={entry.position === entries.length - 1}
-                  onClick={(event) => onMoveEntryDown(event, entry)}
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/8 bg-white/3 text-[#d4d4d4] transition-colors hover:border-white/12 hover:bg-white/5 hover:text-[#f2f2f2] disabled:cursor-not-allowed disabled:opacity-35"
-                >
-                  <ArrowDown className="h-4 w-4" strokeWidth={2} />
-                </button>
-              </div>
+              {!playlist.playlist.isMixtape ? (
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    draggable
+                    aria-label={`Drag ${entry.title}`}
+                    onClick={(event) => onDragHandleClick(event, entry.entryId)}
+                    onMouseDown={(event) => onDragHandleMouseDown(event, entry.entryId)}
+                    onDragStart={(event) => onDragHandleStart(event, entry.entryId)}
+                    onDragEnd={onDragHandleEnd}
+                    className="inline-flex h-9 w-9 cursor-grab items-center justify-center rounded-xl border border-white/8 bg-white/3 text-[#8f8f8f] transition-colors hover:border-white/12 hover:bg-white/5 active:cursor-grabbing"
+                  >
+                    <GripVertical className="h-4 w-4" strokeWidth={1.8} />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={`Move ${entry.title} up`}
+                    disabled={entry.position === 0}
+                    onClick={(event) => onMoveEntryUp(event, entry)}
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/8 bg-white/3 text-[#d4d4d4] transition-colors hover:border-white/12 hover:bg-white/5 hover:text-[#f2f2f2] disabled:cursor-not-allowed disabled:opacity-35"
+                  >
+                    <ArrowUp className="h-4 w-4" strokeWidth={2} />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={`Move ${entry.title} down`}
+                    disabled={entry.position === entries.length - 1}
+                    onClick={(event) => onMoveEntryDown(event, entry)}
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/8 bg-white/3 text-[#d4d4d4] transition-colors hover:border-white/12 hover:bg-white/5 hover:text-[#f2f2f2] disabled:cursor-not-allowed disabled:opacity-35"
+                  >
+                    <ArrowDown className="h-4 w-4" strokeWidth={2} />
+                  </button>
+                </div>
+              ) : null}
             </article>
               );
             })()

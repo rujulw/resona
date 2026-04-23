@@ -70,10 +70,12 @@ Current submodules:
 - `transport`: Tauri playback-event emission and the current native playback worker loop
 - `queue`: queue snapshot payloads and queue event emission
 
-### `playlists`
+### `playlists` (including Concept Albums and Mixtapes)
 
-- Owns the local playlist design contract for the current desktop player
+- Owns the local playlist design contract for the current desktop player, including extended collection types like Concept Albums and Mixtapes
 - Defines playlist persistence shape, ordering rules, duplicate-entry behavior, and queue handoff semantics before CRUD/UI work lands
+- For Concept Albums: supports editable release-style project states while reusing playlist mutation patterns
+- For Mixtapes: implements the conversion contract and locked-state rules that prevent new additions and reordering once a playlist is converted to a mixtape
 - Keeps playlist identity separate from playback queue identity so saved playlists and transient playback state do not collapse into one model
 
 Current submodules:
@@ -86,10 +88,11 @@ Current submodules:
 - `artwork`: playlist artwork import and cleanup
 - `types`: playlist-domain payloads and error types
 
-### `library`
+### `library` (including Albums and Artists)
 
 - Owns local filesystem scan orchestration and normalized track ingestion
 - Owns query shaping for search, sort validation, and backend pagination/cursor handling
+- Owns album and artist aggregation queries for listing and detail hydration
 - Keeps metadata normalization and library-domain models close to the scan/query flows that use them
 
 Current submodules:
