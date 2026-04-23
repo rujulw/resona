@@ -64,7 +64,7 @@ describe("playlists page", () => {
 
     await screen.findByRole("heading", { name: "Desk Set" });
 
-    expect(screen.getByText("saved order")).toBeTruthy();
+    expect(screen.getByText("title")).toBeTruthy();
     expect(screen.getByText("library handoff")).toBeTruthy();
     expect(screen.getByRole("button", { name: /create playlist/i })).toBeTruthy();
     expect(screen.getByRole("button", { name: /play playlist/i })).toBeTruthy();

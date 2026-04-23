@@ -24,7 +24,7 @@ export function PlaylistDetailHeader({
   const title = playlist.playlist.name;
 
   return (
-    <header className="flex flex-wrap items-end justify-between gap-6 px-8 pb-8 pt-10 bg-gradient-to-b from-white/[0.07] to-transparent">
+    <header className="flex flex-wrap items-end justify-between gap-6 px-8 pb-4 pt-10 bg-gradient-to-b from-white/[0.07] to-transparent">
       <div className="flex min-w-0 items-end gap-6">
         <button
           type="button"

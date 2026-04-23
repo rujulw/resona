@@ -232,7 +232,7 @@ export function PlaylistsPage({
           }}
         />
 
-        <div className="grid min-h-0 gap-4 overflow-y-auto px-8 pb-8 pt-6">
+        <div className="grid min-h-0 overflow-y-auto px-8 pb-8 pt-0">
           <PlaylistEntriesSection
             playlist={activePlaylist}
             albums={albumsState.items}
