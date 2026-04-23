@@ -182,6 +182,7 @@ describe("playlists page", () => {
                       artworkKey: null,
                       artworkPath: null,
                       entryCount: 2,
+                      isMixtape: false,
                       createdAt: "1700000100",
                       updatedAt: "1700000200",
                     },
@@ -195,6 +196,7 @@ describe("playlists page", () => {
                       artworkKey: null,
                       artworkPath: null,
                       entryCount: 2,
+                      isMixtape: false,
                       createdAt: "1700000100",
                       updatedAt: "1700000200",
                     },
@@ -269,6 +271,7 @@ describe("playlists page", () => {
                 onPlaylistPlaybackHandoff={vi.fn()}
                 onPlaylistRename={vi.fn()}
                 onPlaylistSelect={vi.fn()}
+                onPlaylistTurnToMixtape={vi.fn()}
                 onTrackAdd={vi.fn()}
               />
             }

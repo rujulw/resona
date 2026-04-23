@@ -9,6 +9,7 @@ import {
   movePlaylistEntry,
   removePlaylistEntry,
   replacePlaylistEntries,
+  turnPlaylistToMixtape,
   updatePlaylist,
   type PlaylistEntryInput,
   type TrackListItem,
@@ -238,6 +239,20 @@ export function usePlaylistQueries() {
       });
   };
 
+  const handlePlaylistTurnToMixtape = (playlistId: string) => {
+    void turnPlaylistToMixtape(playlistId)
+      .then(() => {
+        refreshPlaylists(playlistId);
+      })
+      .catch((error: unknown) => {
+        setPlaylistsState((existing) => ({
+          ...existing,
+          status: "error",
+          message: toAsyncErrorMessage(error, "Failed to lock playlist into a mixtape."),
+        }));
+      });
+  };
+
   return {
     playlistsState,
     setPlaylistsState,
@@ -251,5 +266,6 @@ export function usePlaylistQueries() {
     handlePlaylistEntryMove,
     handlePlaylistEntriesReplace,
     handlePlaylistEntryRemove,
+    handlePlaylistTurnToMixtape,
   };
 }

@@ -63,6 +63,7 @@ export function useAppShell() {
     handlePlaylistPlaybackHandoff: playbackCoordinator.handlePlaylistPlaybackHandoff,
     handlePlaylistRename: shellQueryState.handlePlaylistRename,
     handlePlaylistSelection: shellQueryState.handlePlaylistSelection,
+    handlePlaylistTurnToMixtape: shellQueryState.handlePlaylistTurnToMixtape,
     handlePlaylistTrackAdd: shellQueryState.handlePlaylistTrackAdd,
     handlePlaybackAction: playbackCoordinator.handlePlaybackAction,
     handlePlaybackSeek: playbackCoordinator.handlePlaybackSeek,

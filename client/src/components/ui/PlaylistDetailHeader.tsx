@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { ImagePlus, Pencil, Play, Plus, Trash2 } from "lucide-react";
+import { ImagePlus, Lock, Pencil, Play, Plus, Trash2 } from "lucide-react";
 
 import type { PlaylistDetail } from "../../desktop";
 import { ArtworkTile } from "./ArtworkTile";
@@ -11,6 +11,7 @@ export function PlaylistDetailHeader({
   onEditPlaylist,
   onDeletePlaylist,
   onPlayPlaylist,
+  onTurnToMixtape,
 }: {
   playlist: PlaylistDetail;
   onArtworkPick: () => void;
@@ -18,6 +19,7 @@ export function PlaylistDetailHeader({
   onEditPlaylist: () => void;
   onDeletePlaylist: () => void;
   onPlayPlaylist: () => void;
+  onTurnToMixtape: () => void;
 }) {
   const title = playlist.playlist.name;
 
@@ -46,7 +48,9 @@ export function PlaylistDetailHeader({
         </button>
 
         <div className="min-w-0 pt-1">
-          <p className="m-0 text-[11px] tracking-[0.08em] text-[#8f8f8f]">playlist</p>
+          <p className="m-0 text-[11px] tracking-[0.08em] text-[#8f8f8f]">
+            {playlist.playlist.isMixtape ? "mixtape" : "playlist"}
+          </p>
           <h2 className="mt-4 truncate text-6xl font-medium tracking-[-0.06em] text-[#f2f2f2]">
             {title}
           </h2>
@@ -63,11 +67,13 @@ export function PlaylistDetailHeader({
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <IconActionButton
-          label="Create playlist"
-          onClick={onCreatePlaylist}
-          icon={<Plus className="h-4 w-4" strokeWidth={2} />}
-        />
+        {!playlist.playlist.isMixtape ? (
+          <IconActionButton
+            label="Create playlist"
+            onClick={onCreatePlaylist}
+            icon={<Plus className="h-4 w-4" strokeWidth={2} />}
+          />
+        ) : null}
         {playlist.entries.length > 0 ? (
           <IconActionButton
             label="Play playlist"
@@ -80,6 +86,13 @@ export function PlaylistDetailHeader({
           onClick={onEditPlaylist}
           icon={<Pencil className="h-4 w-4" strokeWidth={2} />}
         />
+        {!playlist.playlist.isMixtape ? (
+          <IconActionButton
+            label="Turn to mixtape"
+            onClick={onTurnToMixtape}
+            icon={<Lock className="h-4 w-4" strokeWidth={2} />}
+          />
+        ) : null}
         <IconActionButton
           label="Delete playlist"
           onClick={onDeletePlaylist}

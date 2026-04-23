@@ -83,6 +83,7 @@ export default function App() {
         onPlaylistPlaybackHandoff: appShell.handlePlaylistPlaybackHandoff,
         onPlaylistRename: appShell.handlePlaylistRename,
         onPlaylistSelect: appShell.handlePlaylistSelection,
+        onPlaylistTurnToMixtape: appShell.handlePlaylistTurnToMixtape,
         onTrackAdd: appShell.handlePlaylistTrackAdd,
       },
       tracks: {

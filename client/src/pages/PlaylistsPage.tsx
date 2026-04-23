@@ -30,6 +30,7 @@ export function PlaylistsPage({
   onPlaylistPlaybackHandoff,
   onPlaylistRename,
   onPlaylistSelect,
+  onPlaylistTurnToMixtape,
   onTrackAdd,
 }: {
   playlistsState: PlaylistsState;
@@ -53,6 +54,7 @@ export function PlaylistsPage({
     artworkPath?: string | null,
   ) => void;
   onPlaylistSelect: (playlistId: string) => void;
+  onPlaylistTurnToMixtape: (playlistId: string) => void;
   onTrackAdd: (playlistId: string, track: TrackListItem) => void;
 }) {
   const { playlistId } = useParams<{ playlistId: string }>();
@@ -223,6 +225,11 @@ export function PlaylistsPage({
             }
           }}
           onPlayPlaylist={() => onPlaylistPlaybackHandoff(activePlaylist.playlist.id)}
+          onTurnToMixtape={() => {
+            if (window.confirm("Turn this playlist into a mixtape? This will lock its contents and sequence permanently.")) {
+              onPlaylistTurnToMixtape(activePlaylist.playlist.id);
+            }
+          }}
         />
 
         <div className="grid min-h-0 gap-4 overflow-y-auto pb-2">
@@ -234,6 +241,9 @@ export function PlaylistsPage({
             draggedEntryId={draggedEntryId}
             dropIndicator={dropIndicator}
             onContainerKeyDown={(event) => {
+              if (activePlaylist.playlist.isMixtape) {
+                return;
+              }
               if ((event.key === "Backspace" || event.key === "Delete") && selectedEntryId) {
                 event.preventDefault();
                 onPlaylistEntryRemove(activePlaylist.playlist.id, selectedEntryId);
@@ -312,6 +322,10 @@ export function PlaylistsPage({
                 return;
               }
 
+              if (activePlaylist.playlist.isMixtape) {
+                return;
+              }
+
               if (event.key === "Backspace" || event.key === "Delete") {
                 event.preventDefault();
                 onPlaylistEntryRemove(activePlaylist.playlist.id, entryId);
@@ -360,14 +374,16 @@ export function PlaylistsPage({
             }}
           />
 
-          <PlaylistLibrarySection
-            playlist={activePlaylist}
-            tracksState={tracksState}
-            searchDraft={librarySearchDraft}
-            visibleTracks={visibleLibraryTracks}
-            onSearchDraftChange={setLibrarySearchDraft}
-            onTrackAdd={(track) => onTrackAdd(activePlaylist.playlist.id, track)}
-          />
+          {!activePlaylist.playlist.isMixtape ? (
+            <PlaylistLibrarySection
+              playlist={activePlaylist}
+              tracksState={tracksState}
+              searchDraft={librarySearchDraft}
+              visibleTracks={visibleLibraryTracks}
+              onSearchDraftChange={setLibrarySearchDraft}
+              onTrackAdd={(track) => onTrackAdd(activePlaylist.playlist.id, track)}
+            />
+          ) : null}
         </div>
       </div>
 

@@ -50,6 +50,7 @@ export function useShellQueryState() {
     handlePlaylistEntryMove,
     handlePlaylistEntriesReplace,
     handlePlaylistEntryRemove,
+    handlePlaylistTurnToMixtape,
   } = usePlaylistQueries();
 
   const {
@@ -159,6 +160,7 @@ export function useShellQueryState() {
     handlePlaylistEntryRemove,
     handlePlaylistRename,
     handlePlaylistSelection,
+    handlePlaylistTurnToMixtape,
     handlePlaylistTrackAdd,
     handleScan,
     handleTracksSearchDraftChange,

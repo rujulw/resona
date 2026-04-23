@@ -218,6 +218,7 @@ export type PlaylistRouteActions = {
     artworkPath?: string | null,
   ) => void;
   onPlaylistSelect: (playlistId: string) => void;
+  onPlaylistTurnToMixtape: (playlistId: string) => void;
   onTrackAdd: (playlistId: string, track: TrackListItem) => void;
 };
 
