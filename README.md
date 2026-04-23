@@ -129,6 +129,13 @@ Build a private, performance-first music player that feels closer to a system ut
 - Updated the frontend to disable adding new tracks, reordering, or editing once a playlist is converted into a mixtape.
 - Replaced individual track artwork placeholders in the mixtape view with the mixtape's cover image for a unified aesthetic.
 
+## Current Collection UI Baseline
+
+- All collection detail views (Playlists, Mixtapes, Albums, Concept Albums) are unified under a premium, edge-to-edge AMOLED black aesthetic.
+- Headers use consistent typography scaling, larger artwork dimensions, and a seamless gradient fade `from-white/[0.07] to-transparent`.
+- Tracklist sequences are borderless, using a shared grid layout with hover-state interactions (e.g., track numbers swapping to play buttons, drag handles appearing on hover) to minimize visual noise.
+- Explicit/advisory metadata badges are standardized into a minimalist, borderless square design.
+
 ## Current Playback Contract
 
 The playback boundary is implemented in code rather than only described as a roadmap note.
