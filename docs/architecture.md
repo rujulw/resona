@@ -68,7 +68,7 @@ Current submodules:
 - `state`: playback runtime state, snapshot shaping, queue state, and load-track ownership
 - `controls`: transport mutations, seek/completion/error handling, and native-output lifecycle control
 - `transport`: Tauri playback-event emission and the current native playback worker loop
-- `queue`: queue snapshot payloads and queue event emission
+- `queue`: segmented two-tier queue model, `PlaybackQueueSnapshot` payloads, and queue event emission
 
 ### `playlists` (including Concept Albums and Mixtapes)
 
@@ -172,7 +172,8 @@ Current boundary definition:
 - The `playback` Rust module is now the source of truth for loaded-track identity, play/pause state, timing updates, completion state, playback errors, and output ownership
 - Local desktop playback output now runs through the Rust playback runtime instead of a frontend-owned `Audio` element
 - The frontend dispatches user intent and renders backend snapshots through Tauri commands and `playback://state-changed`
-- Queue state is still shell-derived today, but the ownership boundary is now narrow enough to move queue authority into Rust without changing the visible client contract
+- Queue authority now lives fully in Rust through a segmented two-tier model: a `VecDeque<TrackId>` for explicit user-queued tracks (O(1) `push_front` for play-next, O(1) `push_back` for add-to-queue) and a zero-copy cursor over the active playlist or album context window; `resolve_next()` drains the user queue first, advances the context cursor second, and falls through to lazy auto-continue only when both tiers are exhausted
+- Auto-continue resolves by walking the last-played artist's discography in release order, filtering already-played tracks with an O(1) `HashSet` lookup, and falling back to a recency-weighted library shuffle when the artist catalogue is exhausted
 
 ### Frontend Bridge Layout
 
@@ -293,6 +294,8 @@ That shape matters for both performance and clarity. The traversal is effectivel
   sorting discovered paths before normalization makes tests, debugging, and persistence behavior stable across runs.
 - Transactional persistence:
   groups track, source, cache, and analysis-row updates into one write boundary so the database never observes a half-applied scan.
+- Segmented queue with `VecDeque`:
+  the user-explicit queue uses `VecDeque<TrackId>` so play-next (`push_front`) and add-to-queue (`push_back`) are both O(1); a plain `Vec` would pay O(n) shifting on every dequeue. The active playlist context is a zero-copy cursor over an ordered slice rather than a second allocated collection. Auto-continue uses a `HashSet<TrackId>` for O(1) already-played membership checks during the artist-discography walk.
 
 ## Growth Characteristics
 

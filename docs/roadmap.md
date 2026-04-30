@@ -75,6 +75,7 @@ Current milestone progress:
 - Playlist reordering now uses a handle-only drag interaction with explicit drop markers and queue-snapshot stability after handoff
 - Backend module hygiene now keeps playlist domain logic in focused files and splits playback runtime state from transport/native-output control paths so later queue and architecture work can land with smaller backend context windows
 - Album and artist foundation work should enter through home-search and track-context detail routes instead of expanding the top-level shell navigation
+- Queue authority has moved fully into Rust through a segmented two-tier model: a `VecDeque`-backed user queue and a cursor-based context window, with lazy auto-continue resolution that walks the artist discography before falling back to a recency-weighted library shuffle
 
 Current release status:
 
@@ -115,7 +116,6 @@ Current release status:
 - Native output still needs dedicated validation for memory, CPU, and device-compatibility behavior
 - Library import behavior for malformed tags, missing artwork, permission failures, and non-MP3 files should be documented during implementation
 - Atlas sync and timbre analysis should stay explicitly deferred until the public v1 local-first release is stable
-- Queue ownership is still more shell-derived than the long-term Rust-first playback model
 - Tagged macOS release builds still need an explicit artifact-upload step so DMG output is downloadable from GitHub Actions
 
 ## Release Gate
