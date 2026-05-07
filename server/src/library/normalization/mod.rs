@@ -90,5 +90,6 @@ pub(crate) fn normalize_track(
         file_size_bytes: metadata.len() as i64,
         content_hash: stable_identifier("content", &file_path.display().to_string()),
         local_path: file_path.display().to_string(),
+        year: metadata_fields.year,
     })
 }

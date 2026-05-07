@@ -18,6 +18,7 @@ pub(super) struct AudioMetadata {
     pub(super) disc_number: Option<i64>,
     pub(super) duration_seconds: Option<f64>,
     pub(super) artwork: Option<EmbeddedArtwork>,
+    pub(super) year: Option<i64>,
 }
 
 pub(super) struct EmbeddedArtwork {
@@ -79,6 +80,7 @@ fn read_mp3_metadata(file_path: &Path) -> Result<AudioMetadata, ScanError> {
         disc_number: tag.as_ref().and_then(|value| value.disc()).map(i64::from),
         duration_seconds,
         artwork,
+        year: tag.as_ref().and_then(|value| value.year()).map(i64::from),
     })
 }
 
@@ -192,6 +194,11 @@ fn apply_flac_vorbis_comments(block: &[u8], metadata: &mut AudioMetadata) {
             }
             "TRACKNUMBER" => metadata.track_number = parse_integer_prefix(value),
             "DISCNUMBER" => metadata.disc_number = parse_integer_prefix(value),
+            "DATE" | "YEAR" => {
+                if metadata.year.is_none() {
+                    metadata.year = value.get(..4).and_then(|s| s.parse::<i64>().ok()).filter(|&y| y > 0);
+                }
+            }
             _ => {}
         }
     }

@@ -167,6 +167,7 @@ pub(crate) struct NormalizedTrack {
     pub file_size_bytes: i64,
     pub content_hash: String,
     pub local_path: String,
+    pub year: Option<i64>,
 }
 
 #[derive(Clone, Debug)]

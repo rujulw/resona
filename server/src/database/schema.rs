@@ -16,6 +16,8 @@ pub const CONCEPT_ALBUMS_FOUNDATION_MIGRATION: &str =
     include_str!("../../db/migrations/0007_concept_albums_foundation.sql");
 pub const MIXTAPES_FOUNDATION_MIGRATION: &str =
     include_str!("../../db/migrations/0008_mixtapes_foundation.sql");
+pub const PLAY_HISTORY_MIGRATION: &str =
+    include_str!("../../db/migrations/0009_play_history.sql");
 
 pub const TABLE_LIBRARY_ROOTS: &str = "library_roots";
 pub const TABLE_TRACKS: &str = "tracks";
