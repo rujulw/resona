@@ -1,6 +1,7 @@
 import type {
   AlbumDetail,
   AlbumSummary,
+  ArtistDetail,
   BootstrapPayload,
   ConceptAlbumDetail,
   ConceptAlbumSummary,
@@ -162,6 +163,11 @@ export type QueueRouteState = {
 export type AlbumsRouteState = {
   albumsState: AlbumsState;
 };
+
+export type ArtistPageState =
+  | { status: "loading" }
+  | { status: "ready"; detail: ArtistDetail }
+  | { status: "error"; message: string };
 
 export type ConceptAlbumsRouteState = {
   conceptAlbumsState: ConceptAlbumsState;
