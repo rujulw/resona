@@ -1,4 +1,5 @@
 mod albums;
+mod artists;
 mod commands;
 mod concept_albums;
 mod database;
@@ -9,6 +10,7 @@ mod presence;
 
 use crate::commands::{
     add_track_to_concept_album, add_track_to_playlist, bootstrap_app, complete_playback,
+    get_artist_detail, get_artist_image_config, list_artists, set_artist_image_config,
     create_concept_album, create_playlist, delete_concept_album, delete_playlist,
     describe_concept_album_contract, describe_playback_contract, describe_playlist_contract,
     get_album, get_concept_album, get_playlist, get_shell_state, handoff_playlist_to_queue,
@@ -76,7 +78,11 @@ pub fn run() {
             sync_playback_timing,
             turn_playlist_to_mixtape,
             update_concept_album,
-            update_playlist
+            update_playlist,
+            list_artists,
+            get_artist_detail,
+            get_artist_image_config,
+            set_artist_image_config
         ])
         .run(tauri::generate_context!())
         .expect("failed to run resona tauri application");

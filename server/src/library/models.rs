@@ -62,6 +62,39 @@ pub struct AlbumDetail {
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct ArtistListItem {
+    pub name: String,
+    pub album_count: usize,
+    pub track_count: usize,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DiscographyAlbum {
+    pub title: String,
+    pub year: Option<i64>,
+    pub artwork_key: Option<String>,
+    pub track_count: usize,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ArtistDetail {
+    pub name: String,
+    pub albums: Vec<DiscographyAlbum>,
+    pub track_count: usize,
+    pub image_config: Option<ArtistImageConfig>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ArtistImageConfig {
+    pub artist_name: String,
+    pub local_image_path: String,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PlaybackSource {
     pub track_id: String,
     pub local_path: String,

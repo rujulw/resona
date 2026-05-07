@@ -1,6 +1,7 @@
 use crate::database::AppDatabase;
 
 pub mod albums;
+pub mod artists;
 pub mod concept_albums;
 pub mod library;
 pub mod playback;
@@ -11,6 +12,9 @@ pub mod system;
 pub mod tests;
 
 pub use albums::{get_album, list_albums};
+pub use artists::{
+    get_artist_detail, get_artist_image_config, list_artists, set_artist_image_config,
+};
 pub use concept_albums::{
     add_track_to_concept_album, create_concept_album, delete_concept_album,
     describe_concept_album_contract, get_concept_album, list_concept_albums,
@@ -33,6 +37,11 @@ pub use system::{bootstrap_app, get_shell_state};
 
 #[cfg(test)]
 pub use albums::{get_album_with_database, list_albums_with_database};
+#[cfg(test)]
+pub use artists::{
+    get_artist_detail_with_database, get_artist_image_config_with_database,
+    list_artists_with_database, set_artist_image_config_with_database,
+};
 #[cfg(test)]
 pub use concept_albums::{
     add_track_to_concept_album_with_database, create_concept_album_with_database,
