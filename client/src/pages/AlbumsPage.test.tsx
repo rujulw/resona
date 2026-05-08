@@ -165,7 +165,7 @@ describe("albums page", () => {
       expect(screen.getByRole("button", { name: "Pause playback" })).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByRole("link", { name: /queue/i }));
+    fireEvent.click(screen.getByRole("link", { name: /player/i }));
 
     await waitFor(() => {
       expect(screen.getByText("queued from the current album order")).toBeTruthy();

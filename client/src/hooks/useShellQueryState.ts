@@ -19,13 +19,7 @@ export function useShellQueryState() {
   const {
     tracksState,
     setTracksState,
-    tracksQueryState,
-    setTracksQueryState,
     refreshTracks,
-    handleTracksSearchDraftChange,
-    handleTracksSearchSubmit,
-    handleTracksTitleHeaderSort,
-    handleTracksAlbumHeaderSort,
   } = useTracksQuery({
     trackCatalogRef,
   });
@@ -131,13 +125,11 @@ export function useShellQueryState() {
     playlistsState,
     shellState,
     tracksState,
-    tracksQueryState,
     libraryPath,
     scanState,
     trackCatalogRef,
     setShellState,
     setTracksState,
-    setTracksQueryState,
     setPlaylistsState,
     setAlbumsState,
     setConceptAlbumsState,
@@ -163,9 +155,5 @@ export function useShellQueryState() {
     handlePlaylistTurnToMixtape,
     handlePlaylistTrackAdd,
     handleScan,
-    handleTracksSearchDraftChange,
-    handleTracksSearchSubmit,
-    handleTracksTitleHeaderSort,
-    handleTracksAlbumHeaderSort,
   };
 }

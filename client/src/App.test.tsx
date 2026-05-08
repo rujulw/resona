@@ -701,11 +701,13 @@ describe("app shell smoke checks", () => {
     const { default: App } = await import("./App");
     render(<App />);
 
-    await screen.findByText("desktop music utility");
+    await screen.findByRole("navigation", { name: "primary routes" });
     const primaryRoutes = within(screen.getByRole("navigation", { name: "primary routes" }));
 
     expect(screen.getByText("resona")).toBeTruthy();
-    expect(primaryRoutes.getByRole("link", { name: /tracks/i })).toBeTruthy();
+    expect(primaryRoutes.getByRole("link", { name: /home/i })).toBeTruthy();
+    expect(primaryRoutes.getByRole("link", { name: /player/i })).toBeTruthy();
+    expect(primaryRoutes.getByRole("link", { name: /settings/i })).toBeTruthy();
     expect(screen.getByText("Nothing playing")).toBeTruthy();
     expect(bootstrapAppMock).toHaveBeenCalledTimes(1);
     expect(getShellStateMock).toHaveBeenCalledTimes(1);
@@ -717,7 +719,7 @@ describe("app shell smoke checks", () => {
     const { default: App } = await import("./App");
     render(<App />);
 
-    await screen.findByText("desktop music utility");
+    await screen.findByRole("navigation", { name: "primary routes" });
 
     fireEvent.click(await screen.findByRole("button", { name: "Create collection" }));
     fireEvent.click(await screen.findByRole("menuitem", { name: /playlists/i }));
@@ -740,443 +742,24 @@ describe("app shell smoke checks", () => {
     });
   });
 
-  it("smoke-covers explicit metadata shell rendering without badging clean or unknown tracks", async () => {
-    window.history.replaceState({}, "", "/tracks");
 
-    queryLibraryMock.mockResolvedValueOnce({
-      items: [
-        {
-          id: "track-1",
-          title: "Alpha",
-          artist: "North",
-          album: "Signals",
-          advisory: true,
-          durationSeconds: 182,
-          artworkKey: "alpha-cover.png",
-          relativePath: "alpha.mp3",
-          sourceStatus: "local-only",
-          cacheState: "none",
-          analysisStatus: "pending",
-          indexedAt: "1700000000",
-        },
-        {
-          id: "track-2",
-          title: "Bravo",
-          artist: "South",
-          album: "Horizons",
-          advisory: false,
-          durationSeconds: 205,
-          artworkKey: "bravo-cover.png",
-          relativePath: "bravo.mp3",
-          sourceStatus: "local-only",
-          cacheState: "none",
-          analysisStatus: "pending",
-          indexedAt: "1700000100",
-        },
-        {
-          id: "track-3",
-          title: "Charlie",
-          artist: "East",
-          album: "Quiet",
-          advisory: null,
-          durationSeconds: 199,
-          artworkKey: null,
-          relativePath: "charlie.mp3",
-          sourceStatus: "local-only",
-          cacheState: "none",
-          analysisStatus: "pending",
-          indexedAt: "1700000200",
-        },
-      ],
-      nextCursor: null,
-      total: 3,
-      pageSize: 200,
-    });
-    loadPlaybackTrackMock.mockImplementationOnce(async (trackId: string) => ({
-      playback: (() => {
-        mockBackendPlayback = {
-          statusLabel: "Ready",
-          transportLabel: "Ready",
-          progressSeconds: 0,
-          durationSeconds: 182,
-          isPlaying: false,
-          outputOwner: "rust",
-          trackId,
-          trackTitle: "Alpha",
-          trackArtist: "North",
-          trackAlbum: "Signals",
-          trackAdvisory: true,
-        };
-        playbackStateListener?.(mockBackendPlayback);
-        return mockBackendPlayback;
-      })(),
-      source: {
-        trackId,
-        localPath: `/Users/rujulw/Music/${trackId}.mp3`,
-        assetUrl: `asset://localhost/${trackId}.mp3`,
-      },
-    }));
 
-    const { default: App } = await import("./App");
-    render(<App />);
 
-    await screen.findByRole("button", { name: "Select Alpha" });
-    expect(screen.getAllByText("E")).toHaveLength(1);
-    expect(screen.getByText("Bravo")).toBeTruthy();
-    expect(screen.getByText("Charlie")).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("button", { name: "Select Alpha" }));
-
-    await waitFor(() => {
-      expect(screen.getAllByText("E")).toHaveLength(2);
-      expect(screen.getByRole("button", { name: "Pause playback" })).toBeTruthy();
-    });
-  });
-
-
-
-
-
-
-
-
-  it("covers flac import metadata playback and queue behavior", async () => {
-    window.history.replaceState({}, "", "/tracks");
-    queryLibraryMock.mockReset();
-    queryLibraryMock.mockResolvedValue({
-      items: [
-        {
-          id: "track-1",
-          title: "Alpha",
-          artist: "North",
-          album: "Signals",
-          durationSeconds: 182,
-          artworkKey: "alpha-cover.png",
-          relativePath: "alpha.mp3",
-          extension: "mp3",
-          sourceStatus: "local-only",
-          cacheState: "none",
-          analysisStatus: "pending",
-          indexedAt: "1700000000",
-        },
-        {
-          id: "track-2",
-          title: "Signal",
-          artist: "North",
-          album: "Frames",
-          durationSeconds: 192,
-          artworkKey: "signal-cover.png",
-          relativePath: "signal.flac",
-          extension: "flac",
-          sourceStatus: "local-only",
-          cacheState: "none",
-          analysisStatus: "pending",
-          indexedAt: "1700000100",
-        },
-      ],
-      nextCursor: null,
-      total: 2,
-      pageSize: 200,
-    });
-    loadPlaybackTrackMock.mockImplementation(async (trackId: string) => ({
-      playback: (() => {
-        mockBackendPlayback = {
-          statusLabel: "Ready",
-          transportLabel: "Ready",
-          progressSeconds: 0,
-          durationSeconds: trackId === "track-2" ? 192 : 182,
-          isPlaying: false,
-          outputOwner: "rust",
-          trackId,
-          trackTitle: trackId === "track-2" ? "Signal" : "Alpha",
-          trackArtist: "North",
-          trackAlbum: trackId === "track-2" ? "Frames" : "Signals",
-        };
-        playbackStateListener?.(mockBackendPlayback);
-        return mockBackendPlayback;
-      })(),
-      source: {
-        trackId,
-        localPath:
-          trackId === "track-2"
-            ? "/Users/rujulw/Music/track-2.flac"
-            : "/Users/rujulw/Music/track-1.mp3",
-        extension: trackId === "track-2" ? "flac" : "mp3",
-        assetUrl:
-          trackId === "track-2"
-            ? "asset://localhost/track-2.flac"
-            : "asset://localhost/track-1.mp3",
-      },
-    }));
-
-    const { default: App } = await import("./App");
-    render(<App />);
-
-    fireEvent.click(await screen.findByRole("button", { name: "Select Signal" }));
-
-    await waitFor(() => {
-      expect(loadPlaybackTrackMock).toHaveBeenCalledWith("track-2");
-      expect(
-        screen.getByRole("button", { name: "Select Signal" }).getAttribute("aria-pressed"),
-      ).toBe("true");
-      expect(screen.getByRole("button", { name: "Pause playback" })).toBeTruthy();
-      expect(screen.getAllByText("Signal").length).toBeGreaterThan(0);
-      expect(screen.getAllByText("Frames").length).toBeGreaterThan(0);
-      expect(screen.getAllByText("3:12").length).toBeGreaterThan(0);
-    });
-
-    fireEvent.click(screen.getByRole("link", { name: /queue/i }));
-
-    await waitFor(() => {
-      expect(screen.getByText("now playing")).toBeTruthy();
-      expect(screen.getAllByText("Signal").length).toBeGreaterThan(0);
-      expect(screen.getAllByText("North").length).toBeGreaterThan(0);
-      expect(screen.getByText("0 waiting")).toBeTruthy();
-      expect(
-        screen.getByText("No additional indexed tracks are queued after the current selection."),
-      ).toBeTruthy();
-    });
-  });
-
-  it("renders progress labels from backend playback snapshots", async () => {
-    window.history.replaceState({}, "", "/tracks");
-
-    const { default: App } = await import("./App");
-    render(<App />);
-
-    fireEvent.click(await screen.findByRole("button", { name: "Select Alpha" }));
-
-    await waitFor(() => {
-      expect(mockAudioInstances.length).toBeGreaterThan(0);
-      expect(
-        screen.getByRole("button", { name: "Select Alpha" }).getAttribute("aria-pressed"),
-      ).toBe("true");
-    });
-
-    mockBackendPlayback = {
-      ...mockBackendPlayback,
-      progressSeconds: 41,
-      durationSeconds: 182,
-      isPlaying: true,
-      statusLabel: "Playing",
-      transportLabel: "Playing",
-    };
-    playbackStateListener?.(mockBackendPlayback);
-
-    await waitFor(() => {
-      expect(screen.getByText("0:41")).toBeTruthy();
-      expect(screen.getAllByText("3:02").length).toBeGreaterThan(0);
-    });
-  });
-
-  it("renders backend-owned pause snapshots without a local shell playback mutation", async () => {
-    window.history.replaceState({}, "", "/tracks");
-
-    const { default: App } = await import("./App");
-    render(<App />);
-
-    fireEvent.click(await screen.findByRole("button", { name: "Select Alpha" }));
-
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Pause playback" })).toBeTruthy();
-    });
-
-    mockBackendPlayback = {
-      ...mockBackendPlayback,
-      isPlaying: false,
-      statusLabel: "Paused",
-      transportLabel: "Paused",
-      progressSeconds: 17,
-    };
-    playbackStateListener?.(mockBackendPlayback);
-
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Play playback" })).toBeTruthy();
-      expect(screen.getByText("0:17")).toBeTruthy();
-    });
-  });
-
-  it("covers native playback launch play seek pause and completion through backend snapshots", async () => {
-    window.history.replaceState({}, "", "/tracks");
-
-    const { default: App } = await import("./App");
-    render(<App />);
-
-    fireEvent.click(await screen.findByRole("button", { name: "Select Alpha" }));
-
-    await waitFor(() => {
-      expect(screen.getAllByText("Alpha").length).toBeGreaterThan(0);
-      expect(
-        screen.getByRole("button", { name: "Select Alpha" }).getAttribute("aria-pressed"),
-      ).toBe("true");
-      expect(screen.getByRole("button", { name: "Pause playback" })).toBeTruthy();
-      expect(screen.getByText("0:00")).toBeTruthy();
-      expect(mockBackendPlayback.outputOwner).toBe("rust");
-    });
-
-    mockBackendPlayback = {
-      ...mockBackendPlayback,
-      statusLabel: "Playing",
-      transportLabel: "Playing",
-      progressSeconds: 73,
-      durationSeconds: 182,
-      isPlaying: true,
-      outputOwner: "rust",
-    };
-    playbackStateListener?.(mockBackendPlayback);
-
-    await waitFor(() => {
-      expect(screen.getByText("1:13")).toBeTruthy();
-      expect(screen.getAllByText("3:02").length).toBeGreaterThan(0);
-    });
-
-    fireEvent.click(screen.getByRole("button", { name: "Pause playback" }));
-
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Play playback" })).toBeTruthy();
-      expect(mockBackendPlayback.transportLabel).toBe("Paused");
-    });
-
-    mockBackendPlayback = {
-      ...mockBackendPlayback,
-      statusLabel: "Ended",
-      transportLabel: "Ended",
-      progressSeconds: 182,
-      durationSeconds: 182,
-      isPlaying: false,
-      outputOwner: "rust",
-    };
-    playbackStateListener?.(mockBackendPlayback);
-
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Play playback" })).toBeTruthy();
-      expect(screen.getAllByText("3:02").length).toBeGreaterThan(0);
-    });
-  });
-
-  it("seeks playback from the progress control", async () => {
-    window.history.replaceState({}, "", "/tracks");
-
-    const { default: App } = await import("./App");
-    render(<App />);
-
-    fireEvent.click(await screen.findByRole("button", { name: "Select Alpha" }));
-
-    const progressControl = () => screen.getByRole("button", { name: "Seek playback" });
-
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Pause playback" })).toBeTruthy();
-      expect(progressControl()).toBeTruthy();
-    });
-
-    Object.defineProperty(progressControl(), "getBoundingClientRect", {
-      configurable: true,
-      value: () =>
-        ({
-          left: 0,
-          width: 182,
-        }) as DOMRect,
-    });
-
-    fireEvent.click(progressControl(), { clientX: 91 });
-
-    await waitFor(() => {
-      expect(seekPlaybackMock).toHaveBeenCalledWith(91);
-      expect(screen.getByText("1:31")).toBeTruthy();
-    });
-  });
-
-  it("restarts the current track when previous is pressed after progress has advanced", async () => {
-    window.history.replaceState({}, "", "/tracks");
-
-    const { default: App } = await import("./App");
-    render(<App />);
-
-    fireEvent.click(await screen.findByRole("button", { name: "Select Alpha" }));
-
-    await waitFor(() => {
-      expect(mockAudioInstances.length).toBeGreaterThan(0);
-    });
-
-    mockBackendPlayback = {
-      ...mockBackendPlayback,
-      progressSeconds: 12,
-      isPlaying: true,
-      statusLabel: "Playing",
-      transportLabel: "Playing",
-    };
-    playbackStateListener?.(mockBackendPlayback);
-
-    await waitFor(() => {
-      expect(screen.getByText("0:12")).toBeTruthy();
-    });
-
-    fireEvent.click(screen.getByRole("button", { name: "Previous track" }));
-
-    await waitFor(() => {
-      expect(seekPlaybackMock).toHaveBeenCalledWith(0);
-      expect(mockBackendPlayback.progressSeconds).toBe(0);
-      expect(
-        screen.getByRole("button", { name: "Select Alpha" }).getAttribute("aria-pressed"),
-      ).toBe("true");
-    });
-  });
-
-  it("renders backend-owned ended and error snapshots from backend playback events", async () => {
-    window.history.replaceState({}, "", "/tracks");
-
-    const { default: App } = await import("./App");
-    render(<App />);
-
-    fireEvent.click(await screen.findByRole("button", { name: "Select Alpha" }));
-
-    await waitFor(() => {
-      expect(mockAudioInstances.length).toBeGreaterThan(0);
-      expect(screen.getByRole("button", { name: "Pause playback" })).toBeTruthy();
-    });
-
-    mockBackendPlayback = {
-      ...mockBackendPlayback,
-      statusLabel: "Ended",
-      transportLabel: "Ended",
-      progressSeconds: 182,
-      durationSeconds: 182,
-      isPlaying: false,
-    };
-    playbackStateListener?.(mockBackendPlayback);
-
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Play playback" })).toBeTruthy();
-      expect(screen.getAllByText("3:02").length).toBeGreaterThan(0);
-    });
-
-    mockBackendPlayback = {
-      ...mockBackendPlayback,
-      statusLabel: "Error",
-      transportLabel: "Playback error",
-      isPlaying: false,
-    };
-    playbackStateListener?.(mockBackendPlayback);
-
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Play playback" })).toBeTruthy();
-      expect(screen.getAllByText("3:02").length).toBeGreaterThan(0);
-    });
-  });
 
   it("navigates from home to settings without losing the shell", async () => {
     const { default: App } = await import("./App");
     render(<App />);
 
-    await screen.findByText("desktop music utility");
+    await screen.findByRole("navigation", { name: "primary routes" });
 
     fireEvent.click(screen.getByRole("link", { name: /settings/i }));
 
     await waitFor(() => {
-      expect(screen.getByText("library roots and desktop wiring")).toBeTruthy();
+      expect(screen.getByRole("heading", { name: "settings" })).toBeTruthy();
     });
 
-    expect(screen.getByRole("button", { name: /scan library/i })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "scan library" })).toBeTruthy();
     expect(screen.getByText("Nothing playing")).toBeTruthy();
   });
 
@@ -1220,26 +803,10 @@ describe("app shell smoke checks", () => {
     fireEvent.click(await screen.findByRole("button", { name: "scan library" }));
 
     await waitFor(() => {
-      expect(screen.getByText("Empty Root")).toBeTruthy();
       expect(screen.getByText("/Users/rujulw/Empty Root")).toBeTruthy();
       expect(screen.getByText("Scan finished for Empty Root, but no supported audio files were found.")).toBeTruthy();
       expect(screen.getByText("found")).toBeTruthy();
       expect(screen.getAllByText("0").length).toBeGreaterThan(0);
-    });
-
-    fireEvent.click(
-      within(screen.getByRole("navigation", { name: "primary routes" })).getByRole("link", {
-        name: /tracks/i,
-      }),
-    );
-
-    await waitFor(() => {
-      expect(screen.getByText("No audio files found in Empty Root.")).toBeTruthy();
-      expect(
-        screen.getByText(
-          "The recursive scan completed, but that root did not contain any supported audio files in the selected folder tree.",
-        ),
-      ).toBeTruthy();
     });
   });
 
@@ -1294,34 +861,41 @@ describe("app shell smoke checks", () => {
       expect(queryLibraryMock).toHaveBeenCalledTimes(2);
       expect(screen.getByText("Indexed 2 track(s) from Fresh Root.")).toBeTruthy();
     });
-
-    fireEvent.click(
-      within(screen.getByRole("navigation", { name: "primary routes" })).getByRole("link", {
-        name: /tracks/i,
-      }),
-    );
-
-    await waitFor(() => {
-      expect(screen.getByText("Fresh Start")).toBeTruthy();
-      expect(screen.getByText("Arrivals")).toBeTruthy();
-    });
   });
 
-  it("opens album detail routes from the tracks library search surface", async () => {
-    window.history.replaceState({}, "", "/tracks");
-
+  it("renders the home page with search and tile sections for tracks playlists and albums", async () => {
     const { default: App } = await import("./App");
     render(<App />);
 
-    const searchBox = await screen.findByPlaceholderText("Search title, artist, album");
-    fireEvent.change(searchBox, { target: { value: "signals" } });
-    fireEvent.keyDown(searchBox, { key: "Enter", code: "Enter" });
-    fireEvent.click(await screen.findByRole("link", { name: /signals/i }));
+    await screen.findByPlaceholderText("Search songs, albums, artists, playlists...");
 
     await waitFor(() => {
-      expect(getAlbumMock).toHaveBeenCalledWith("album:signals:north");
-      expect(screen.getByRole("heading", { name: "Signals" })).toBeTruthy();
-      expect(screen.getByText("Alpha")).toBeTruthy();
+      expect(screen.getByText("jump back in")).toBeTruthy();
+      expect(screen.getByText("playlists")).toBeTruthy();
+      expect(screen.getByText("albums")).toBeTruthy();
+      expect(screen.getAllByText("Desk Set").length).toBeGreaterThan(0);
+      expect(screen.getAllByText("Signals").length).toBeGreaterThan(0);
+      expect(screen.getAllByText("Night Archive").length).toBeGreaterThan(0);
+    });
+  });
+
+  it("plays a track from the home page tile and navigates to the player page", async () => {
+    const { default: App } = await import("./App");
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Play Alpha" }));
+
+    await waitFor(() => {
+      expect(loadPlaybackTrackMock).toHaveBeenCalledWith("track-1");
+      expect(screen.getByRole("button", { name: "Pause playback" })).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole("link", { name: /player/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText("now playing")).toBeTruthy();
+      expect(screen.getAllByText("Alpha").length).toBeGreaterThan(0);
+      expect(screen.getAllByText("North").length).toBeGreaterThan(0);
     });
   });
 

@@ -37,19 +37,14 @@ export default function App() {
     },
     routes: {
       home: {
-        libraryRows: appShell.shellState.libraryRows,
-        trackCount: appShell.tracksState.total,
-        appVersion: appShell.bootstrapState.payload.appVersion,
-      },
-      tracks: {
-        libraryPath: appShell.libraryPath,
-        scanState: appShell.scanState,
-        tracksQueryState: appShell.tracksQueryState,
         tracksState: appShell.tracksState,
         albumsState: appShell.albumsState,
+        playlistsState: appShell.playlistsState,
+        conceptAlbumsState: appShell.conceptAlbumsState,
       },
       albums: {
         albumsState: appShell.albumsState,
+        tracksState: appShell.tracksState,
       },
       playlists: {
         playlistsState: appShell.playlistsState,
@@ -65,7 +60,6 @@ export default function App() {
         queueState: appShell.queueState,
       },
       settings: {
-        libraryRows: appShell.shellState.libraryRows,
         libraryPath: appShell.libraryPath,
         platformLabel: appShell.bootstrapState.payload.platform,
         appVersion: appShell.bootstrapState.payload.appVersion,
@@ -73,6 +67,9 @@ export default function App() {
       },
     },
     actions: {
+      home: {
+        onTrackSelect: appShell.handleTrackSelection,
+      },
       playlists: {
         onCreatePlaylist: appShell.handlePlaylistCreate,
         onPlaylistArtworkChange: appShell.handlePlaylistArtworkChange,
@@ -85,13 +82,6 @@ export default function App() {
         onPlaylistSelect: appShell.handlePlaylistSelection,
         onPlaylistTurnToMixtape: appShell.handlePlaylistTurnToMixtape,
         onTrackAdd: appShell.handlePlaylistTrackAdd,
-      },
-      tracks: {
-        onTrackSelect: appShell.handleTrackSelection,
-        onTracksSearchDraftChange: appShell.handleTracksSearchDraftChange,
-        onTracksSearchSubmit: appShell.handleTracksSearchSubmit,
-        onTracksTitleHeaderSort: appShell.handleTracksTitleHeaderSort,
-        onTracksAlbumHeaderSort: appShell.handleTracksAlbumHeaderSort,
       },
       albums: {
         onAlbumSelect: appShell.handleAlbumSelection,

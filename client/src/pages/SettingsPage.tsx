@@ -1,15 +1,14 @@
 import { useEffect, useState } from "react";
+import { FolderOpen, RefreshCw } from "lucide-react";
 
 import {
   getArtistsImagesDir,
   pickArtistsImagesDir,
   setArtistsImagesDir,
 } from "../desktop";
-import type { LibraryRow } from "../desktop";
 import type { ScanState } from "../types/app";
 
 export function SettingsPage({
-  libraryRows,
   libraryPath,
   platformLabel,
   appVersion,
@@ -17,7 +16,6 @@ export function SettingsPage({
   onPickLibraryDirectory,
   onScan,
 }: {
-  libraryRows: LibraryRow[];
   libraryPath: string;
   platformLabel: string;
   appVersion: string;
@@ -25,120 +23,6 @@ export function SettingsPage({
   onPickLibraryDirectory: () => void;
   onScan: () => void;
 }) {
-  return (
-    <div className="grid gap-6 px-6 py-6">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <p className="m-0 text-[11px] tracking-[0.08em] text-[#8f8f8f]">settings</p>
-          <h2 className="mt-2 text-3xl font-medium tracking-[-0.04em] text-[#f2f2f2]">
-            library roots and desktop wiring
-          </h2>
-        </div>
-        <p className="m-0 text-sm text-[#8f8f8f]">
-          {platformLabel} • v{appVersion}
-        </p>
-      </header>
-
-      <section className="grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(340px,0.95fr)]">
-        <div className="rounded-3xl border border-white/6 bg-[#1b1b1b] p-5">
-          <div className="grid gap-4">
-            <div>
-              <p className="m-0 text-[11px] tracking-[0.08em] text-[#8f8f8f]">import</p>
-              <h3 className="text-lg font-medium text-[#f2f2f2]">scan local library</h3>
-            </div>
-            <div className="rounded-2xl border border-white/8 bg-white/3 px-4 py-4">
-              <p className="m-0 text-[11px] tracking-[0.08em] text-[#8f8f8f]">selected folder</p>
-              <p className="mt-2 text-sm text-[#e5e5e5]">
-                {libraryPath || "No folder selected yet"}
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                className="rounded-2xl border border-white/8 bg-white/3 px-4 py-3 text-sm text-[#f2f2f2] transition-colors hover:border-white/12"
-                type="button"
-                onClick={onPickLibraryDirectory}
-                disabled={scanState.status === "running"}
-              >
-                choose folder
-              </button>
-              <button
-                className="rounded-2xl border border-white/8 bg-[#272727] px-4 py-3 text-sm text-[#f2f2f2] transition-colors hover:border-white/12 disabled:cursor-not-allowed disabled:opacity-60"
-                type="button"
-                onClick={onScan}
-                disabled={scanState.status === "running" || !libraryPath}
-              >
-                {scanState.status === "running" ? "scanning..." : "scan library"}
-              </button>
-            </div>
-            {scanState.message ? (
-              <p className="m-0 text-sm text-[#8f8f8f]">{scanState.message}</p>
-            ) : null}
-            {scanState.lastScan ? (
-              <div className="grid gap-4 rounded-2xl border border-white/8 bg-white/3 px-4 py-4">
-                <div className="grid gap-1">
-                  <p className="m-0 text-[11px] tracking-[0.08em] text-[#8f8f8f]">last import</p>
-                  <p className="m-0 text-base text-[#f2f2f2]">
-                    {scanState.lastScan.libraryRootName}
-                  </p>
-                  <p className="m-0 break-all text-sm text-[#8f8f8f]">
-                    {scanState.lastScan.rootPath}
-                  </p>
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                  <StatusCount
-                    label="found"
-                    value={scanState.lastScan.discoveredTracks}
-                  />
-                  <StatusCount
-                    label="new"
-                    value={scanState.lastScan.insertedTracks}
-                  />
-                  <StatusCount
-                    label="updated"
-                    value={scanState.lastScan.updatedTracks}
-                  />
-                  <StatusCount
-                    label="removed"
-                    value={scanState.lastScan.removedTracks}
-                  />
-                </div>
-              </div>
-            ) : null}
-          </div>
-        </div>
-
-        <div className="rounded-3xl border border-white/6 bg-[#1b1b1b] p-5">
-          <div className="grid gap-3">
-            <div>
-              <p className="m-0 text-[11px] tracking-[0.08em] text-[#8f8f8f]">sources</p>
-              <h3 className="text-lg font-medium text-[#f2f2f2]">indexed systems</h3>
-            </div>
-            <div className="grid gap-3">
-              {libraryRows.map((row) => (
-                <div
-                  key={row.title}
-                  className="rounded-2xl border border-white/6 bg-white/3 px-4 py-3"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-sm text-[#f2f2f2]">{row.title}</span>
-                    <span className="text-[11px] uppercase tracking-[0.14em] text-[#8f8f8f]">
-                      {row.state}
-                    </span>
-                  </div>
-                  <p className="mt-1 text-sm text-[#8f8f8f]">{row.detail}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <ArtistImagesDirSection />
-    </div>
-  );
-}
-
-function ArtistImagesDirSection() {
   const [dirPath, setDirPath] = useState("");
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
 
@@ -146,7 +30,7 @@ function ArtistImagesDirSection() {
     void getArtistsImagesDir().then((path) => setDirPath(path ?? ""));
   }, []);
 
-  const handleBrowse = () => {
+  const handleBrowseArtistImages = () => {
     void pickArtistsImagesDir(dirPath || null).then((path) => {
       if (!path) return;
       setSaveStatus("saving");
@@ -164,45 +48,144 @@ function ArtistImagesDirSection() {
   };
 
   return (
-    <div className="rounded-3xl border border-white/6 bg-[#1b1b1b] p-5">
-      <div className="grid gap-4">
+    <div className="h-full min-h-0 overflow-y-auto bg-black [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <header className="flex flex-wrap items-end justify-between gap-6 bg-gradient-to-b from-white/[0.07] to-transparent px-8 pb-6 pt-10">
         <div>
-          <p className="m-0 text-[11px] tracking-[0.08em] text-[#8f8f8f]">artist</p>
-          <h3 className="text-lg font-medium text-[#f2f2f2]">artist images</h3>
+          <h2 className="mt-1 text-7xl font-bold tracking-[-0.04em] text-white">settings</h2>
         </div>
-        <p className="m-0 text-sm text-[#8f8f8f]">
-          Point to a folder of artist images. Each file should be named{" "}
-          <span className="font-medium text-[#d4d4d4]">artist name.png</span> — the app maps them
-          automatically so every artist page picks up its header image.
-        </p>
-        <div className="flex min-w-0 gap-2">
-          <input
-            className="min-w-0 flex-1 rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3 text-sm text-[#f2f2f2] outline-none placeholder:text-[#6f6f6f]"
-            type="text"
-            placeholder="No folder selected"
-            value={dirPath}
-            readOnly
-          />
-          <button
-            className="shrink-0 rounded-2xl border border-white/8 bg-white/3 px-4 py-3 text-sm text-[#f2f2f2] transition-colors hover:border-white/12"
-            type="button"
-            onClick={handleBrowse}
-          >
-            browse
-          </button>
-        </div>
-        {saveStatus === "saved" && <p className="m-0 text-sm text-[#8f8f8f]">Saved.</p>}
-        {saveStatus === "error" && <p className="m-0 text-sm text-[#8f8f8f]">Failed to save.</p>}
-      </div>
+        <span className="shrink-0 text-[11px] text-[#3f3f3f]">
+          {platformLabel} · v{appVersion}
+        </span>
+      </header>
+
+      <section>
+        <SettingRow
+          label="Library folder"
+          value={libraryPath || "No folder selected"}
+          actions={
+            <>
+              <ActionButton
+                icon={<FolderOpen className="h-4 w-4" />}
+                onClick={onPickLibraryDirectory}
+                disabled={scanState.status === "running"}
+                ariaLabel="choose folder"
+              />
+              <ActionButton
+                icon={<RefreshCw className="h-4 w-4" />}
+                onClick={onScan}
+                disabled={scanState.status === "running" || !libraryPath}
+                ariaLabel="scan library"
+              />
+            </>
+          }
+        />
+
+        {scanState.message ? (
+          <p className="px-8 pb-4 text-[13px] text-[#6f6f6f]">{scanState.message}</p>
+        ) : null}
+
+        {scanState.lastScan ? (
+          <div className="mx-8 mb-5 rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-4">
+            <p className="text-[11px] tracking-[0.08em] text-[#6f6f6f]">last scan</p>
+            <p className="mt-1 break-all text-[13px] text-[#a5a5a5]">
+              {scanState.lastScan.rootPath}
+            </p>
+            <div className="mt-3 flex flex-wrap gap-6">
+              {(
+                [
+                  ["found", scanState.lastScan.discoveredTracks],
+                  ["new", scanState.lastScan.insertedTracks],
+                  ["updated", scanState.lastScan.updatedTracks],
+                  ["removed", scanState.lastScan.removedTracks],
+                ] as [string, number][]
+              ).map(([label, value]) => (
+                <div key={label} className="flex items-baseline gap-1.5">
+                  <span className="text-2xl font-bold tracking-[-0.04em] text-[#f2f2f2]">
+                    {value}
+                  </span>
+                  <span className="text-[11px] uppercase tracking-[0.1em] text-[#6f6f6f]">
+                    {label}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+      </section>
+
+      <section>
+        <SettingRow
+          label="Artist banners folder"
+          value={dirPath || "No folder selected"}
+          actions={
+            <ActionButton
+              icon={<FolderOpen className="h-4 w-4" />}
+              onClick={handleBrowseArtistImages}
+              disabled={saveStatus === "saving"}
+              ariaLabel="browse"
+            />
+          }
+        />
+
+        {saveStatus === "saved" ? (
+          <p className="px-8 pb-4 text-[13px] text-[#6f6f6f]">Saved.</p>
+        ) : null}
+        {saveStatus === "error" ? (
+          <p className="px-8 pb-4 text-[13px] text-[#6f6f6f]">Failed to save.</p>
+        ) : null}
+      </section>
     </div>
   );
 }
 
-function StatusCount({ label, value }: { label: string; value: number }) {
+function SectionHeader({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-2xl border border-white/6 bg-[#171717] px-4 py-3">
-      <p className="m-0 text-[11px] text-[#8f8f8f]">{label}</p>
-      <p className="mt-1 text-2xl font-medium tracking-[-0.04em] text-[#f2f2f2]">{value}</p>
+    <div className="border-t border-white/10 px-8 py-3 text-[11px] tracking-[0.08em] text-[#a5a5a5]">
+      {children}
     </div>
+  );
+}
+
+function SettingRow({
+  label,
+  value,
+  actions,
+}: {
+  label: string;
+  value: string;
+  actions: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-start gap-4 border-t border-white/[0.05] px-8 py-5">
+      <div className="grid min-w-0 flex-1 gap-1">
+        <span className="text-[15px] font-medium text-[#f2f2f2]">{label}</span>
+        <span className="break-all text-[13px] text-[#a5a5a5]">{value}</span>
+      </div>
+      <div className="flex shrink-0 items-center gap-2">{actions}</div>
+    </div>
+  );
+}
+
+function ActionButton({
+  icon,
+  onClick,
+  disabled,
+  ariaLabel,
+}: {
+  icon: React.ReactNode;
+  onClick: () => void;
+  disabled?: boolean;
+  ariaLabel?: string;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={ariaLabel}
+      className="inline-flex items-center justify-center rounded-xl border border-white/10 bg-[#1c1c1c] p-2 text-[#d4d4d4] transition-colors hover:border-white/[0.14] hover:bg-[#272727] disabled:cursor-not-allowed disabled:opacity-40"
+      onClick={onClick}
+      disabled={disabled}
+    >
+      {icon}
+    </button>
   );
 }

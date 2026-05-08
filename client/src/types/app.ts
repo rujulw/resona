@@ -137,17 +137,10 @@ export type ConceptAlbumsState =
     };
 
 export type HomeRouteState = {
-  libraryRows: LibraryRow[];
-  trackCount: number;
-  appVersion: string;
-};
-
-export type TracksRouteState = {
-  libraryPath: string;
-  scanState: ScanState;
-  tracksQueryState: TracksQueryState;
   tracksState: TracksState;
   albumsState: AlbumsState;
+  playlistsState: PlaylistsState;
+  conceptAlbumsState: ConceptAlbumsState;
 };
 
 export type PlaylistsRouteState = {
@@ -162,6 +155,7 @@ export type QueueRouteState = {
 
 export type AlbumsRouteState = {
   albumsState: AlbumsState;
+  tracksState: TracksState;
 };
 
 export type ArtistPageState =
@@ -176,7 +170,6 @@ export type ConceptAlbumsRouteState = {
 };
 
 export type SettingsRouteState = {
-  libraryRows: LibraryRow[];
   libraryPath: string;
   platformLabel: string;
   appVersion: string;
@@ -194,7 +187,6 @@ export type AppShellChromeState = {
 
 export type AppShellRoutesState = {
   home: HomeRouteState;
-  tracks: TracksRouteState;
   playlists: PlaylistsRouteState;
   albums: AlbumsRouteState;
   conceptAlbums: ConceptAlbumsRouteState;
@@ -226,14 +218,6 @@ export type PlaylistRouteActions = {
   onPlaylistSelect: (playlistId: string) => void;
   onPlaylistTurnToMixtape: (playlistId: string) => void;
   onTrackAdd: (playlistId: string, track: TrackListItem) => void;
-};
-
-export type TracksRouteActions = {
-  onTrackSelect: (track: TrackListItem) => void;
-  onTracksSearchDraftChange: (value: string) => void;
-  onTracksSearchSubmit: () => void;
-  onTracksTitleHeaderSort: () => void;
-  onTracksAlbumHeaderSort: () => void;
 };
 
 export type AlbumsRouteActions = {
@@ -287,9 +271,13 @@ export type PlaybackChromeActions = {
   onPlaybackSeek: (positionSeconds: number) => void;
 };
 
+export type HomeRouteActions = {
+  onTrackSelect: (track: TrackListItem) => void;
+};
+
 export type AppShellRouteActions = {
+  home: HomeRouteActions;
   playlists: PlaylistRouteActions;
-  tracks: TracksRouteActions;
   albums: AlbumsRouteActions;
   conceptAlbums: ConceptAlbumsRouteActions;
   settings: SettingsRouteActions;

@@ -7,8 +7,8 @@ import { ConceptAlbumsPage } from "../../pages/ConceptAlbumsPage";
 import { HomePage } from "../../pages/HomePage";
 import { PlaylistsPage } from "../../pages/PlaylistsPage";
 import { QueuePage } from "../../pages/QueuePage";
+import { ScoresPage } from "../../pages/ScoresPage";
 import { SettingsPage } from "../../pages/SettingsPage";
-import { TracksPage } from "../../pages/TracksPage";
 
 export function AppShellRoutes({
   routes,
@@ -24,26 +24,11 @@ export function AppShellRoutes({
         path="/home"
         element={
           <HomePage
-            libraryRows={routes.home.libraryRows}
-            trackCount={routes.home.trackCount}
-            appVersion={routes.home.appVersion}
-          />
-        }
-      />
-      <Route
-        path="/tracks"
-        element={
-          <TracksPage
-            libraryPath={routes.tracks.libraryPath}
-            scanState={routes.tracks.scanState}
-            tracksQueryState={routes.tracks.tracksQueryState}
-            tracksState={routes.tracks.tracksState}
-            albumsState={routes.tracks.albumsState}
-            onTrackSelect={actions.tracks.onTrackSelect}
-            onTracksSearchDraftChange={actions.tracks.onTracksSearchDraftChange}
-            onTracksSearchSubmit={actions.tracks.onTracksSearchSubmit}
-            onTracksTitleHeaderSort={actions.tracks.onTracksTitleHeaderSort}
-            onTracksAlbumHeaderSort={actions.tracks.onTracksAlbumHeaderSort}
+            tracksState={routes.home.tracksState}
+            albumsState={routes.home.albumsState}
+            playlistsState={routes.home.playlistsState}
+            conceptAlbumsState={routes.home.conceptAlbumsState}
+            onTrackSelect={actions.home.onTrackSelect}
           />
         }
       />
@@ -52,7 +37,7 @@ export function AppShellRoutes({
         element={
           <AlbumsPage
             albumsState={routes.albums.albumsState}
-            tracksState={routes.tracks.tracksState}
+            tracksState={routes.albums.tracksState}
             onAlbumSelect={actions.albums.onAlbumSelect}
             onPlayAlbum={actions.albums.onAlbumPlaybackHandoff}
             onAlbumTrackSelect={actions.albums.onAlbumTrackSelect}
@@ -64,7 +49,7 @@ export function AppShellRoutes({
         element={
           <AlbumsPage
             albumsState={routes.albums.albumsState}
-            tracksState={routes.tracks.tracksState}
+            tracksState={routes.albums.tracksState}
             onAlbumSelect={actions.albums.onAlbumSelect}
             onPlayAlbum={actions.albums.onAlbumPlaybackHandoff}
             onAlbumTrackSelect={actions.albums.onAlbumTrackSelect}
@@ -157,12 +142,12 @@ export function AppShellRoutes({
           />
         }
       />
-      <Route path="/queue" element={<QueuePage queueState={routes.queue.queueState} />} />
+      <Route path="/player" element={<QueuePage queueState={routes.queue.queueState} />} />
+      <Route path="/scores" element={<ScoresPage />} />
       <Route
         path="/settings"
         element={
           <SettingsPage
-            libraryRows={routes.settings.libraryRows}
             libraryPath={routes.settings.libraryPath}
             platformLabel={routes.settings.platformLabel}
             appVersion={routes.settings.appVersion}
