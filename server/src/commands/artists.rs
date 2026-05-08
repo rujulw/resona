@@ -1,7 +1,9 @@
+use std::collections::HashMap;
+
 use tauri::State;
 
-use super::DatabaseState;
-use crate::artists::ArtistStore;
+use super::{ArtistImageMapState, DatabaseState};
+use crate::artists::{build_artist_image_map, ArtistStore};
 use crate::database::AppDatabase;
 use crate::library::{ArtistDetail, ArtistImageConfig, ArtistListItem, ScanError};
 
@@ -24,53 +26,56 @@ pub fn list_artists_with_database(
 #[tauri::command]
 pub fn get_artist_detail(
     database_state: State<'_, DatabaseState>,
+    image_map_state: State<'_, ArtistImageMapState>,
     artist_name: String,
 ) -> Result<Option<ArtistDetail>, String> {
-    get_artist_detail_with_database(&database_state.app_database, &artist_name)
+    get_artist_detail_with_database(&database_state.app_database, &image_map_state, &artist_name)
         .map_err(|e| e.to_string())
 }
 
 pub fn get_artist_detail_with_database(
     app_database: &AppDatabase,
+    image_map_state: &ArtistImageMapState,
     artist_name: &str,
 ) -> Result<Option<ArtistDetail>, ScanError> {
-    ArtistStore::new(app_database.clone()).get_artist(artist_name)
+    let mut detail = ArtistStore::new(app_database.clone()).get_artist(artist_name)?;
+    if let Some(ref mut d) = detail {
+        let map = image_map_state.0.lock().unwrap();
+        d.image_config = map.get(&artist_name.to_lowercase()).map(|path| ArtistImageConfig {
+            local_image_path: path.clone(),
+        });
+    }
+    Ok(detail)
 }
 
 #[tauri::command]
-pub fn get_artist_image_config(
+pub fn get_artists_images_dir(
     database_state: State<'_, DatabaseState>,
-    artist_name: String,
-) -> Result<Option<ArtistImageConfig>, String> {
-    get_artist_image_config_with_database(&database_state.app_database, &artist_name)
+) -> Result<Option<String>, String> {
+    ArtistStore::new(database_state.app_database.clone())
+        .get_artists_images_dir()
         .map_err(|e| e.to_string())
 }
 
-pub fn get_artist_image_config_with_database(
-    app_database: &AppDatabase,
-    artist_name: &str,
-) -> Result<Option<ArtistImageConfig>, ScanError> {
-    ArtistStore::new(app_database.clone()).get_artist_image_config(artist_name)
-}
-
 #[tauri::command]
-pub fn set_artist_image_config(
+pub fn set_artists_images_dir(
     database_state: State<'_, DatabaseState>,
-    artist_name: String,
-    local_image_path: String,
+    image_map_state: State<'_, ArtistImageMapState>,
+    dir_path: String,
 ) -> Result<(), String> {
-    set_artist_image_config_with_database(
-        &database_state.app_database,
-        &artist_name,
-        &local_image_path,
-    )
-    .map_err(|e| e.to_string())
+    ArtistStore::new(database_state.app_database.clone())
+        .set_artists_images_dir(&dir_path)
+        .map_err(|e| e.to_string())?;
+    let new_map = build_artist_image_map(std::path::Path::new(&dir_path));
+    *image_map_state.0.lock().unwrap() = new_map;
+    Ok(())
 }
 
-pub fn set_artist_image_config_with_database(
-    app_database: &AppDatabase,
-    artist_name: &str,
-    local_image_path: &str,
-) -> Result<(), ScanError> {
-    ArtistStore::new(app_database.clone()).set_artist_image_config(artist_name, local_image_path)
+pub fn build_initial_artist_image_map(app_database: &AppDatabase) -> HashMap<String, String> {
+    ArtistStore::new(app_database.clone())
+        .get_artists_images_dir()
+        .ok()
+        .flatten()
+        .map(|dir| build_artist_image_map(std::path::Path::new(&dir)))
+        .unwrap_or_default()
 }
