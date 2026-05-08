@@ -16,7 +16,11 @@ export function usePlaybackAutoAdvance({
   tracksState: TracksState;
   trackCatalogRef: MutableRefObject<Map<string, TrackListItem>>;
   playbackQueueTrackIds: string[];
-  startTrackPlayback: (track: TrackListItem, autoplay: boolean) => Promise<void>;
+  startTrackPlayback: (
+    track: TrackListItem,
+    autoplay: boolean,
+    options?: { queueTrackIds?: string[] },
+  ) => Promise<void>;
 }) {
   const playbackQueueTrackIdsRef = useRef<string[]>([]);
   const completionHandledRef = useRef<string | null>(null);
