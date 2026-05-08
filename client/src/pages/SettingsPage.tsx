@@ -1,3 +1,10 @@
+import { useEffect, useState } from "react";
+
+import {
+  getArtistsImagesDir,
+  pickArtistsImagesDir,
+  setArtistsImagesDir,
+} from "../desktop";
 import type { LibraryRow } from "../desktop";
 import type { ScanState } from "../types/app";
 
@@ -125,6 +132,68 @@ export function SettingsPage({
           </div>
         </div>
       </section>
+
+      <ArtistImagesDirSection />
+    </div>
+  );
+}
+
+function ArtistImagesDirSection() {
+  const [dirPath, setDirPath] = useState("");
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+
+  useEffect(() => {
+    void getArtistsImagesDir().then((path) => setDirPath(path ?? ""));
+  }, []);
+
+  const handleBrowse = () => {
+    void pickArtistsImagesDir(dirPath || null).then((path) => {
+      if (!path) return;
+      setSaveStatus("saving");
+      void setArtistsImagesDir(path)
+        .then(() => {
+          setDirPath(path);
+          setSaveStatus("saved");
+          setTimeout(() => setSaveStatus("idle"), 2000);
+        })
+        .catch(() => {
+          setSaveStatus("error");
+          setTimeout(() => setSaveStatus("idle"), 3000);
+        });
+    });
+  };
+
+  return (
+    <div className="rounded-3xl border border-white/6 bg-[#1b1b1b] p-5">
+      <div className="grid gap-4">
+        <div>
+          <p className="m-0 text-[11px] tracking-[0.08em] text-[#8f8f8f]">artist</p>
+          <h3 className="text-lg font-medium text-[#f2f2f2]">artist images</h3>
+        </div>
+        <p className="m-0 text-sm text-[#8f8f8f]">
+          Point to a folder of artist images. Each file should be named{" "}
+          <span className="font-medium text-[#d4d4d4]">artist name.png</span> — the app maps them
+          automatically so every artist page picks up its header image.
+        </p>
+        <div className="flex min-w-0 gap-2">
+          <input
+            className="min-w-0 flex-1 rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3 text-sm text-[#f2f2f2] outline-none placeholder:text-[#6f6f6f]"
+            type="text"
+            placeholder="No folder selected"
+            value={dirPath}
+            readOnly
+          />
+          <button
+            className="shrink-0 rounded-2xl border border-white/8 bg-white/3 px-4 py-3 text-sm text-[#f2f2f2] transition-colors hover:border-white/12"
+            type="button"
+            onClick={handleBrowse}
+          >
+            browse
+          </button>
+        </div>
+        {saveStatus === "saved" && <p className="m-0 text-sm text-[#8f8f8f]">Saved.</p>}
+        {saveStatus === "error" && <p className="m-0 text-sm text-[#8f8f8f]">Failed to save.</p>}
+      </div>
     </div>
   );
 }
