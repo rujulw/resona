@@ -80,7 +80,9 @@ export function usePlaybackAutoAdvance({
 
       const firstTrack = trackCatalogRef.current.get(firstId);
       if (firstTrack) {
-        void startTrackPlayback(firstTrack, true);
+        void startTrackPlayback(firstTrack, true, {
+          queueTrackIds: result.trackIds,
+        });
       }
     })();
   }, [
