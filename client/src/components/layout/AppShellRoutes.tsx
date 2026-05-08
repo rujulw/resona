@@ -8,7 +8,6 @@ import { HomePage } from "../../pages/HomePage";
 import { PlaylistsPage } from "../../pages/PlaylistsPage";
 import { QueuePage } from "../../pages/QueuePage";
 import { SettingsPage } from "../../pages/SettingsPage";
-import { TracksPage } from "../../pages/TracksPage";
 
 export function AppShellRoutes({
   routes,
@@ -33,28 +32,11 @@ export function AppShellRoutes({
         }
       />
       <Route
-        path="/tracks"
-        element={
-          <TracksPage
-            libraryPath={routes.tracks.libraryPath}
-            scanState={routes.tracks.scanState}
-            tracksQueryState={routes.tracks.tracksQueryState}
-            tracksState={routes.tracks.tracksState}
-            albumsState={routes.tracks.albumsState}
-            onTrackSelect={actions.tracks.onTrackSelect}
-            onTracksSearchDraftChange={actions.tracks.onTracksSearchDraftChange}
-            onTracksSearchSubmit={actions.tracks.onTracksSearchSubmit}
-            onTracksTitleHeaderSort={actions.tracks.onTracksTitleHeaderSort}
-            onTracksAlbumHeaderSort={actions.tracks.onTracksAlbumHeaderSort}
-          />
-        }
-      />
-      <Route
         path="/albums"
         element={
           <AlbumsPage
             albumsState={routes.albums.albumsState}
-            tracksState={routes.tracks.tracksState}
+            tracksState={routes.albums.tracksState}
             onAlbumSelect={actions.albums.onAlbumSelect}
             onPlayAlbum={actions.albums.onAlbumPlaybackHandoff}
             onAlbumTrackSelect={actions.albums.onAlbumTrackSelect}
@@ -66,7 +48,7 @@ export function AppShellRoutes({
         element={
           <AlbumsPage
             albumsState={routes.albums.albumsState}
-            tracksState={routes.tracks.tracksState}
+            tracksState={routes.albums.tracksState}
             onAlbumSelect={actions.albums.onAlbumSelect}
             onPlayAlbum={actions.albums.onAlbumPlaybackHandoff}
             onAlbumTrackSelect={actions.albums.onAlbumTrackSelect}

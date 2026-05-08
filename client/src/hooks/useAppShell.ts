@@ -41,7 +41,6 @@ export function useAppShell() {
     queueState: playbackCoordinator.queueState,
     shellState: shellQueryState.shellState,
     tracksState: shellQueryState.tracksState,
-    tracksQueryState: shellQueryState.tracksQueryState,
     libraryPath: shellQueryState.libraryPath,
     scanState: shellQueryState.scanState,
     handlePickLibraryDirectory: shellQueryState.handlePickLibraryDirectory,
@@ -152,9 +151,5 @@ export function useAppShell() {
       });
     },
     handleScan: shellQueryState.handleScan,
-    handleTracksSearchDraftChange: shellQueryState.handleTracksSearchDraftChange,
-    handleTracksSearchSubmit: shellQueryState.handleTracksSearchSubmit,
-    handleTracksTitleHeaderSort: shellQueryState.handleTracksTitleHeaderSort,
-    handleTracksAlbumHeaderSort: shellQueryState.handleTracksAlbumHeaderSort,
   };
 }

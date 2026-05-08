@@ -1,4 +1,4 @@
-import { Home, ListMusic, ListOrdered, Plus, Settings2 } from "lucide-react";
+import { Home, ListOrdered, Plus, Settings2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 
@@ -8,7 +8,6 @@ import { ArtworkTile } from "../ui/ArtworkTile";
 
 const routeIcons = {
   home: Home,
-  tracks: ListMusic,
   queue: ListOrdered,
   settings: Settings2,
 } as const;

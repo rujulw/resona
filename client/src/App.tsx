@@ -42,15 +42,9 @@ export default function App() {
         playlistsState: appShell.playlistsState,
         conceptAlbumsState: appShell.conceptAlbumsState,
       },
-      tracks: {
-        libraryPath: appShell.libraryPath,
-        scanState: appShell.scanState,
-        tracksQueryState: appShell.tracksQueryState,
-        tracksState: appShell.tracksState,
-        albumsState: appShell.albumsState,
-      },
       albums: {
         albumsState: appShell.albumsState,
+        tracksState: appShell.tracksState,
       },
       playlists: {
         playlistsState: appShell.playlistsState,
@@ -88,13 +82,6 @@ export default function App() {
         onPlaylistSelect: appShell.handlePlaylistSelection,
         onPlaylistTurnToMixtape: appShell.handlePlaylistTurnToMixtape,
         onTrackAdd: appShell.handlePlaylistTrackAdd,
-      },
-      tracks: {
-        onTrackSelect: appShell.handleTrackSelection,
-        onTracksSearchDraftChange: appShell.handleTracksSearchDraftChange,
-        onTracksSearchSubmit: appShell.handleTracksSearchSubmit,
-        onTracksTitleHeaderSort: appShell.handleTracksTitleHeaderSort,
-        onTracksAlbumHeaderSort: appShell.handleTracksAlbumHeaderSort,
       },
       albums: {
         onAlbumSelect: appShell.handleAlbumSelection,
