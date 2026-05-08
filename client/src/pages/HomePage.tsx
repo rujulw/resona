@@ -282,7 +282,7 @@ function HorizontalRow({ label, children }: { label: string; children: React.Rea
 
 function TrackCard({ track, onSelect }: { track: TrackListItem; onSelect: () => void }) {
   return (
-    <button type="button" className="group grid w-52 flex-none gap-2 text-left" onClick={onSelect}>
+    <button type="button" aria-label={`Play ${track.title}`} className="group grid w-52 flex-none gap-2 text-left" onClick={onSelect}>
       <ArtworkTile
         artworkKey={track.artworkKey}
         title={track.title}

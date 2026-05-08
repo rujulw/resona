@@ -146,12 +146,11 @@ describe("artist images dir setting", () => {
 
     await waitFor(() => {
       expect(desktopMocks.getArtistsImagesDirMock).toHaveBeenCalled();
-      const input = screen.getByPlaceholderText("No folder selected") as HTMLInputElement;
-      expect(input.value).toBe("/Users/rujulw/ArtistImages");
+      expect(screen.getByText("/Users/rujulw/ArtistImages")).toBeTruthy();
     });
   });
 
-  it("shows empty input when no dir is set", async () => {
+  it("shows placeholder text when no dir is set", async () => {
     window.history.replaceState({}, "", "/settings");
     desktopMocks.getArtistsImagesDirMock.mockResolvedValue(null);
 
@@ -159,8 +158,7 @@ describe("artist images dir setting", () => {
     render(<App />);
 
     await waitFor(() => {
-      const input = screen.getByPlaceholderText("No folder selected") as HTMLInputElement;
-      expect(input.value).toBe("");
+      expect(screen.getAllByText("No folder selected").length).toBeGreaterThan(0);
     });
   });
 
@@ -179,8 +177,7 @@ describe("artist images dir setting", () => {
       expect(desktopMocks.setArtistsImagesDirMock).toHaveBeenCalledWith(
         "/Users/rujulw/NewArtistImages",
       );
-      const input = screen.getByPlaceholderText("No folder selected") as HTMLInputElement;
-      expect(input.value).toBe("/Users/rujulw/NewArtistImages");
+      expect(screen.getByText("/Users/rujulw/NewArtistImages")).toBeTruthy();
     });
   });
 
@@ -196,9 +193,7 @@ describe("artist images dir setting", () => {
 
     await waitFor(() => {
       expect(desktopMocks.setArtistsImagesDirMock).not.toHaveBeenCalled();
-      // dir stays unchanged
-      const input = screen.getByPlaceholderText("No folder selected") as HTMLInputElement;
-      expect(input.value).toBe("/Users/rujulw/ArtistImages");
+      expect(screen.getByText("/Users/rujulw/ArtistImages")).toBeTruthy();
     });
   });
 });

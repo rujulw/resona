@@ -68,11 +68,13 @@ export function SettingsPage({
                 icon={<FolderOpen className="h-4 w-4" />}
                 onClick={onPickLibraryDirectory}
                 disabled={scanState.status === "running"}
+                ariaLabel="choose folder"
               />
               <ActionButton
                 icon={<RefreshCw className="h-4 w-4" />}
                 onClick={onScan}
                 disabled={scanState.status === "running" || !libraryPath}
+                ariaLabel="scan library"
               />
             </>
           }
@@ -120,6 +122,7 @@ export function SettingsPage({
               icon={<FolderOpen className="h-4 w-4" />}
               onClick={handleBrowseArtistImages}
               disabled={saveStatus === "saving"}
+              ariaLabel="browse"
             />
           }
         />
@@ -167,14 +170,17 @@ function ActionButton({
   icon,
   onClick,
   disabled,
+  ariaLabel,
 }: {
   icon: React.ReactNode;
   onClick: () => void;
   disabled?: boolean;
+  ariaLabel?: string;
 }) {
   return (
     <button
       type="button"
+      aria-label={ariaLabel}
       className="inline-flex items-center justify-center rounded-xl border border-white/10 bg-[#1c1c1c] p-2 text-[#d4d4d4] transition-colors hover:border-white/[0.14] hover:bg-[#272727] disabled:cursor-not-allowed disabled:opacity-40"
       onClick={onClick}
       disabled={disabled}
