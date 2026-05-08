@@ -69,12 +69,21 @@ pub struct ArtistListItem {
 }
 
 #[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DiscographyItemKind {
+    Album,
+    ConceptAlbum,
+}
+
+#[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DiscographyAlbum {
+    pub id: String,
     pub title: String,
     pub year: Option<i64>,
     pub artwork_key: Option<String>,
     pub track_count: usize,
+    pub kind: DiscographyItemKind,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -82,14 +91,23 @@ pub struct DiscographyAlbum {
 pub struct ArtistDetail {
     pub name: String,
     pub albums: Vec<DiscographyAlbum>,
+    pub features: Vec<DiscographyAlbum>,
+    pub playlists: Vec<ArtistPlaylistItem>,
     pub track_count: usize,
     pub image_config: Option<ArtistImageConfig>,
 }
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct ArtistPlaylistItem {
+    pub id: String,
+    pub title: String,
+    pub artwork_key: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ArtistImageConfig {
-    pub artist_name: String,
     pub local_image_path: String,
 }
 
@@ -194,6 +212,7 @@ pub(crate) struct NormalizedTrack {
     pub advisory: Option<bool>,
     pub track_number: Option<i64>,
     pub disc_number: Option<i64>,
+    pub year: Option<i64>,
     pub duration_seconds: Option<f64>,
     pub artwork_key: Option<String>,
     pub artwork_bytes: Option<Vec<u8>>,

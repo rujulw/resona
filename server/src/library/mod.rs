@@ -6,8 +6,8 @@ mod scanner;
 mod tests;
 
 pub use models::{
-    AlbumDetail, AlbumSummary, ArtistDetail, ArtistImageConfig, ArtistListItem, ArtworkSource,
-    DiscographyAlbum, LibraryPage, LibraryQuery, PlaybackSource, ResolvedPlaybackTrack, ScanError,
-    ScanSummary, SortDirection, TrackSortKey,
+    AlbumDetail, AlbumSummary, ArtistDetail, ArtistImageConfig, ArtistListItem, ArtistPlaylistItem,
+    ArtworkSource, DiscographyAlbum, DiscographyItemKind, LibraryPage, LibraryQuery, PlaybackSource,
+    ResolvedPlaybackTrack, ScanError, ScanSummary, SortDirection, TrackSortKey,
 };
 pub use scanner::LocalLibraryScanner;

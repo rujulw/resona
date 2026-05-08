@@ -1,8 +1,8 @@
 use crate::artists::queries::{
-    query_artist_detail, query_artist_image_config, query_artist_list, upsert_artist_image_config,
+    query_artist_detail, query_artist_list, query_artists_images_dir, upsert_artists_images_dir,
 };
 use crate::database::AppDatabase;
-use crate::library::models::{ArtistDetail, ArtistImageConfig, ArtistListItem, ScanError};
+use crate::library::models::{ArtistDetail, ArtistListItem, ScanError};
 
 #[derive(Clone, Debug)]
 pub struct ArtistStore {
@@ -28,20 +28,13 @@ impl ArtistStore {
         query_artist_detail(&connection, artist_name)
     }
 
-    pub fn get_artist_image_config(
-        &self,
-        artist_name: &str,
-    ) -> Result<Option<ArtistImageConfig>, ScanError> {
+    pub fn get_artists_images_dir(&self) -> Result<Option<String>, ScanError> {
         let connection = self.app_database.connect()?;
-        query_artist_image_config(&connection, artist_name)
+        query_artists_images_dir(&connection)
     }
 
-    pub fn set_artist_image_config(
-        &self,
-        artist_name: &str,
-        local_image_path: &str,
-    ) -> Result<(), ScanError> {
+    pub fn set_artists_images_dir(&self, dir_path: &str) -> Result<(), ScanError> {
         let connection = self.app_database.connect()?;
-        upsert_artist_image_config(&connection, artist_name, local_image_path)
+        upsert_artists_images_dir(&connection, dir_path)
     }
 }

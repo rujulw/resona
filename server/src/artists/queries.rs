@@ -1,8 +1,53 @@
 use rusqlite::params;
 
 use crate::library::models::{
-    ArtistDetail, ArtistImageConfig, ArtistListItem, DiscographyAlbum, ScanError,
+    AlbumLookupKey, ArtistDetail, ArtistListItem, ArtistPlaylistItem, DiscographyAlbum,
+    DiscographyItemKind, ScanError,
 };
+
+// Generates a SQL condition: `col` is the primary/first-listed artist for ?1.
+// Handles exact match plus known separators that follow the artist name.
+fn is_primary(col: &str) -> String {
+    format!(
+        "(
+          lower({col}) = lower(?1)
+          OR lower({col}) LIKE lower(?1) || ',%'
+          OR lower({col}) LIKE lower(?1) || ' feat.%'
+          OR lower({col}) LIKE lower(?1) || ' feat %'
+          OR lower({col}) LIKE lower(?1) || ' ft.%'
+          OR lower({col}) LIKE lower(?1) || ' &%'
+          OR lower({col}) LIKE lower(?1) || ' x %'
+          OR lower({col}) LIKE lower(?1) || ' /%'
+        )",
+        col = col
+    )
+}
+
+// Generates a SQL condition: ?1 appears in `col` as a non-primary (featured) artist.
+// Requires that ?1 is preceded by a known separator, and excludes cases where ?1 leads.
+fn is_feature(col: &str) -> String {
+    format!(
+        "NOT {primary}
+        AND (
+          lower({col}) LIKE '%, '    || lower(?1)
+          OR lower({col}) LIKE '%, '    || lower(?1) || ',%'
+          OR lower({col}) LIKE '%, '    || lower(?1) || ' %'
+          OR lower({col}) LIKE '%feat. ' || lower(?1)
+          OR lower({col}) LIKE '%feat. ' || lower(?1) || ',%'
+          OR lower({col}) LIKE '%feat. ' || lower(?1) || ' %'
+          OR lower({col}) LIKE '%feat '  || lower(?1)
+          OR lower({col}) LIKE '%feat '  || lower(?1) || ',%'
+          OR lower({col}) LIKE '%ft. '   || lower(?1)
+          OR lower({col}) LIKE '%ft. '   || lower(?1) || ',%'
+          OR lower({col}) LIKE '% & '    || lower(?1)
+          OR lower({col}) LIKE '% & '    || lower(?1) || ',%'
+          OR lower({col}) LIKE '% x '    || lower(?1)
+          OR lower({col}) LIKE '% / '    || lower(?1)
+        )",
+        primary = is_primary(col),
+        col = col
+    )
+}
 
 pub(crate) fn query_artist_list(
     connection: &rusqlite::Connection,
@@ -43,85 +88,212 @@ pub(crate) fn query_artist_detail(
     connection: &rusqlite::Connection,
     artist_name: &str,
 ) -> Result<Option<ArtistDetail>, ScanError> {
-    let track_count: i64 = connection.query_row(
-        "SELECT COUNT(*) FROM tracks WHERE artist = ?1",
-        params![artist_name],
-        |row| row.get(0),
-    )?;
+    // Count all tracks where the artist is primary or featured
+    let track_count_sql = format!(
+        "SELECT COUNT(*) FROM tracks WHERE {primary} OR ({feature})",
+        primary = is_primary("artist"),
+        feature = is_feature("artist"),
+    );
+    let track_count: i64 =
+        connection.query_row(&track_count_sql, params![artist_name], |row| row.get(0))?;
 
     if track_count == 0 {
         return Ok(None);
     }
 
-    let mut statement = connection.prepare(
+    // Discography: albums where artist is primary (>1 track), sorted year DESC nulls last
+    let disc_sql = format!(
         "
         SELECT
-          COALESCE(album, '') AS title,
+          COALESCE(t.album, '') AS title,
           COUNT(*) AS track_count,
-          MAX(artwork_key) AS artwork_key
-        FROM tracks
-        WHERE artist = ?1
-        GROUP BY COALESCE(album, '')
-        ORDER BY lower(COALESCE(album, '')) ASC
+          MAX(t.artwork_key) AS artwork_key,
+          MAX(t.year) AS year
+        FROM tracks t
+        WHERE {primary} AND t.artist IS NOT NULL
+        GROUP BY COALESCE(t.album, '')
+        HAVING COUNT(*) > 1
         ",
-    )?;
+        primary = is_primary("t.artist"),
+    );
+    let mut disc_stmt = connection.prepare(&disc_sql)?;
 
-    let rows = statement.query_map(params![artist_name], |row| {
+    let disc_rows = disc_stmt.query_map(params![artist_name], |row| {
+        let title: String = row.get(0)?;
+        let id = AlbumLookupKey::new(&title, Some(artist_name)).encode();
         Ok(DiscographyAlbum {
-            title: row.get(0)?,
+            id,
+            title,
+            year: row.get(3)?,
+            track_count: row.get::<_, i64>(1)? as usize,
+            artwork_key: row.get(2)?,
+            kind: DiscographyItemKind::Album,
+        })
+    })?;
+
+    let mut albums: Vec<DiscographyAlbum> = Vec::new();
+    for row in disc_rows {
+        albums.push(row?);
+    }
+
+    // Concept albums attributed to this artist (>1 track)
+    {
+        let mut concept_stmt = connection.prepare(
+            "
+            SELECT
+              ca.id,
+              ca.title,
+              ca.artwork_key,
+              COUNT(cae.id) AS entry_count
+            FROM concept_albums ca
+            LEFT JOIN concept_album_entries cae ON cae.concept_album_id = ca.id
+            WHERE lower(COALESCE(ca.artist, '')) = lower(?1)
+            GROUP BY ca.id
+            HAVING COUNT(cae.id) > 1
+            ",
+        )?;
+        let rows = concept_stmt.query_map(params![artist_name], |row| {
+            Ok(DiscographyAlbum {
+                id: row.get(0)?,
+                title: row.get(1)?,
+                year: None,
+                artwork_key: row.get(2)?,
+                track_count: row.get::<_, i64>(3)? as usize,
+                kind: DiscographyItemKind::ConceptAlbum,
+            })
+        })?;
+        for row in rows {
+            albums.push(row?);
+        }
+    }
+
+    // Sort by year DESC, nulls last
+    albums.sort_by(|a, b| match (a.year, b.year) {
+        (Some(ay), Some(by)) => by.cmp(&ay),
+        (None, Some(_)) => std::cmp::Ordering::Greater,
+        (Some(_), None) => std::cmp::Ordering::Less,
+        (None, None) => std::cmp::Ordering::Equal,
+    });
+
+    // Featured on: albums where artist appears as a feature AND has no primary tracks (>1 track total)
+    let feat_sql = format!(
+        "
+        SELECT
+          COALESCE(t.album, '') AS title,
+          COUNT(*) AS artist_track_count,
+          MAX(t.artwork_key) AS artwork_key,
+          (
+            SELECT t2.artist FROM tracks t2
+            WHERE COALESCE(t2.album, '') = COALESCE(t.album, '')
+              AND t2.artist IS NOT NULL
+            GROUP BY t2.artist
+            ORDER BY COUNT(*) DESC
+            LIMIT 1
+          ) AS primary_artist,
+          (
+            SELECT COUNT(*) FROM tracks t3
+            WHERE COALESCE(t3.album, '') = COALESCE(t.album, '')
+          ) AS total_track_count
+        FROM tracks t
+        WHERE {feature} AND t.album IS NOT NULL
+        GROUP BY COALESCE(t.album, '')
+        HAVING NOT EXISTS (
+          SELECT 1 FROM tracks t2
+          WHERE {primary_t2} AND COALESCE(t2.album, '') = COALESCE(t.album, '')
+        )
+        AND (
+          SELECT COUNT(*) FROM tracks t3
+          WHERE COALESCE(t3.album, '') = COALESCE(t.album, '')
+        ) > 1
+        ORDER BY lower(COALESCE(t.album, '')) ASC
+        ",
+        feature = is_feature("t.artist"),
+        primary_t2 = is_primary("t2.artist"),
+    );
+    let mut feat_stmt = connection.prepare(&feat_sql)?;
+
+    let feat_rows = feat_stmt.query_map(params![artist_name], |row| {
+        let title: String = row.get(0)?;
+        let primary_artist: Option<String> = row.get(3)?;
+        let id = AlbumLookupKey::new(&title, primary_artist.as_deref()).encode();
+        Ok(DiscographyAlbum {
+            id,
+            title,
             year: None,
             track_count: row.get::<_, i64>(1)? as usize,
+            artwork_key: row.get(2)?,
+            kind: DiscographyItemKind::Album,
+        })
+    })?;
+
+    let mut features = Vec::new();
+    for row in feat_rows {
+        features.push(row?);
+    }
+
+    // Appears on: playlists containing any track by this artist (primary or feature), with >1 entry total
+    let pl_sql = format!(
+        "
+        SELECT DISTINCT p.id, p.name, p.artwork_key
+        FROM playlists p
+        JOIN playlist_entries pe ON p.id = pe.playlist_id
+        JOIN tracks t ON pe.track_id = t.id
+        WHERE ({primary} OR ({feature}))
+          AND (SELECT COUNT(*) FROM playlist_entries pe2 WHERE pe2.playlist_id = p.id) > 1
+        ORDER BY lower(p.name)
+        ",
+        primary = is_primary("t.artist"),
+        feature = is_feature("t.artist"),
+    );
+    let mut pl_stmt = connection.prepare(&pl_sql)?;
+
+    let pl_rows = pl_stmt.query_map(params![artist_name], |row| {
+        Ok(ArtistPlaylistItem {
+            id: row.get(0)?,
+            title: row.get(1)?,
             artwork_key: row.get(2)?,
         })
     })?;
 
-    let mut albums = Vec::new();
-    for row in rows {
-        albums.push(row?);
+    let mut playlists = Vec::new();
+    for row in pl_rows {
+        playlists.push(row?);
     }
-
-    let image_config = query_artist_image_config(connection, artist_name)?;
 
     Ok(Some(ArtistDetail {
         name: artist_name.to_owned(),
         albums,
+        features,
+        playlists,
         track_count: track_count as usize,
-        image_config,
+        image_config: None,
     }))
 }
 
-pub(crate) fn query_artist_image_config(
+pub(crate) fn query_artists_images_dir(
     connection: &rusqlite::Connection,
-    artist_name: &str,
-) -> Result<Option<ArtistImageConfig>, ScanError> {
+) -> Result<Option<String>, ScanError> {
     match connection.query_row(
-        "SELECT local_image_path FROM artist_image_configs WHERE artist_name = ?1",
-        params![artist_name],
+        "SELECT value FROM app_settings WHERE key = 'artists_images_dir'",
+        [],
         |row| row.get::<_, String>(0),
     ) {
-        Ok(local_image_path) => Ok(Some(ArtistImageConfig {
-            artist_name: artist_name.to_owned(),
-            local_image_path,
-        })),
+        Ok(value) => Ok(Some(value)),
         Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
         Err(e) => Err(ScanError::Sqlite(e)),
     }
 }
 
-pub(crate) fn upsert_artist_image_config(
+pub(crate) fn upsert_artists_images_dir(
     connection: &rusqlite::Connection,
-    artist_name: &str,
-    local_image_path: &str,
+    dir_path: &str,
 ) -> Result<(), ScanError> {
     connection.execute(
         "
-        INSERT INTO artist_image_configs (artist_name, local_image_path, updated_at)
-        VALUES (?1, ?2, datetime('now'))
-        ON CONFLICT(artist_name) DO UPDATE SET
-          local_image_path = excluded.local_image_path,
-          updated_at = excluded.updated_at
+        INSERT INTO app_settings (key, value) VALUES ('artists_images_dir', ?1)
+        ON CONFLICT(key) DO UPDATE SET value = excluded.value
         ",
-        params![artist_name, local_image_path],
+        params![dir_path],
     )?;
     Ok(())
 }
