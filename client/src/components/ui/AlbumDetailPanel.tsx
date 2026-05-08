@@ -1,6 +1,6 @@
 import { Play } from "lucide-react";
-
 import type { AlbumDetail } from "../../desktop";
+import { ArtistLinks } from "./ArtistLinks";
 import { formatDuration } from "../../utils/format";
 import { AdvisoryBadge } from "./AdvisoryBadge";
 import { ArtworkTile } from "./ArtworkTile";
@@ -45,8 +45,13 @@ export function AlbumDetailPanel({
             <h2 className="mt-2 text-7xl font-bold tracking-[-0.04em] text-white text-wrap break-words">
               {albumDetail.album.title}
             </h2>
-            <p className="mt-4 text-base text-[#d4d4d4]">
-              {albumDetail.album.artist ?? "unknown artist"}
+            <p className="mt-4 flex flex-wrap gap-x-1 text-base">
+              <ArtistLinks
+                artist={albumDetail.album.artist}
+                linkClassName="text-[#d4d4d4] transition-colors hover:text-white"
+                unknownClassName="text-[#d4d4d4]"
+                separatorClassName="text-[#d4d4d4]"
+              />
             </p>
             <p className="mt-2 text-sm text-[#8f8f8f]">
               {albumDetail.album.trackCount} track
@@ -130,9 +135,13 @@ export function AlbumDetailPanel({
                   </span>
                   <span className="flex min-w-0 items-center gap-2">
                     <AdvisoryBadge advisory={track.advisory} />
-                    <span className="truncate text-[13px] text-[#a5a5a5] group-hover:text-[#f2f2f2] transition-colors">
-                      {track.artist ?? albumDetail.album.artist ?? "unknown artist"}
-                    </span>
+                    <ArtistLinks
+                      artist={track.artist ?? albumDetail.album.artist}
+                      linkClassName="text-[13px] text-[#a5a5a5] transition-colors hover:text-white"
+                      separatorClassName="text-[13px] text-[#a5a5a5]"
+                      unknownClassName="truncate text-[13px] text-[#a5a5a5]"
+                      onClick={(e) => e.stopPropagation()}
+                    />
                   </span>
                 </span>
                 

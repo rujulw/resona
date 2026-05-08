@@ -1,5 +1,7 @@
 import { ArrowDown, ArrowUp, GripVertical, Play } from "lucide-react";
 import { Link } from "react-router-dom";
+
+import { ArtistLinks } from "./ArtistLinks";
 import type {
   DragEvent,
   DragEvent as ReactDragEvent,
@@ -167,9 +169,13 @@ export function PlaylistEntriesSection({
                   <span className="truncate text-[15px] font-medium text-[#f2f2f2] group-hover:text-white transition-colors">{entry.title}</span>
                   <div className="flex min-w-0 items-center gap-2">
                     <AdvisoryBadge advisory={entry.advisory} />
-                    <span className="truncate text-[13px] text-[#a5a5a5] group-hover:text-[#f2f2f2] transition-colors">
-                      {entry.artist ?? "unknown artist"}
-                    </span>
+                    <ArtistLinks
+                      artist={entry.artist}
+                      linkClassName="text-[13px] text-[#a5a5a5] transition-colors hover:text-white"
+                      separatorClassName="text-[13px] text-[#a5a5a5]"
+                      unknownClassName="truncate text-[13px] text-[#a5a5a5]"
+                      onClick={(e) => e.stopPropagation()}
+                    />
                   </div>
                 </div>
               </div>

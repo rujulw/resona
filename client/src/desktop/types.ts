@@ -145,21 +145,30 @@ export type ArtistListItem = {
 };
 
 export type DiscographyAlbum = {
+  id: string;
   title: string;
   year: number | null;
   artworkKey: string | null;
   trackCount: number;
+  kind: "album" | "concept_album";
+};
+
+export type ArtistPlaylistItem = {
+  id: string;
+  title: string;
+  artworkKey: string | null;
 };
 
 export type ArtistDetail = {
   name: string;
   albums: DiscographyAlbum[];
+  features: DiscographyAlbum[];
+  playlists: ArtistPlaylistItem[];
   trackCount: number;
   imageConfig: ArtistImageConfig | null;
 };
 
 export type ArtistImageConfig = {
-  artistName: string;
   localImagePath: string;
 };
 
