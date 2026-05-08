@@ -240,6 +240,7 @@ export type AlbumsRouteActions = {
   onAlbumSelect: (albumId: string) => void;
   onAlbumPlaybackHandoff: (albumId: string, startTrackId?: string) => void;
   onAlbumTrackSelect: (trackId: string) => void;
+  onPlayAlbumById: (albumId: string) => Promise<void>;
 };
 
 export type ConceptAlbumsRouteActions = {

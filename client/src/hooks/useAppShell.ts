@@ -1,5 +1,6 @@
 import { usePlaybackCoordinator } from "./usePlaybackCoordinator";
 import { useShellQueryState } from "./useShellQueryState";
+import { getAlbum } from "../desktop";
 import type { AlbumDetail, TrackListItem } from "../desktop";
 
 export function useAppShell() {
@@ -82,6 +83,16 @@ export function useAppShell() {
         queueTrackIds: queueItems.map((track) => track.id),
         queueItems,
         sourceLabel: "album-handoff",
+      });
+    },
+    handlePlayAlbumById: async (albumId: string) => {
+      const albumDetail = await getAlbum(albumId);
+      if (!albumDetail || albumDetail.tracks.length === 0) return;
+      const queueItems = buildAlbumQueueItems(albumDetail);
+      playbackCoordinator.handleTrackSelection(queueItems[0], {
+        queueTrackIds: queueItems.map((t) => t.id),
+        queueItems,
+        sourceLabel: "artist-handoff",
       });
     },
     handleAlbumTrackSelection: (trackId: string) => {
