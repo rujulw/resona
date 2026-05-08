@@ -893,9 +893,7 @@ describe("app shell smoke checks", () => {
     fireEvent.click(screen.getByRole("link", { name: /player/i }));
 
     await waitFor(() => {
-      expect(screen.getByText("now playing")).toBeTruthy();
-      expect(screen.getAllByText("Alpha").length).toBeGreaterThan(0);
-      expect(screen.getAllByText("North").length).toBeGreaterThan(0);
+      expect(screen.getByText("direct drive system / quartz lock")).toBeTruthy();
     });
   });
 

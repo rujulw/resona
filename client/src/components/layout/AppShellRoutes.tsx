@@ -6,7 +6,7 @@ import { ArtistPage } from "../../pages/ArtistPage";
 import { ConceptAlbumsPage } from "../../pages/ConceptAlbumsPage";
 import { HomePage } from "../../pages/HomePage";
 import { PlaylistsPage } from "../../pages/PlaylistsPage";
-import { QueuePage } from "../../pages/QueuePage";
+import { PlayerPage } from "../../pages/PlayerPage";
 import { ScoresPage } from "../../pages/ScoresPage";
 import { SettingsPage } from "../../pages/SettingsPage";
 
@@ -142,7 +142,15 @@ export function AppShellRoutes({
           />
         }
       />
-      <Route path="/player" element={<QueuePage queueState={routes.queue.queueState} />} />
+      <Route
+        path="/player"
+        element={
+          <PlayerPage
+            queueState={routes.queue.queueState}
+            isPlaying={routes.queue.isPlaying}
+          />
+        }
+      />
       <Route path="/scores" element={<ScoresPage />} />
       <Route
         path="/settings"
