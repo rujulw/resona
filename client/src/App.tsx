@@ -66,7 +66,6 @@ export default function App() {
         queueState: appShell.queueState,
       },
       settings: {
-        libraryRows: appShell.shellState.libraryRows,
         libraryPath: appShell.libraryPath,
         platformLabel: appShell.bootstrapState.payload.platform,
         appVersion: appShell.bootstrapState.payload.appVersion,

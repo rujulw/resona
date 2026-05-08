@@ -177,7 +177,6 @@ export type ConceptAlbumsRouteState = {
 };
 
 export type SettingsRouteState = {
-  libraryRows: LibraryRow[];
   libraryPath: string;
   platformLabel: string;
   appVersion: string;

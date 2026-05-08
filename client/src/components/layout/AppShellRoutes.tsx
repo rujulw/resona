@@ -164,7 +164,6 @@ export function AppShellRoutes({
         path="/settings"
         element={
           <SettingsPage
-            libraryRows={routes.settings.libraryRows}
             libraryPath={routes.settings.libraryPath}
             platformLabel={routes.settings.platformLabel}
             appVersion={routes.settings.appVersion}
