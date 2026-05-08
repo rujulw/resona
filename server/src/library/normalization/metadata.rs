@@ -16,9 +16,9 @@ pub(super) struct AudioMetadata {
     pub(super) advisory: Option<bool>,
     pub(super) track_number: Option<i64>,
     pub(super) disc_number: Option<i64>,
+    pub(super) year: Option<i64>,
     pub(super) duration_seconds: Option<f64>,
     pub(super) artwork: Option<EmbeddedArtwork>,
-    pub(super) year: Option<i64>,
 }
 
 pub(super) struct EmbeddedArtwork {
@@ -78,9 +78,9 @@ fn read_mp3_metadata(file_path: &Path) -> Result<AudioMetadata, ScanError> {
         advisory: tag.as_ref().and_then(read_mp3_advisory_metadata),
         track_number: tag.as_ref().and_then(|value| value.track()).map(i64::from),
         disc_number: tag.as_ref().and_then(|value| value.disc()).map(i64::from),
+        year: tag.as_ref().and_then(|value| value.year()).map(i64::from),
         duration_seconds,
         artwork,
-        year: tag.as_ref().and_then(|value| value.year()).map(i64::from),
     })
 }
 

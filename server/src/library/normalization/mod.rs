@@ -84,12 +84,12 @@ pub(crate) fn normalize_track(
         advisory: metadata_fields.advisory,
         track_number: metadata_fields.track_number,
         disc_number: metadata_fields.disc_number,
+        year: metadata_fields.year,
         duration_seconds: metadata_fields.duration_seconds,
         artwork_key,
         artwork_bytes,
         file_size_bytes: metadata.len() as i64,
         content_hash: stable_identifier("content", &file_path.display().to_string()),
         local_path: file_path.display().to_string(),
-        year: metadata_fields.year,
     })
 }

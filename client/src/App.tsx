@@ -97,6 +97,7 @@ export default function App() {
         onAlbumSelect: appShell.handleAlbumSelection,
         onAlbumPlaybackHandoff: appShell.handleAlbumPlaybackHandoff,
         onAlbumTrackSelect: appShell.handleAlbumTrackSelection,
+        onPlayAlbumById: appShell.handlePlayAlbumById,
       },
       conceptAlbums: {
         onConceptAlbumCreate: appShell.handleConceptAlbumCreate,

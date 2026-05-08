@@ -1,4 +1,5 @@
 import { GripVertical, ImagePlus, Pencil, Play, Plus, Trash2 } from "lucide-react";
+
 import type {
   DragEvent,
   DragEvent as ReactDragEvent,
@@ -14,6 +15,7 @@ import type {
   TrackListItem,
 } from "../../desktop";
 import type { TracksState } from "../../types/app";
+import { ArtistLinks } from "./ArtistLinks";
 import { formatDuration } from "../../utils/format";
 import { AdvisoryBadge } from "./AdvisoryBadge";
 import { ArtworkTile } from "./ArtworkTile";
@@ -118,8 +120,13 @@ export function ConceptAlbumDetailPanel({
             <h2 className="mt-2 text-7xl font-bold tracking-[-0.04em] text-white text-wrap break-words">
               {conceptAlbum.conceptAlbum.title}
             </h2>
-            <p className="mt-4 text-base text-[#d4d4d4]">
-              {conceptAlbum.conceptAlbum.artist ?? "unknown artist"}
+            <p className="mt-4 flex flex-wrap gap-x-1 text-base">
+              <ArtistLinks
+                artist={conceptAlbum.conceptAlbum.artist}
+                linkClassName="text-[#d4d4d4] transition-colors hover:text-white"
+                unknownClassName="text-[#d4d4d4]"
+                separatorClassName="text-[#d4d4d4]"
+              />
             </p>
             <p className="mt-2 text-sm text-[#8f8f8f]">
               {conceptAlbum.conceptAlbum.entryCount} track
@@ -235,9 +242,13 @@ export function ConceptAlbumDetailPanel({
                       <span className="truncate text-[15px] font-medium text-[#f2f2f2] group-hover:text-white transition-colors">{entry.title}</span>
                       <span className="flex min-w-0 items-center gap-2">
                         <AdvisoryBadge advisory={entry.advisory} />
-                        <span className="truncate text-[13px] text-[#a5a5a5] group-hover:text-[#f2f2f2] transition-colors">
-                          {entry.artist ?? conceptAlbum.conceptAlbum.artist ?? "unknown artist"}
-                        </span>
+                        <ArtistLinks
+                          artist={entry.artist ?? conceptAlbum.conceptAlbum.artist}
+                          linkClassName="text-[13px] text-[#a5a5a5] transition-colors hover:text-white"
+                          separatorClassName="text-[13px] text-[#a5a5a5]"
+                          unknownClassName="truncate text-[13px] text-[#a5a5a5]"
+                          onClick={(e) => e.stopPropagation()}
+                        />
                       </span>
                     </span>
 
