@@ -36,6 +36,11 @@ const updateConceptAlbumMock = vi.fn();
 const updatePlaylistMock = vi.fn();
 const addTrackToConceptAlbumMock = vi.fn();
 const addTrackToPlaylistMock = vi.fn();
+const listArtistsMock = vi.fn();
+const getArtistDetailMock = vi.fn();
+const getArtistsImagesDirMock = vi.fn();
+const setArtistsImagesDirMock = vi.fn();
+const pickArtistsImagesDirMock = vi.fn();
 const mockAudioInstances: MockAudio[] = [];
 
 vi.mock("./desktop", () => ({
@@ -73,6 +78,11 @@ vi.mock("./desktop", () => ({
   scanLocalLibrary: (...args: unknown[]) => scanLocalLibraryMock(...args),
   updateConceptAlbum: (...args: unknown[]) => updateConceptAlbumMock(...args),
   updatePlaylist: (...args: unknown[]) => updatePlaylistMock(...args),
+  listArtists: (...args: unknown[]) => listArtistsMock(...args),
+  getArtistDetail: (...args: unknown[]) => getArtistDetailMock(...args),
+  getArtistsImagesDir: () => getArtistsImagesDirMock(),
+  setArtistsImagesDir: (...args: unknown[]) => setArtistsImagesDirMock(...args),
+  pickArtistsImagesDir: (...args: unknown[]) => pickArtistsImagesDirMock(...args),
 }));
 
 class MockAudio extends EventTarget {
@@ -191,6 +201,11 @@ describe("app shell smoke checks", () => {
     updatePlaylistMock.mockReset();
     addTrackToConceptAlbumMock.mockReset();
     addTrackToPlaylistMock.mockReset();
+    listArtistsMock.mockReset();
+    getArtistDetailMock.mockReset();
+    getArtistsImagesDirMock.mockReset();
+    setArtistsImagesDirMock.mockReset();
+    pickArtistsImagesDirMock.mockReset();
     mockAudioInstances.length = 0;
     mockBackendPlayback = {
       statusLabel: "Nothing playing",
@@ -214,6 +229,12 @@ describe("app shell smoke checks", () => {
         return instance;
       }),
     );
+
+    listArtistsMock.mockResolvedValue([]);
+    getArtistDetailMock.mockResolvedValue(null);
+    getArtistsImagesDirMock.mockResolvedValue(null);
+    setArtistsImagesDirMock.mockResolvedValue(undefined);
+    pickArtistsImagesDirMock.mockResolvedValue(null);
 
     bootstrapAppMock.mockResolvedValue({
       appName: "resona",
