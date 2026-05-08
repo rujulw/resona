@@ -137,9 +137,10 @@ export type ConceptAlbumsState =
     };
 
 export type HomeRouteState = {
-  libraryRows: LibraryRow[];
-  trackCount: number;
-  appVersion: string;
+  tracksState: TracksState;
+  albumsState: AlbumsState;
+  playlistsState: PlaylistsState;
+  conceptAlbumsState: ConceptAlbumsState;
 };
 
 export type TracksRouteState = {
@@ -287,7 +288,12 @@ export type PlaybackChromeActions = {
   onPlaybackSeek: (positionSeconds: number) => void;
 };
 
+export type HomeRouteActions = {
+  onTrackSelect: (track: TrackListItem) => void;
+};
+
 export type AppShellRouteActions = {
+  home: HomeRouteActions;
   playlists: PlaylistRouteActions;
   tracks: TracksRouteActions;
   albums: AlbumsRouteActions;

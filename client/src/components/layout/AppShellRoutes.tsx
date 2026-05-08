@@ -24,9 +24,11 @@ export function AppShellRoutes({
         path="/home"
         element={
           <HomePage
-            libraryRows={routes.home.libraryRows}
-            trackCount={routes.home.trackCount}
-            appVersion={routes.home.appVersion}
+            tracksState={routes.home.tracksState}
+            albumsState={routes.home.albumsState}
+            playlistsState={routes.home.playlistsState}
+            conceptAlbumsState={routes.home.conceptAlbumsState}
+            onTrackSelect={actions.home.onTrackSelect}
           />
         }
       />

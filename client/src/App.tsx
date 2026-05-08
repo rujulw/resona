@@ -37,9 +37,10 @@ export default function App() {
     },
     routes: {
       home: {
-        libraryRows: appShell.shellState.libraryRows,
-        trackCount: appShell.tracksState.total,
-        appVersion: appShell.bootstrapState.payload.appVersion,
+        tracksState: appShell.tracksState,
+        albumsState: appShell.albumsState,
+        playlistsState: appShell.playlistsState,
+        conceptAlbumsState: appShell.conceptAlbumsState,
       },
       tracks: {
         libraryPath: appShell.libraryPath,
@@ -73,6 +74,9 @@ export default function App() {
       },
     },
     actions: {
+      home: {
+        onTrackSelect: appShell.handleTrackSelection,
+      },
       playlists: {
         onCreatePlaylist: appShell.handlePlaylistCreate,
         onPlaylistArtworkChange: appShell.handlePlaylistArtworkChange,
