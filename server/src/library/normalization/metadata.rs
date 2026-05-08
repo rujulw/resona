@@ -194,9 +194,9 @@ fn apply_flac_vorbis_comments(block: &[u8], metadata: &mut AudioMetadata) {
             }
             "TRACKNUMBER" => metadata.track_number = parse_integer_prefix(value),
             "DISCNUMBER" => metadata.disc_number = parse_integer_prefix(value),
-            "YEAR" | "DATE" => {
+            "DATE" | "YEAR" => {
                 if metadata.year.is_none() {
-                    metadata.year = value.trim().chars().take(4).collect::<String>().parse::<i64>().ok();
+                    metadata.year = value.get(..4).and_then(|s| s.parse::<i64>().ok()).filter(|&y| y > 0);
                 }
             }
             _ => {}

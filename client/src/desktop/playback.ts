@@ -131,3 +131,27 @@ export async function reportPlaybackError(
     () => getPreviewPlaybackError(normalizeOptionalText(transportLabel)),
   );
 }
+
+export async function recordPlayEvent(trackId: string): Promise<void> {
+  return invokeWithPreviewFallback(
+    "record_play_event",
+    { trackId },
+    () => undefined,
+  );
+}
+
+export type AutoContinueResult = {
+  trackIds: string[];
+  sourceLabel: string;
+};
+
+export async function resolveAutoContinue(
+  artist: string | null,
+  excludeTrackIds: string[],
+): Promise<AutoContinueResult> {
+  return invokeWithPreviewFallback(
+    "resolve_auto_continue",
+    { artist, excludeTrackIds },
+    () => ({ trackIds: [], sourceLabel: "auto-continue:library-shuffle" }),
+  );
+}

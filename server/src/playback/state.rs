@@ -5,7 +5,7 @@ use tauri::AppHandle;
 
 use crate::library::ResolvedPlaybackTrack;
 
-use super::queue::PlaybackQueueSnapshot;
+use super::queue::{PlaybackQueue, PlaybackQueueSnapshot};
 use super::transport::NativePlaybackCommand;
 use super::{PlaybackSnapshot, PlaybackSourcePayload};
 
@@ -16,7 +16,7 @@ pub struct PlaybackRuntimeState {
 
 pub(super) struct PlaybackRuntime {
     pub(super) active_track: Option<ActivePlaybackTrack>,
-    pub(super) queue_track_ids: Vec<String>,
+    pub(super) queue: PlaybackQueue,
     pub(super) status_label: String,
     pub(super) output_owner: String,
     pub(super) progress_seconds: u32,
@@ -69,7 +69,7 @@ impl Default for PlaybackRuntime {
     fn default() -> Self {
         Self {
             active_track: None,
-            queue_track_ids: Vec::new(),
+            queue: PlaybackQueue::default(),
             status_label: "Nothing playing".to_owned(),
             output_owner: "frontend".to_owned(),
             progress_seconds: 0,
@@ -253,18 +253,15 @@ impl PlaybackRuntime {
 
     #[cfg(test)]
     fn queue_snapshot(&self) -> PlaybackQueueSnapshot {
-        PlaybackQueueSnapshot {
-            track_ids: self.queue_track_ids.clone(),
-            active_track_id: self
-                .active_track
-                .as_ref()
-                .map(|track| track.track_id.clone()),
-            source_label: if self.queue_track_ids.is_empty() {
-                "manual-selection".to_owned()
-            } else {
-                "backend-queue".to_owned()
-            },
+        if self.queue.is_empty() {
+            return PlaybackQueueSnapshot {
+                track_ids: vec![],
+                active_track_id: None,
+                source_label: "manual-selection".to_owned(),
+            };
         }
+        let active_id = self.active_track.as_ref().map(|t| t.track_id.as_str());
+        self.queue.snapshot(active_id)
     }
 
     fn replace_queue(
@@ -273,21 +270,7 @@ impl PlaybackRuntime {
         active_track_id: Option<&str>,
         source_label: &str,
     ) -> PlaybackQueueSnapshot {
-        self.queue_track_ids = track_ids;
-        if let Some(active_track_id) = active_track_id {
-            if !self
-                .queue_track_ids
-                .iter()
-                .any(|track_id| track_id == active_track_id)
-            {
-                self.queue_track_ids.insert(0, active_track_id.to_owned());
-            }
-        }
-
-        PlaybackQueueSnapshot {
-            track_ids: self.queue_track_ids.clone(),
-            active_track_id: active_track_id.map(ToOwned::to_owned),
-            source_label: source_label.to_owned(),
-        }
+        self.queue.replace_context(track_ids, active_track_id, source_label);
+        self.queue.snapshot(active_track_id)
     }
 }

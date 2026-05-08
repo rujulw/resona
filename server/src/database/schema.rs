@@ -22,6 +22,8 @@ pub const TRACK_YEAR_AND_ALBUM_METADATA_MIGRATION: &str =
     include_str!("../../db/migrations/0010_track_year_and_album_metadata.sql");
 pub const APP_SETTINGS_MIGRATION: &str =
     include_str!("../../db/migrations/0011_app_settings.sql");
+pub const PLAY_HISTORY_MIGRATION: &str =
+    include_str!("../../db/migrations/0012_play_history.sql");
 
 pub const TABLE_LIBRARY_ROOTS: &str = "library_roots";
 pub const TABLE_TRACKS: &str = "tracks";

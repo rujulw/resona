@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import type { MutableRefObject } from "react";
 
 import type { TrackListItem } from "../../desktop";
+import { recordPlayEvent, resolveAutoContinue } from "../../desktop/playback";
 import type { ShellState, TracksState } from "../../types/app";
 
 export function usePlaybackAutoAdvance({
@@ -15,7 +16,11 @@ export function usePlaybackAutoAdvance({
   tracksState: TracksState;
   trackCatalogRef: MutableRefObject<Map<string, TrackListItem>>;
   playbackQueueTrackIds: string[];
-  startTrackPlayback: (track: TrackListItem, autoplay: boolean) => Promise<void>;
+  startTrackPlayback: (
+    track: TrackListItem,
+    autoplay: boolean,
+    options?: { queueTrackIds?: string[] },
+  ) => Promise<void>;
 }) {
   const playbackQueueTrackIdsRef = useRef<string[]>([]);
   const completionHandledRef = useRef<string | null>(null);
@@ -48,13 +53,48 @@ export function usePlaybackAutoAdvance({
       : undefined;
 
     if (nextTrack) {
+      // Record the completion event before advancing, best-effort.
+      if (activeTrackId) {
+        void recordPlayEvent(activeTrackId);
+      }
       void startTrackPlayback(nextTrack, true);
+      return;
     }
+
+    // Queue exhausted — resolve auto-continue based on the finishing track's artist.
+    const finishedArtist = playback.trackArtist ?? null;
+    const excludeIds = activeTrackId
+      ? [activeTrackId, ...playbackQueueTrackIdsRef.current]
+      : [...playbackQueueTrackIdsRef.current];
+
+    void (async () => {
+      if (activeTrackId) {
+        await recordPlayEvent(activeTrackId).catch(() => undefined);
+      }
+
+      const result = await resolveAutoContinue(
+        finishedArtist,
+        [...new Set(excludeIds)],
+      ).catch(() => ({ trackIds: [], sourceLabel: "" }));
+
+      const firstId = result.trackIds[0];
+      if (!firstId) {
+        return;
+      }
+
+      const firstTrack = trackCatalogRef.current.get(firstId);
+      if (firstTrack) {
+        void startTrackPlayback(firstTrack, true, {
+          queueTrackIds: result.trackIds,
+        });
+      }
+    })();
   }, [
     shellState?.playback.outputOwner,
     shellState?.playback.progressSeconds,
     shellState?.playback.statusLabel,
     shellState?.playback.trackId,
+    shellState?.playback.trackArtist,
     startTrackPlayback,
     trackCatalogRef,
     tracksState.selectedTrackId,

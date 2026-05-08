@@ -129,6 +129,14 @@ Build a private, performance-first music player that feels closer to a system ut
 - Updated the frontend to disable adding new tracks, reordering, or editing once a playlist is converted into a mixtape.
 - Replaced individual track artwork placeholders in the mixtape view with the mixtape's cover image for a unified aesthetic.
 
+## Current Queue Baseline
+
+- Queue authority has moved fully into Rust through a segmented two-tier model: an explicit user queue backed by a `VecDeque<TrackId>` and a zero-copy cursor over the active playlist or album context window.
+- `resolve_next()` is the single dispatch point: it drains the user queue first (O(1) `pop_front`), advances the context cursor second (O(1) index increment), and only falls through to auto-continue when both tiers are exhausted.
+- "Play next" maps to `push_front` and "add to queue" maps to `push_back` on the `VecDeque`, both O(1) without the shifting cost of a plain `Vec`.
+- Auto-continue resolves by walking the last-played artist's discography in release order, filtering already-played tracks with an O(1) `HashSet` lookup, then falling back to a recency-weighted library shuffle when the artist catalogue is exhausted.
+- The `playback://queue-changed` event contract and `PlaybackQueueSnapshot` payload shape remain stable; only the internal resolution strategy changed.
+
 ## Current Collection UI Baseline
 
 - All collection detail views (Playlists, Mixtapes, Albums, Concept Albums) are unified under a premium, edge-to-edge AMOLED black aesthetic.

@@ -32,7 +32,8 @@ pub use library::{
 };
 pub use playback::{
     complete_playback, describe_playback_contract, load_playback_track, playback_action,
-    report_playback_error, seek_playback, sync_playback_timing,
+    record_play_event, report_playback_error, resolve_auto_continue, seek_playback,
+    sync_playback_timing,
 };
 pub use playlists::{
     add_track_to_playlist, create_playlist, delete_playlist, describe_playlist_contract,

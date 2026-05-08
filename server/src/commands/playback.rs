@@ -5,8 +5,8 @@ use crate::database::AppDatabase;
 use crate::library::{LocalLibraryScanner, ScanError};
 use crate::playback::LoadedPlaybackTrackPayload;
 use crate::playback::{
-    emit_playback_state, playback_contract, PlaybackContract, PlaybackRuntimeState,
-    PlaybackSnapshot,
+    emit_playback_state, playback_contract, AutoContinuePayload, AutoContinueResolver,
+    PlaybackContract, PlaybackRuntimeState, PlaybackSnapshot,
 };
 
 #[tauri::command]
@@ -142,6 +142,24 @@ pub fn report_playback_error(
     let snapshot = playback_runtime_state.report_error(transport_label.as_deref());
     emit_playback_state(&app_handle, &snapshot).map_err(|error: tauri::Error| error.to_string())?;
     Ok(snapshot)
+}
+
+#[tauri::command]
+pub fn record_play_event(
+    database_state: State<'_, DatabaseState>,
+    track_id: String,
+) -> Result<(), String> {
+    AutoContinueResolver::new(database_state.app_database.clone()).record_play_event(&track_id)
+}
+
+#[tauri::command]
+pub fn resolve_auto_continue(
+    database_state: State<'_, DatabaseState>,
+    artist: Option<String>,
+    exclude_track_ids: Vec<String>,
+) -> Result<AutoContinuePayload, String> {
+    AutoContinueResolver::new(database_state.app_database.clone())
+        .resolve(artist.as_deref(), &exclude_track_ids)
 }
 
 #[cfg(test)]

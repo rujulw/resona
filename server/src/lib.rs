@@ -17,11 +17,12 @@ use crate::commands::{
     get_album, get_artist_detail, get_artists_images_dir, get_concept_album, get_playlist,
     get_shell_state, handoff_playlist_to_queue, list_albums, list_artists, list_concept_albums,
     list_playlists, load_playback_track, move_concept_album_entry, move_playlist_entry,
-    playback_action, query_library, remove_concept_album_entry, remove_playlist_entry,
-    replace_concept_album_entries, replace_playlist_entries, report_playback_error,
-    resolve_artwork_source, resolve_track_playback_source, scan_local_library, seek_playback,
-    set_artists_images_dir, sync_playback_timing, turn_playlist_to_mixtape, update_concept_album,
-    update_playlist, ArtistImageMapState, DatabaseState,
+    playback_action, query_library, record_play_event, remove_concept_album_entry,
+    remove_playlist_entry, replace_concept_album_entries, replace_playlist_entries,
+    report_playback_error, resolve_artwork_source, resolve_auto_continue,
+    resolve_track_playback_source, scan_local_library, seek_playback, set_artists_images_dir,
+    sync_playback_timing, turn_playlist_to_mixtape, update_concept_album, update_playlist,
+    ArtistImageMapState, DatabaseState,
 };
 use crate::database::AppDatabase;
 use crate::playback::PlaybackRuntimeState;
@@ -77,7 +78,9 @@ pub fn run() {
             replace_playlist_entries,
             scan_local_library,
             query_library,
+            record_play_event,
             resolve_artwork_source,
+            resolve_auto_continue,
             resolve_track_playback_source,
             playback_action,
             seek_playback,

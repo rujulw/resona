@@ -1,3 +1,4 @@
+mod auto_continue;
 mod controls;
 mod queue;
 mod state;
@@ -8,6 +9,7 @@ mod tests;
 
 use serde::Serialize;
 
+pub use auto_continue::{AutoContinuePayload, AutoContinueResolver};
 pub use queue::{emit_playback_queue, PlaybackQueueSnapshot, PLAYBACK_QUEUE_CHANGED_EVENT};
 pub use state::{LoadedPlaybackTrackPayload, PlaybackRuntimeState};
 pub use transport::{
