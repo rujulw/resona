@@ -143,10 +143,10 @@ fn upsert_track(
         "
         INSERT INTO tracks (
           id, library_root_id, relative_path, file_name, extension, title, artist, album,
-          album_artist, genre, advisory, track_number, disc_number, duration_seconds,
+          album_artist, genre, advisory, track_number, disc_number, year, duration_seconds,
           file_size_bytes, artwork_key, content_hash, imported_at, indexed_at, updated_at
         )
-        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20)
+        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21)
         ON CONFLICT(id) DO UPDATE SET
           library_root_id = excluded.library_root_id,
           relative_path = excluded.relative_path,
@@ -160,6 +160,7 @@ fn upsert_track(
           advisory = excluded.advisory,
           track_number = excluded.track_number,
           disc_number = excluded.disc_number,
+          year = excluded.year,
           duration_seconds = excluded.duration_seconds,
           file_size_bytes = excluded.file_size_bytes,
           artwork_key = excluded.artwork_key,
@@ -181,6 +182,7 @@ fn upsert_track(
             track.advisory,
             track.track_number,
             track.disc_number,
+            track.year,
             track.duration_seconds,
             track.file_size_bytes,
             track.artwork_key,

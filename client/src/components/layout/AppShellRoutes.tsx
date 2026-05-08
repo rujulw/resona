@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 
 import type { AppShellRouteActions, AppShellRoutesState } from "../../types/app";
 import { AlbumsPage } from "../../pages/AlbumsPage";
+import { ArtistPage } from "../../pages/ArtistPage";
 import { ConceptAlbumsPage } from "../../pages/ConceptAlbumsPage";
 import { HomePage } from "../../pages/HomePage";
 import { PlaylistsPage } from "../../pages/PlaylistsPage";
@@ -170,6 +171,10 @@ export function AppShellRoutes({
             onScan={actions.settings.onScan}
           />
         }
+      />
+      <Route
+        path="/artist/:artistName"
+        element={<ArtistPage onPlayAlbum={actions.albums.onPlayAlbumById} />}
       />
       <Route path="*" element={<Navigate to="/home" replace />} />
     </Routes>

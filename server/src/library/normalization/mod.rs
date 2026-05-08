@@ -84,6 +84,7 @@ pub(crate) fn normalize_track(
         advisory: metadata_fields.advisory,
         track_number: metadata_fields.track_number,
         disc_number: metadata_fields.disc_number,
+        year: metadata_fields.year,
         duration_seconds: metadata_fields.duration_seconds,
         artwork_key,
         artwork_bytes,

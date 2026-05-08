@@ -138,6 +138,40 @@ export type AlbumDetail = {
   tracks: AlbumTrackItem[];
 };
 
+export type ArtistListItem = {
+  name: string;
+  albumCount: number;
+  trackCount: number;
+};
+
+export type DiscographyAlbum = {
+  id: string;
+  title: string;
+  year: number | null;
+  artworkKey: string | null;
+  trackCount: number;
+  kind: "album" | "concept_album";
+};
+
+export type ArtistPlaylistItem = {
+  id: string;
+  title: string;
+  artworkKey: string | null;
+};
+
+export type ArtistDetail = {
+  name: string;
+  albums: DiscographyAlbum[];
+  features: DiscographyAlbum[];
+  playlists: ArtistPlaylistItem[];
+  trackCount: number;
+  imageConfig: ArtistImageConfig | null;
+};
+
+export type ArtistImageConfig = {
+  localImagePath: string;
+};
+
 export type ConceptAlbumSummary = {
   artworkPath: string | null;
   id: string;

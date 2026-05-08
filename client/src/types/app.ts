@@ -1,6 +1,7 @@
 import type {
   AlbumDetail,
   AlbumSummary,
+  ArtistDetail,
   BootstrapPayload,
   ConceptAlbumDetail,
   ConceptAlbumSummary,
@@ -163,6 +164,11 @@ export type AlbumsRouteState = {
   albumsState: AlbumsState;
 };
 
+export type ArtistPageState =
+  | { status: "loading" }
+  | { status: "ready"; detail: ArtistDetail }
+  | { status: "error"; message: string };
+
 export type ConceptAlbumsRouteState = {
   conceptAlbumsState: ConceptAlbumsState;
   tracksState: TracksState;
@@ -234,6 +240,7 @@ export type AlbumsRouteActions = {
   onAlbumSelect: (albumId: string) => void;
   onAlbumPlaybackHandoff: (albumId: string, startTrackId?: string) => void;
   onAlbumTrackSelect: (trackId: string) => void;
+  onPlayAlbumById: (albumId: string) => Promise<void>;
 };
 
 export type ConceptAlbumsRouteActions = {

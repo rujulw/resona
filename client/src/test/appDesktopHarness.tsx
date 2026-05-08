@@ -37,6 +37,11 @@ export const desktopMocks = {
   updatePlaylistMock: vi.fn(),
   addTrackToPlaylistMock: vi.fn(),
   turnPlaylistToMixtapeMock: vi.fn(),
+  listArtistsMock: vi.fn(),
+  getArtistDetailMock: vi.fn(),
+  getArtistsImagesDirMock: vi.fn(),
+  setArtistsImagesDirMock: vi.fn(),
+  pickArtistsImagesDirMock: vi.fn(),
 };
 
 type PlaybackSnapshot = {
@@ -103,6 +108,11 @@ export const appDesktopState: {
   playbackStateListener: undefined,
 };
 
+vi.mock("@tauri-apps/api/core", () => ({
+  convertFileSrc: (filePath: string) => `asset://localhost/${encodeURIComponent(filePath)}`,
+  invoke: vi.fn(),
+}));
+
 vi.mock("../desktop", () => ({
   addTrackToConceptAlbum: (...args: unknown[]) => desktopMocks.addTrackToConceptAlbumMock(...args),
   addTrackToPlaylist: (...args: unknown[]) => desktopMocks.addTrackToPlaylistMock(...args),
@@ -141,6 +151,11 @@ vi.mock("../desktop", () => ({
   updateConceptAlbum: (...args: unknown[]) => desktopMocks.updateConceptAlbumMock(...args),
   updatePlaylist: (...args: unknown[]) => desktopMocks.updatePlaylistMock(...args),
   turnPlaylistToMixtape: (...args: unknown[]) => desktopMocks.turnPlaylistToMixtapeMock(...args),
+  listArtists: (...args: unknown[]) => desktopMocks.listArtistsMock(...args),
+  getArtistDetail: (...args: unknown[]) => desktopMocks.getArtistDetailMock(...args),
+  getArtistsImagesDir: () => desktopMocks.getArtistsImagesDirMock(),
+  setArtistsImagesDir: (...args: unknown[]) => desktopMocks.setArtistsImagesDirMock(...args),
+  pickArtistsImagesDir: (...args: unknown[]) => desktopMocks.pickArtistsImagesDirMock(...args),
 }));
 
 export function setupAppDesktopHarness() {
@@ -676,6 +691,34 @@ export function setupAppDesktopHarness() {
         activeEntryId: startEntryId ?? "playlist-entry-1",
       }),
     );
+    desktopMocks.listArtistsMock.mockResolvedValue([
+      { name: "North", trackCount: 2 },
+      { name: "South", trackCount: 1 },
+    ]);
+    desktopMocks.getArtistDetailMock.mockImplementation(async (artistName: string) => {
+      if (artistName !== "North") return null;
+      return {
+        name: "North",
+        trackCount: 2,
+        imageConfig: null,
+        albums: [
+          {
+            id: "album:signals:north",
+            title: "Signals",
+            year: 2022,
+            artworkKey: "alpha-cover.png",
+            trackCount: 2,
+            kind: "album",
+          },
+        ],
+        features: [],
+        playlists: [],
+      };
+    });
+    desktopMocks.getArtistsImagesDirMock.mockResolvedValue(null);
+    desktopMocks.setArtistsImagesDirMock.mockResolvedValue(undefined);
+    desktopMocks.pickArtistsImagesDirMock.mockResolvedValue(null);
+
     desktopMocks.turnPlaylistToMixtapeMock.mockImplementation(async (playlistId: string) => ({
       id: playlistId,
       name: "Desk Set",
