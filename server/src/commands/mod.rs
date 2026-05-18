@@ -11,6 +11,7 @@ pub mod concept_albums;
 pub mod library;
 pub mod playback;
 pub mod playlists;
+pub mod scores;
 pub mod system;
 
 #[cfg(test)]
@@ -40,6 +41,7 @@ pub use playlists::{
     get_playlist, handoff_playlist_to_queue, list_playlists, move_playlist_entry,
     remove_playlist_entry, replace_playlist_entries, turn_playlist_to_mixtape, update_playlist,
 };
+pub use scores::extract_score;
 pub use system::{bootstrap_app, get_shell_state};
 
 #[cfg(test)]
