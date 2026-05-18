@@ -258,6 +258,47 @@ export type PlaybackQueueSnapshot = {
   sourceLabel: string;
 };
 
+export type ScorePartSummary = {
+  id: string;
+  name: string;
+  measureCount: number;
+  staffCount: number;
+};
+
+export type ScoreNoteEvent = {
+  id: string;
+  partId: string;
+  partName: string;
+  measureNumber: number;
+  staff: number;
+  voice: string;
+  midi: number;
+  noteName: string;
+  startBeats: number;
+  durationBeats: number;
+  startSeconds: number | null;
+  durationSeconds: number | null;
+  isChordTone: boolean;
+};
+
+export type ScoreDetailPayload = {
+  sourcePath: string;
+  sourceName: string;
+  sourceFormat: string;
+  title: string;
+  composer: string | null;
+  tempoBpm: number | null;
+  timeSignature: string | null;
+  keySignature: string | null;
+  totalBeats: number;
+  totalSeconds: number | null;
+  partCount: number;
+  measureCount: number;
+  noteCount: number;
+  parts: ScorePartSummary[];
+  events: ScoreNoteEvent[];
+};
+
 export type PlaylistPlaybackHandoffPayload = {
   playback: PlaybackShellState;
   queue: PlaybackQueueSnapshot;
