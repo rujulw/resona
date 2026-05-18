@@ -6,6 +6,7 @@ use crate::database::AppDatabase;
 pub struct ArtistImageMapState(pub Arc<Mutex<HashMap<String, String>>>);
 
 pub mod albums;
+pub mod analytics;
 pub mod artists;
 pub mod concept_albums;
 pub mod library;
@@ -40,6 +41,9 @@ pub use playlists::{
     add_track_to_playlist, create_playlist, delete_playlist, describe_playlist_contract,
     get_playlist, handoff_playlist_to_queue, list_playlists, move_playlist_entry,
     remove_playlist_entry, replace_playlist_entries, turn_playlist_to_mixtape, update_playlist,
+};
+pub use analytics::{
+    import_spotify_history_file, query_top_artists, query_top_tracks, query_track_play_stats,
 };
 pub use scores::extract_score;
 pub use system::{bootstrap_app, get_shell_state};

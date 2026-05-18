@@ -6,5 +6,6 @@ export * from "./desktop/playback";
 export * from "./desktop/library";
 export * from "./desktop/albums";
 export * from "./desktop/conceptAlbums";
+export * from "./desktop/analytics";
 export * from "./desktop/artists";
 export * from "./desktop/scores";
