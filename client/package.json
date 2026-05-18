@@ -10,12 +10,15 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@audio-samples/piano-velocity8": "^1.0.5",
     "@tauri-apps/api": "^2.0.0",
     "@tauri-apps/plugin-dialog": "^2.6.0",
     "lucide-react": "^1.7.0",
+    "opensheetmusicdisplay": "file:../../source/redist/osmd-1.7.1.tgz",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "react-router-dom": "^7.13.2"
+    "react-router-dom": "^7.13.2",
+    "tone": "^15.1.22"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.2.2",
