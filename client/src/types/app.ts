@@ -151,6 +151,7 @@ export type PlaylistsRouteState = {
 
 export type QueueRouteState = {
   queueState: QueueState;
+  isPlaying: boolean;
 };
 
 export type AlbumsRouteState = {

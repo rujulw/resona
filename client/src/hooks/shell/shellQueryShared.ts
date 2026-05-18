@@ -6,7 +6,31 @@ import type {
 } from "../../types/app";
 
 export function toAsyncErrorMessage(error: unknown, fallback: string): string {
-  return error instanceof Error ? error.message : fallback;
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  if (typeof error === "string" && error.trim()) {
+    return error;
+  }
+
+  if (typeof error === "object" && error !== null) {
+    const candidate = "message" in error ? (error as { message?: unknown }).message : null;
+    if (typeof candidate === "string" && candidate.trim()) {
+      return candidate;
+    }
+
+    try {
+      const serialized = JSON.stringify(error);
+      if (serialized && serialized !== "{}") {
+        return serialized;
+      }
+    } catch {
+      // Fall through to the fallback when the thrown object is not serializable.
+    }
+  }
+
+  return fallback;
 }
 
 export function getNextTracksTitleHeaderSort(tracksQueryState: TracksQueryState) {
