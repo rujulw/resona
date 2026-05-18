@@ -59,6 +59,7 @@ export default function App() {
       queue: {
         queueState: appShell.queueState,
         isPlaying: appShell.shellState.playback.isPlaying ?? false,
+        audioRef: appShell.audioRef,
       },
       settings: {
         libraryPath: appShell.libraryPath,

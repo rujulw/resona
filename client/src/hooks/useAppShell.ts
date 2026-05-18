@@ -34,6 +34,7 @@ export function useAppShell() {
     }));
 
   return {
+    audioRef: playbackCoordinator.audioRef,
     bootstrapState: shellQueryState.bootstrapState,
     albumsState: shellQueryState.albumsState,
     conceptAlbumsState: shellQueryState.conceptAlbumsState,

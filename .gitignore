@@ -38,3 +38,7 @@ test-results/
 .cache/
 tmp/
 .claude/plans/
+.claude/settings.json
+.mcp.json
+.cursorrules
+.windsurfrules

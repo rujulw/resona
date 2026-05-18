@@ -148,6 +148,7 @@ export function AppShellRoutes({
           <PlayerPage
             queueState={routes.queue.queueState}
             isPlaying={routes.queue.isPlaying}
+            audioRef={routes.queue.audioRef}
           />
         }
       />
