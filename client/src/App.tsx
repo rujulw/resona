@@ -58,6 +58,7 @@ export default function App() {
       },
       queue: {
         queueState: appShell.queueState,
+        isPlaying: appShell.shellState.playback.isPlaying ?? false,
       },
       settings: {
         libraryPath: appShell.libraryPath,
