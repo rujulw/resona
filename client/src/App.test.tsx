@@ -41,6 +41,11 @@ const getArtistDetailMock = vi.fn();
 const getArtistsImagesDirMock = vi.fn();
 const setArtistsImagesDirMock = vi.fn();
 const pickArtistsImagesDirMock = vi.fn();
+const getArtistsProfileImagesDirMock = vi.fn();
+const setArtistsProfileImagesDirMock = vi.fn();
+const pickArtistsProfileImagesDirMock = vi.fn();
+const importSpotifyHistoryFolderMock = vi.fn();
+const pickSpotifyExportFolderMock = vi.fn();
 const mockAudioInstances: MockAudio[] = [];
 
 vi.mock("./desktop", () => ({
@@ -83,6 +88,11 @@ vi.mock("./desktop", () => ({
   getArtistsImagesDir: () => getArtistsImagesDirMock(),
   setArtistsImagesDir: (...args: unknown[]) => setArtistsImagesDirMock(...args),
   pickArtistsImagesDir: (...args: unknown[]) => pickArtistsImagesDirMock(...args),
+  getArtistsProfileImagesDir: () => getArtistsProfileImagesDirMock(),
+  setArtistsProfileImagesDir: (...args: unknown[]) => setArtistsProfileImagesDirMock(...args),
+  pickArtistsProfileImagesDir: (...args: unknown[]) => pickArtistsProfileImagesDirMock(...args),
+  importSpotifyHistoryFolder: (...args: unknown[]) => importSpotifyHistoryFolderMock(...args),
+  pickSpotifyExportFolder: () => pickSpotifyExportFolderMock(),
 }));
 
 class MockAudio extends EventTarget {
@@ -206,6 +216,11 @@ describe("app shell smoke checks", () => {
     getArtistsImagesDirMock.mockReset();
     setArtistsImagesDirMock.mockReset();
     pickArtistsImagesDirMock.mockReset();
+    getArtistsProfileImagesDirMock.mockReset();
+    setArtistsProfileImagesDirMock.mockReset();
+    pickArtistsProfileImagesDirMock.mockReset();
+    importSpotifyHistoryFolderMock.mockReset();
+    pickSpotifyExportFolderMock.mockReset();
     mockAudioInstances.length = 0;
     mockBackendPlayback = {
       statusLabel: "Nothing playing",
@@ -235,6 +250,19 @@ describe("app shell smoke checks", () => {
     getArtistsImagesDirMock.mockResolvedValue(null);
     setArtistsImagesDirMock.mockResolvedValue(undefined);
     pickArtistsImagesDirMock.mockResolvedValue(null);
+    getArtistsProfileImagesDirMock.mockResolvedValue(null);
+    setArtistsProfileImagesDirMock.mockResolvedValue(undefined);
+    pickArtistsProfileImagesDirMock.mockResolvedValue(null);
+    importSpotifyHistoryFolderMock.mockResolvedValue({
+      filesProcessed: 0,
+      matched: 0,
+      ghostStored: 0,
+      skippedShort: 0,
+      skippedPodcast: 0,
+      skippedNoTrackMetadata: 0,
+      skippedDuplicate: 0,
+    });
+    pickSpotifyExportFolderMock.mockResolvedValue(null);
 
     bootstrapAppMock.mockResolvedValue({
       appName: "resona",
@@ -769,7 +797,7 @@ describe("app shell smoke checks", () => {
     const { default: App } = await import("./App");
     render(<App />);
 
-    fireEvent.click(await screen.findByRole("button", { name: "choose folder" }));
+    fireEvent.click(await screen.findByRole("button", { name: "choose library folder" }));
 
     await waitFor(() => {
       expect(pickLibraryDirectoryMock).toHaveBeenCalledTimes(1);
@@ -799,7 +827,7 @@ describe("app shell smoke checks", () => {
     const { default: App } = await import("./App");
     render(<App />);
 
-    fireEvent.click(await screen.findByRole("button", { name: "choose folder" }));
+    fireEvent.click(await screen.findByRole("button", { name: "choose library folder" }));
     fireEvent.click(await screen.findByRole("button", { name: "scan library" }));
 
     await waitFor(() => {
@@ -853,7 +881,7 @@ describe("app shell smoke checks", () => {
     const { default: App } = await import("./App");
     render(<App />);
 
-    fireEvent.click(await screen.findByRole("button", { name: "choose folder" }));
+    fireEvent.click(await screen.findByRole("button", { name: "choose library folder" }));
     fireEvent.click(await screen.findByRole("button", { name: "scan library" }));
 
     await waitFor(() => {

@@ -26,6 +26,8 @@ pub const PLAY_HISTORY_MIGRATION: &str =
     include_str!("../../db/migrations/0012_play_history.sql");
 pub const PLAY_EVENTS_SOURCE_MIGRATION: &str =
     include_str!("../../db/migrations/0013_play_events_source.sql");
+pub const GHOST_PLAYS_MIGRATION: &str =
+    include_str!("../../db/migrations/0014_ghost_plays.sql");
 
 pub const TABLE_LIBRARY_ROOTS: &str = "library_roots";
 pub const TABLE_TRACKS: &str = "tracks";

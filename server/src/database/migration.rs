@@ -4,7 +4,7 @@ use crate::database::schema;
 
 use super::DatabaseError;
 
-pub const MIGRATIONS: [Migration; 13] = [
+pub const MIGRATIONS: [Migration; 14] = [
     Migration {
         id: "0001_initial_schema",
         sql: schema::INITIAL_SCHEMA_MIGRATION,
@@ -56,6 +56,10 @@ pub const MIGRATIONS: [Migration; 13] = [
     Migration {
         id: "0013_play_events_source",
         sql: schema::PLAY_EVENTS_SOURCE_MIGRATION,
+    },
+    Migration {
+        id: "0014_ghost_plays",
+        sql: schema::GHOST_PLAYS_MIGRATION,
     },
 ];
 

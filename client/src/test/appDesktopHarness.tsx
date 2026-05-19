@@ -42,6 +42,11 @@ export const desktopMocks = {
   getArtistsImagesDirMock: vi.fn(),
   setArtistsImagesDirMock: vi.fn(),
   pickArtistsImagesDirMock: vi.fn(),
+  getArtistsProfileImagesDirMock: vi.fn(),
+  setArtistsProfileImagesDirMock: vi.fn(),
+  pickArtistsProfileImagesDirMock: vi.fn(),
+  importSpotifyHistoryFolderMock: vi.fn(),
+  pickSpotifyExportFolderMock: vi.fn(),
 };
 
 type PlaybackSnapshot = {
@@ -156,6 +161,11 @@ vi.mock("../desktop", () => ({
   getArtistsImagesDir: () => desktopMocks.getArtistsImagesDirMock(),
   setArtistsImagesDir: (...args: unknown[]) => desktopMocks.setArtistsImagesDirMock(...args),
   pickArtistsImagesDir: (...args: unknown[]) => desktopMocks.pickArtistsImagesDirMock(...args),
+  getArtistsProfileImagesDir: () => desktopMocks.getArtistsProfileImagesDirMock(),
+  setArtistsProfileImagesDir: (...args: unknown[]) => desktopMocks.setArtistsProfileImagesDirMock(...args),
+  pickArtistsProfileImagesDir: (...args: unknown[]) => desktopMocks.pickArtistsProfileImagesDirMock(...args),
+  importSpotifyHistoryFolder: (...args: unknown[]) => desktopMocks.importSpotifyHistoryFolderMock(...args),
+  pickSpotifyExportFolder: () => desktopMocks.pickSpotifyExportFolderMock(),
 }));
 
 export function setupAppDesktopHarness() {
@@ -718,6 +728,19 @@ export function setupAppDesktopHarness() {
     desktopMocks.getArtistsImagesDirMock.mockResolvedValue(null);
     desktopMocks.setArtistsImagesDirMock.mockResolvedValue(undefined);
     desktopMocks.pickArtistsImagesDirMock.mockResolvedValue(null);
+    desktopMocks.getArtistsProfileImagesDirMock.mockResolvedValue(null);
+    desktopMocks.setArtistsProfileImagesDirMock.mockResolvedValue(undefined);
+    desktopMocks.pickArtistsProfileImagesDirMock.mockResolvedValue(null);
+    desktopMocks.importSpotifyHistoryFolderMock.mockResolvedValue({
+      filesProcessed: 0,
+      matched: 0,
+      ghostStored: 0,
+      skippedShort: 0,
+      skippedPodcast: 0,
+      skippedNoTrackMetadata: 0,
+      skippedDuplicate: 0,
+    });
+    desktopMocks.pickSpotifyExportFolderMock.mockResolvedValue(null);
 
     desktopMocks.turnPlaylistToMixtapeMock.mockImplementation(async (playlistId: string) => ({
       id: playlistId,

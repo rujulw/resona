@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use rusqlite::Connection;
 use serde::Serialize;
 
@@ -21,8 +23,10 @@ pub struct TopArtistEntry {
     pub artist: String,
     pub play_count: i64,
     pub track_count: i64,
+    pub total_ms_played: i64,
     pub first_played_at: i64,
     pub last_played_at: i64,
+    pub image_path: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -112,68 +116,117 @@ pub fn get_top_artists(
     conn: &Connection,
     window: AnalyticsWindow,
     limit: usize,
+    image_map: &HashMap<String, String>,
 ) -> Result<Vec<TopArtistEntry>, rusqlite::Error> {
     let cutoff = window.cutoff_ms();
-    // Aggregate by track first, then split artist names in Rust so that
-    // "Artist A, Artist B" counts as two separate artists.
-    let sql_with_cutoff =
-        "SELECT t.artist, COUNT(*) AS play_count,
-                MIN(pe.played_at) AS first_played_at,
-                MAX(pe.played_at) AS last_played_at
-         FROM play_events pe
-         JOIN tracks t ON pe.track_id = t.id
-         WHERE pe.played_at >= ?1
-         GROUP BY pe.track_id, t.artist";
-    let sql_all_time =
-        "SELECT t.artist, COUNT(*) AS play_count,
-                MIN(pe.played_at) AS first_played_at,
-                MAX(pe.played_at) AS last_played_at
-         FROM play_events pe
-         JOIN tracks t ON pe.track_id = t.id
-         GROUP BY pe.track_id, t.artist";
 
-    struct TrackRow {
+    // Per-track aggregation from local play_events.
+    // COALESCE(pe.ms_played, track_duration_ms, 0) — local plays recorded before migration
+    // have NULL ms_played, so we fall back to the stored track duration.
+    let local_sql_cutoff = "
+        SELECT t.artist,
+               COUNT(*) AS play_count,
+               SUM(COALESCE(pe.ms_played,
+                   CAST(t.duration_seconds * 1000.0 AS INTEGER), 0)) AS total_ms,
+               MIN(pe.played_at) AS first_played_at,
+               MAX(pe.played_at) AS last_played_at
+        FROM play_events pe
+        JOIN tracks t ON pe.track_id = t.id
+        WHERE pe.played_at >= ?1
+        GROUP BY pe.track_id, t.artist";
+
+    let local_sql_all = "
+        SELECT t.artist,
+               COUNT(*) AS play_count,
+               SUM(COALESCE(pe.ms_played,
+                   CAST(t.duration_seconds * 1000.0 AS INTEGER), 0)) AS total_ms,
+               MIN(pe.played_at) AS first_played_at,
+               MAX(pe.played_at) AS last_played_at
+        FROM play_events pe
+        JOIN tracks t ON pe.track_id = t.id
+        GROUP BY pe.track_id, t.artist";
+
+    // Per-song aggregation from ghost plays (Spotify entries with no local match).
+    let ghost_sql_cutoff = "
+        SELECT artist,
+               COUNT(*) AS play_count,
+               SUM(ms_played) AS total_ms,
+               MIN(played_at) AS first_played_at,
+               MAX(played_at) AS last_played_at
+        FROM spotify_ghost_plays
+        WHERE played_at >= ?1
+        GROUP BY title_norm, artist_norm";
+
+    let ghost_sql_all = "
+        SELECT artist,
+               COUNT(*) AS play_count,
+               SUM(ms_played) AS total_ms,
+               MIN(played_at) AS first_played_at,
+               MAX(played_at) AS last_played_at
+        FROM spotify_ghost_plays
+        GROUP BY title_norm, artist_norm";
+
+    struct Row {
         artist: String,
         play_count: i64,
+        total_ms: i64,
         first_played_at: i64,
         last_played_at: i64,
     }
 
-    let map_row = |row: &rusqlite::Row<'_>| -> rusqlite::Result<TrackRow> {
-        Ok(TrackRow {
+    let map_row = |row: &rusqlite::Row<'_>| -> rusqlite::Result<Row> {
+        Ok(Row {
             artist: row.get(0)?,
             play_count: row.get(1)?,
-            first_played_at: row.get(2)?,
-            last_played_at: row.get(3)?,
+            total_ms: row.get::<_, Option<i64>>(2)?.unwrap_or(0),
+            first_played_at: row.get(3)?,
+            last_played_at: row.get(4)?,
         })
     };
 
-    let mut stmt = conn.prepare(if cutoff.is_some() { sql_with_cutoff } else { sql_all_time })?;
-    let rows: Vec<TrackRow> = if let Some(cutoff_ms) = cutoff {
-        stmt.query_map(rusqlite::params![cutoff_ms], map_row)?.collect::<Result<_, _>>()?
+    // Collect local rows
+    let mut local_stmt =
+        conn.prepare(if cutoff.is_some() { local_sql_cutoff } else { local_sql_all })?;
+    let local_rows: Vec<Row> = if let Some(c) = cutoff {
+        local_stmt.query_map(rusqlite::params![c], map_row)?
     } else {
-        stmt.query_map([], map_row)?.collect::<Result<_, _>>()?
-    };
+        local_stmt.query_map([], map_row)?
+    }
+    .collect::<Result<_, _>>()?;
 
-    // Split "Artist A, Artist B feat. Artist C" → individual names, aggregate
-    use std::collections::HashMap;
+    // Collect ghost rows
+    let mut ghost_stmt =
+        conn.prepare(if cutoff.is_some() { ghost_sql_cutoff } else { ghost_sql_all })?;
+    let ghost_rows: Vec<Row> = if let Some(c) = cutoff {
+        ghost_stmt.query_map(rusqlite::params![c], map_row)?
+    } else {
+        ghost_stmt.query_map([], map_row)?
+    }
+    .collect::<Result<_, _>>()?;
+
+    // Aggregate both sets into a single map, splitting multi-artist strings.
     struct ArtistAgg {
         play_count: i64,
         track_count: i64,
+        total_ms: i64,
         first_played_at: i64,
         last_played_at: i64,
     }
+
     let mut map: HashMap<String, ArtistAgg> = HashMap::new();
-    for row in rows {
+
+    for row in local_rows.into_iter().chain(ghost_rows) {
         for name in split_artist_names(&row.artist) {
             let entry = map.entry(name).or_insert(ArtistAgg {
                 play_count: 0,
                 track_count: 0,
+                total_ms: 0,
                 first_played_at: i64::MAX,
                 last_played_at: 0,
             });
             entry.play_count += row.play_count;
             entry.track_count += 1;
+            entry.total_ms += row.total_ms;
             entry.first_played_at = entry.first_played_at.min(row.first_played_at);
             entry.last_played_at = entry.last_played_at.max(row.last_played_at);
         }
@@ -181,12 +234,17 @@ pub fn get_top_artists(
 
     let mut results: Vec<TopArtistEntry> = map
         .into_iter()
-        .map(|(artist, agg)| TopArtistEntry {
-            artist,
-            play_count: agg.play_count,
-            track_count: agg.track_count,
-            first_played_at: agg.first_played_at,
-            last_played_at: agg.last_played_at,
+        .map(|(artist, agg)| {
+            let image_path = image_map.get(&artist.to_lowercase()).cloned();
+            TopArtistEntry {
+                artist,
+                play_count: agg.play_count,
+                track_count: agg.track_count,
+                total_ms_played: agg.total_ms,
+                first_played_at: agg.first_played_at,
+                last_played_at: agg.last_played_at,
+                image_path,
+            }
         })
         .collect();
 
@@ -196,7 +254,6 @@ pub fn get_top_artists(
 }
 
 fn split_artist_names(raw: &str) -> Vec<String> {
-    // First split on comma, then strip feat./ft./featuring prefixes
     raw.split(',')
         .flat_map(|part| split_featuring(part.trim()))
         .filter(|s| !s.is_empty())

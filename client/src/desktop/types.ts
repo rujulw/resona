@@ -329,8 +329,10 @@ export type TopArtistEntry = {
   artist: string;
   playCount: number;
   trackCount: number;
+  totalMsPlayed: number;
   firstPlayedAt: number;
   lastPlayedAt: number;
+  imagePath?: string | null;
 };
 
 export type TrackPlayStats = {
@@ -341,8 +343,11 @@ export type TrackPlayStats = {
 };
 
 export type SpotifyImportResult = {
+  filesProcessed: number;
   matched: number;
+  ghostStored: number;
   skippedShort: number;
-  skippedNoMatch: number;
+  skippedPodcast: number;
+  skippedNoTrackMetadata: number;
   skippedDuplicate: number;
 };

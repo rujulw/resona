@@ -1,6 +1,6 @@
 import { open } from "@tauri-apps/plugin-dialog";
 
-import { invokeWithPreviewFallback } from "./runtime";
+import { invokeDesktop, invokeWithPreviewFallback } from "./runtime";
 import type {
   SpotifyImportResult,
   TopArtistEntry,
@@ -51,13 +51,32 @@ export async function pickSpotifyExportFile(): Promise<string | null> {
   return typeof selected === "string" ? selected : null;
 }
 
+export async function pickSpotifyExportFolder(): Promise<string | null> {
+  const selected = await open({
+    title: "Choose Spotify export folder (containing Streaming_History_Audio_*.json files)",
+    directory: true,
+    multiple: false,
+    recursive: false,
+  });
+  return typeof selected === "string" ? selected : null;
+}
+
 export async function importSpotifyHistoryFile(
   jsonPath: string,
   minMsPlayed?: number,
 ): Promise<SpotifyImportResult> {
-  return invokeWithPreviewFallback(
-    "import_spotify_history_file",
-    { jsonPath, minMsPlayed: minMsPlayed ?? null },
-    () => ({ matched: 0, skippedShort: 0, skippedNoMatch: 0, skippedDuplicate: 0 }),
-  );
+  return invokeDesktop("import_spotify_history_file", {
+    jsonPath,
+    minMsPlayed: minMsPlayed ?? null,
+  });
+}
+
+export async function importSpotifyHistoryFolder(
+  folderPath: string,
+  minMsPlayed?: number,
+): Promise<SpotifyImportResult> {
+  return invokeDesktop("import_spotify_history_folder", {
+    folderPath,
+    minMsPlayed: minMsPlayed ?? null,
+  });
 }

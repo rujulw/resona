@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { convertFileSrc } from "@tauri-apps/api/core";
 import { useNavigate } from "react-router-dom";
 
 import { queryTopArtists, queryTopTracks, resolveArtworkSource } from "../desktop";
@@ -29,15 +30,19 @@ function deriveTopAlbums(tracks: TopTrackEntry[]): DerivedAlbum[] {
   const map = new Map<string, DerivedAlbum>();
   for (const t of tracks) {
     if (!t.album) continue;
-    const key = t.artworkKey ?? t.album;
-    const entry = map.get(key) ?? {
-      name: t.album,
-      albumId: encodeAlbumId(t.album, t.artist),
-      artworkKey: t.artworkKey,
-      playCount: 0,
-    };
-    entry.playCount += t.playCount;
-    map.set(key, entry);
+    const key = encodeAlbumId(t.album, t.artist);
+    const existing = map.get(key);
+    if (existing) {
+      existing.playCount += t.playCount;
+      if (!existing.artworkKey && t.artworkKey) existing.artworkKey = t.artworkKey;
+    } else {
+      map.set(key, {
+        name: t.album,
+        albumId: key,
+        artworkKey: t.artworkKey,
+        playCount: t.playCount,
+      });
+    }
   }
   return Array.from(map.values())
     .sort((a, b) => b.playCount - a.playCount)
@@ -167,10 +172,17 @@ function AlbumTile({ album, onClick }: { album: DerivedAlbum; onClick: () => voi
 }
 
 function ArtistTile({ entry, onClick }: { entry: TopArtistEntry; onClick: () => void }) {
+  const imgSrc = entry.imagePath ? convertFileSrc(entry.imagePath) : null;
   return (
     <button type="button" onClick={onClick} className="min-w-0 flex-1 flex flex-col items-center">
-      <div className="mb-2 flex aspect-square w-full items-center justify-center rounded-full bg-white/[0.06] text-2xl font-semibold text-[#5a5a5a]">
-        {entry.artist.charAt(0).toUpperCase()}
+      <div className="mb-2 aspect-square w-full overflow-hidden rounded-full bg-white/[0.06]">
+        {imgSrc ? (
+          <img src={imgSrc} alt={entry.artist} className="h-full w-full object-cover" />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center text-2xl font-semibold text-[#5a5a5a]">
+            {entry.artist.charAt(0).toUpperCase()}
+          </div>
+        )}
       </div>
       <p className="w-full truncate text-center text-xs font-medium text-[#8f8f8f]">
         {entry.artist}
