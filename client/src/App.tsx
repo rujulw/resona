@@ -3,6 +3,7 @@ import { BrowserRouter } from "react-router-dom";
 import { AppShell } from "./components/layout/AppShell";
 import { AppShellRoutes } from "./components/layout/AppShellRoutes";
 import { ShellStateScreen } from "./components/ui/ShellStateScreen";
+import { QueueActionsProvider } from "./contexts/QueueActionsContext";
 import { useAppShell } from "./hooks/useAppShell";
 import type { AppShellViewModel } from "./types/app";
 
@@ -120,15 +121,17 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      <AppShell
-        chrome={shellViewModel.chrome}
-        playback={shellViewModel.playback}
-      >
-        <AppShellRoutes
-          routes={shellViewModel.routes}
-          actions={shellViewModel.actions}
-        />
-      </AppShell>
+      <QueueActionsProvider onQueueMutate={appShell.handleQueueMutate}>
+        <AppShell
+          chrome={shellViewModel.chrome}
+          playback={shellViewModel.playback}
+        >
+          <AppShellRoutes
+            routes={shellViewModel.routes}
+            actions={shellViewModel.actions}
+          />
+        </AppShell>
+      </QueueActionsProvider>
     </BrowserRouter>
   );
 }

@@ -1,5 +1,6 @@
 import { Play } from "lucide-react";
 import type { AlbumDetail } from "../../desktop";
+import { useTrackContextMenu } from "../../contexts/QueueActionsContext";
 import { ArtistLinks } from "./ArtistLinks";
 import { formatDuration } from "../../utils/format";
 import { AdvisoryBadge } from "./AdvisoryBadge";
@@ -16,6 +17,8 @@ export function AlbumDetailPanel({
   onPlayAlbum: (startTrackId?: string) => void;
   onTrackSelect: (trackId: string) => void;
 }) {
+  const { handleContextMenu, contextMenuEl } = useTrackContextMenu();
+
   if (!albumDetail) {
     return (
       <section className="grid min-h-[320px] place-items-center rounded-lg border border-white/6 bg-[#1b1b1b] px-5 py-6">
@@ -30,6 +33,8 @@ export function AlbumDetailPanel({
   }
 
   return (
+    <>
+    {contextMenuEl}
     <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-black">
       <header className="flex flex-wrap items-end justify-between gap-6 px-8 pb-4 pt-10 bg-gradient-to-b from-white/[0.07] to-transparent">
         <div className="flex min-w-0 items-end gap-6">
@@ -103,6 +108,7 @@ export function AlbumDetailPanel({
                   onPlayAlbum(track.id);
                   onTrackSelect(track.id);
                 }}
+                onContextMenu={(e) => handleContextMenu(e, track.id)}
                 onKeyDown={(event) => {
                   if (event.key === "Enter" || event.key === " ") {
                     event.preventDefault();
@@ -156,5 +162,6 @@ export function AlbumDetailPanel({
         </section>
       </div>
     </div>
+    </>
   );
 }

@@ -16,7 +16,7 @@ export function selectActivePlaybackTrackId(
   shellState: ShellState | null,
   tracksState: TracksState,
 ) {
-  return shellState?.playback.trackId ?? tracksState.selectedTrackId;
+  return tracksState.selectedTrackId ?? shellState?.playback.trackId ?? null;
 }
 
 export function selectCurrentPlaybackProgressSeconds(

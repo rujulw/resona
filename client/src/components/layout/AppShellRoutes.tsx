@@ -30,6 +30,7 @@ export function AppShellRoutes({
             playlistsState={routes.home.playlistsState}
             conceptAlbumsState={routes.home.conceptAlbumsState}
             onTrackSelect={actions.home.onTrackSelect}
+            onQueueMutate={actions.home.onQueueMutate}
           />
         }
       />
