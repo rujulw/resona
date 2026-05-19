@@ -37,8 +37,5 @@ test-results/
 # Misc
 .cache/
 tmp/
-.claude/plans/
-.claude/settings.json
+.claude/
 .mcp.json
-.cursorrules
-.windsurfrules
