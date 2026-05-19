@@ -76,11 +76,21 @@ Current milestone progress:
 - Backend module hygiene now keeps playlist domain logic in focused files and splits playback runtime state from transport/native-output control paths so later queue and architecture work can land with smaller backend context windows
 - Album and artist foundation work should enter through home-search and track-context detail routes instead of expanding the top-level shell navigation
 - Queue authority has moved fully into Rust through a segmented two-tier model: a `VecDeque`-backed user queue and a cursor-based context window, with lazy auto-continue resolution that walks the artist discography before falling back to a recency-weighted library shuffle
+- A full-screen player page with VinylDisc animation and setlist panel now ships alongside the persistent playback bar
+- An analytics page now ships with top tracks, top albums (deduped by album identity), and top artists across three time windows; the 4-week window is local-only while 6-month and all-time include Spotify import history
+- Spotify GDPR export folder import now ships, streaming multi-file JSON history, matching streams to local tracks by normalized title and artist, storing unmatched plays as ghost plays, and absorbing ghosts automatically when matching tracks are scanned
+- `play_events` now carries a `source` column (`local` vs `spotify-import`) and millisecond timestamps, giving the analytics engine a reliable signal for source-aware window filtering
+- Artist pages now support separate banner image and profile picture directories configured through native folder pickers
+- Test coverage now spans ~115 Rust tests and ~109 client tests including dedicated analytics command tests and shellQueryShared unit tests
 
 Current release status:
 
-- The current app ships the local-first playback baseline, FLAC compatibility, privacy-safe Rich Presence, trusted advisory metadata, and first-class playlists in one coherent desktop release
-- The next release work should build on that baseline with Spotify import, artist/album pages, richer queue ownership, and timbre-driven insight surfaces
+- The current app ships the local-first playback baseline, FLAC compatibility, privacy-safe Rich Presence, trusted advisory metadata, first-class playlists, full album and artist pages, and Spotify listening history import in one coherent desktop release
+- The analytics page ships with top tracks, top albums, top artists, time window selection, and source-aware filtering (4-week local-only vs 6-month/all-time including Spotify history)
+- The full-screen player page ships with VinylDisc spin animation, tonearm positioning, numbered setlist panel, and advisory tag display
+- Spotify GDPR export import ships with streaming multi-file JSON parsing, ghost play storage, automatic absorption during scan, and a detailed import summary
+- Artist profile images ship with separate banner and profile picture directory configuration
+- The next release work should build on that baseline with the scores page, timbre-driven audio intelligence surfaces, and Atlas remote storage integration
 
 ## Milestone 5: Cache and Remote Media
 

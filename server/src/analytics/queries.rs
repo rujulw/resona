@@ -57,6 +57,12 @@ impl AnalyticsWindow {
             }
         }
     }
+
+    /// 4-week window is local-only: only counts plays recorded directly in the app.
+    /// 6-month and all-time windows include Spotify import history.
+    fn is_local_only(self) -> bool {
+        matches!(self, Self::Days(d) if d <= 35)
+    }
 }
 
 pub fn get_top_tracks(
@@ -65,27 +71,43 @@ pub fn get_top_tracks(
     limit: usize,
 ) -> Result<Vec<TopTrackEntry>, rusqlite::Error> {
     let cutoff = window.cutoff_ms();
-    let sql = if cutoff.is_some() {
-        "SELECT t.id, t.title, t.artist, t.album, t.artwork_key, t.advisory,
-                COUNT(*) AS play_count,
-                MIN(pe.played_at) AS first_played_at,
-                MAX(pe.played_at) AS last_played_at
-         FROM play_events pe
-         JOIN tracks t ON pe.track_id = t.id
-         WHERE pe.played_at >= ?2
-         GROUP BY pe.track_id
-         ORDER BY play_count DESC
-         LIMIT ?1"
-    } else {
-        "SELECT t.id, t.title, t.artist, t.album, t.artwork_key, t.advisory,
-                COUNT(*) AS play_count,
-                MIN(pe.played_at) AS first_played_at,
-                MAX(pe.played_at) AS last_played_at
-         FROM play_events pe
-         JOIN tracks t ON pe.track_id = t.id
-         GROUP BY pe.track_id
-         ORDER BY play_count DESC
-         LIMIT ?1"
+    let local_only = window.is_local_only();
+
+    // 4-week window is local-only; 6-month and all-time include Spotify import history.
+    let sql = match (cutoff.is_some(), local_only) {
+        (false, _) =>
+            "SELECT t.id, t.title, t.artist, t.album, t.artwork_key, t.advisory,
+                    COUNT(*) AS play_count,
+                    MIN(pe.played_at) AS first_played_at,
+                    MAX(pe.played_at) AS last_played_at
+             FROM play_events pe
+             JOIN tracks t ON pe.track_id = t.id
+             GROUP BY pe.track_id
+             ORDER BY play_count DESC
+             LIMIT ?1",
+        (true, false) =>
+            "SELECT t.id, t.title, t.artist, t.album, t.artwork_key, t.advisory,
+                    COUNT(*) AS play_count,
+                    MIN(pe.played_at) AS first_played_at,
+                    MAX(pe.played_at) AS last_played_at
+             FROM play_events pe
+             JOIN tracks t ON pe.track_id = t.id
+             WHERE pe.played_at >= ?2
+             GROUP BY pe.track_id
+             ORDER BY play_count DESC
+             LIMIT ?1",
+        (true, true) =>
+            "SELECT t.id, t.title, t.artist, t.album, t.artwork_key, t.advisory,
+                    COUNT(*) AS play_count,
+                    MIN(pe.played_at) AS first_played_at,
+                    MAX(pe.played_at) AS last_played_at
+             FROM play_events pe
+             JOIN tracks t ON pe.track_id = t.id
+             WHERE pe.played_at >= ?2
+               AND (pe.source IS NULL OR pe.source = 'local')
+             GROUP BY pe.track_id
+             ORDER BY play_count DESC
+             LIMIT ?1",
     };
 
     let mut stmt = conn.prepare(sql)?;
@@ -119,10 +141,21 @@ pub fn get_top_artists(
     image_map: &HashMap<String, String>,
 ) -> Result<Vec<TopArtistEntry>, rusqlite::Error> {
     let cutoff = window.cutoff_ms();
+    let local_only = window.is_local_only();
 
-    // Per-track aggregation from local play_events.
-    // COALESCE(pe.ms_played, track_duration_ms, 0) — local plays recorded before migration
-    // have NULL ms_played, so we fall back to the stored track duration.
+    // COALESCE(pe.ms_played, track_duration_ms, 0): local plays before migration 0014
+    // have NULL ms_played so fall back to stored track duration.
+    let local_sql_all = "
+        SELECT t.artist,
+               COUNT(*) AS play_count,
+               SUM(COALESCE(pe.ms_played,
+                   CAST(t.duration_seconds * 1000.0 AS INTEGER), 0)) AS total_ms,
+               MIN(pe.played_at) AS first_played_at,
+               MAX(pe.played_at) AS last_played_at
+        FROM play_events pe
+        JOIN tracks t ON pe.track_id = t.id
+        GROUP BY pe.track_id, t.artist";
+
     let local_sql_cutoff = "
         SELECT t.artist,
                COUNT(*) AS play_count,
@@ -135,7 +168,8 @@ pub fn get_top_artists(
         WHERE pe.played_at >= ?1
         GROUP BY pe.track_id, t.artist";
 
-    let local_sql_all = "
+    // 4-week window: only local plays, no ghost plays.
+    let local_sql_cutoff_local_only = "
         SELECT t.artist,
                COUNT(*) AS play_count,
                SUM(COALESCE(pe.ms_played,
@@ -144,9 +178,20 @@ pub fn get_top_artists(
                MAX(pe.played_at) AS last_played_at
         FROM play_events pe
         JOIN tracks t ON pe.track_id = t.id
+        WHERE pe.played_at >= ?1
+          AND (pe.source IS NULL OR pe.source = 'local')
         GROUP BY pe.track_id, t.artist";
 
-    // Per-song aggregation from ghost plays (Spotify entries with no local match).
+    // Ghost plays are Spotify import history — excluded from the 4-week window.
+    let ghost_sql_all = "
+        SELECT artist,
+               COUNT(*) AS play_count,
+               SUM(ms_played) AS total_ms,
+               MIN(played_at) AS first_played_at,
+               MAX(played_at) AS last_played_at
+        FROM spotify_ghost_plays
+        GROUP BY title_norm, artist_norm";
+
     let ghost_sql_cutoff = "
         SELECT artist,
                COUNT(*) AS play_count,
@@ -155,15 +200,6 @@ pub fn get_top_artists(
                MAX(played_at) AS last_played_at
         FROM spotify_ghost_plays
         WHERE played_at >= ?1
-        GROUP BY title_norm, artist_norm";
-
-    let ghost_sql_all = "
-        SELECT artist,
-               COUNT(*) AS play_count,
-               SUM(ms_played) AS total_ms,
-               MIN(played_at) AS first_played_at,
-               MAX(played_at) AS last_played_at
-        FROM spotify_ghost_plays
         GROUP BY title_norm, artist_norm";
 
     struct Row {
@@ -185,8 +221,12 @@ pub fn get_top_artists(
     };
 
     // Collect local rows
-    let mut local_stmt =
-        conn.prepare(if cutoff.is_some() { local_sql_cutoff } else { local_sql_all })?;
+    let local_sql = match (cutoff.is_some(), local_only) {
+        (false, _) => local_sql_all,
+        (true, false) => local_sql_cutoff,
+        (true, true) => local_sql_cutoff_local_only,
+    };
+    let mut local_stmt = conn.prepare(local_sql)?;
     let local_rows: Vec<Row> = if let Some(c) = cutoff {
         local_stmt.query_map(rusqlite::params![c], map_row)?
     } else {
@@ -194,15 +234,19 @@ pub fn get_top_artists(
     }
     .collect::<Result<_, _>>()?;
 
-    // Collect ghost rows
-    let mut ghost_stmt =
-        conn.prepare(if cutoff.is_some() { ghost_sql_cutoff } else { ghost_sql_all })?;
-    let ghost_rows: Vec<Row> = if let Some(c) = cutoff {
-        ghost_stmt.query_map(rusqlite::params![c], map_row)?
+    // Ghost plays only included for 6-month and all-time windows.
+    let ghost_rows: Vec<Row> = if !local_only {
+        let ghost_sql = if cutoff.is_some() { ghost_sql_cutoff } else { ghost_sql_all };
+        let mut ghost_stmt = conn.prepare(ghost_sql)?;
+        if let Some(c) = cutoff {
+            ghost_stmt.query_map(rusqlite::params![c], map_row)?
+        } else {
+            ghost_stmt.query_map([], map_row)?
+        }
+        .collect::<Result<_, _>>()?
     } else {
-        ghost_stmt.query_map([], map_row)?
-    }
-    .collect::<Result<_, _>>()?;
+        Vec::new()
+    };
 
     // Aggregate both sets into a single map, splitting multi-artist strings.
     struct ArtistAgg {

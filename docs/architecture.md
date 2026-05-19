@@ -94,6 +94,7 @@ Current submodules:
 - Owns query shaping for search, sort validation, and backend pagination/cursor handling
 - Owns album and artist aggregation queries for listing and detail hydration
 - Keeps metadata normalization and library-domain models close to the scan/query flows that use them
+- Scan pipeline absorbs matching Spotify ghost plays into `play_events` automatically when a new track is inserted, so historical Spotify listens are promoted to real play events as soon as the corresponding local file is discovered
 
 Current submodules:
 
@@ -106,11 +107,23 @@ Current submodules:
 - `query/sql`: SQL generation for search, cursor, and stable ordering clauses
 - `models`: library-domain payloads, query inputs, and scan errors
 
+### `analytics`
+
+- Owns play history queries and aggregation logic over `play_events` and `spotify_ghost_plays`
+- Exposes source-aware window filtering: 4-week windows restrict to `source = 'local'`; 6-month and all-time windows include Spotify import history
+- Aggregates top tracks, top albums, and top artists by splitting multi-artist strings (comma, feat., ft., featuring) before grouping
+- Keeps no mutable state; all queries execute against the live SQLite connection
+
+Current submodules:
+
+- `queries`: `get_top_tracks`, `get_top_artists`, `get_track_play_stats` with `AnalyticsWindow` enum and `is_local_only()` guard
+
 ### `database`
 
 - Owns SQLite runtime setup, connection policy, and migration application
 - Keeps schema constants and persisted-state enums separate from boot/runtime concerns
 - Serves as the infrastructure layer consumed by library services rather than by the UI directly
+- 14 migrations applied in order; migrations 0013–0014 add `play_events.source`, `play_events.ms_played`, and the `spotify_ghost_plays` table
 
 Current submodules:
 
@@ -184,6 +197,8 @@ Current boundary definition:
 - `client/src/desktop/playback.ts` contains playback commands, playback event subscription, and playback contract helpers
 - `client/src/desktop/playlists.ts` contains playlist CRUD, entry reorder/replacement, and queue handoff helpers
 - `client/src/desktop/library.ts` contains library query/scan calls, artwork/playback source resolution, and native file picker helpers
+- `client/src/desktop/artists.ts` contains artist profile image directory get/set/pick helpers
+- `client/src/desktop/analytics.ts` contains Spotify import commands and Spotify export folder picker
 
 This keeps the public bridge surface stable while letting feature code depend on narrower modules internally.
 
@@ -452,6 +467,16 @@ The current `tracks` route now exposes that contract directly through client-sid
 2. Rust resolves the indexed local file path through the Tauri bridge and playback runtime
 3. The native playback runtime starts local output and emits updated playback snapshots
 4. Queue state and transport controls continue from the playback-order snapshot rather than from the current filtered table
+
+### Spotify Import Flow
+
+1. User selects a Spotify GDPR export folder through a native directory picker
+2. The importer discovers all `Streaming_History_Audio_*.json` files in the selected folder
+3. Each file is parsed with a streaming `BufReader` to avoid loading the full export into memory
+4. Each play entry is matched to a local library track by normalized title and artist (parenthetical removal, feat. splitting, lowercased)
+5. Matched plays are written directly into `play_events` with `source = 'spotify-import'` and the Spotify-provided `ms_played` value
+6. Unmatched plays are stored as ghost plays in `spotify_ghost_plays` keyed by FNV-1a 64-bit hash of normalized title + artist + played_at
+7. When the library scanner later inserts a new track, `absorb_ghost_plays` is called inside the same transaction; matching ghosts are promoted to `play_events` and removed from `spotify_ghost_plays`
 
 ### Future Analysis
 
