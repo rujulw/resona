@@ -151,6 +151,7 @@ export function AppShellRoutes({
             queueState={routes.queue.queueState}
             isPlaying={routes.queue.isPlaying}
             audioRef={routes.queue.audioRef}
+            onQueueReorder={actions.queue.onQueueReorder}
           />
         }
       />

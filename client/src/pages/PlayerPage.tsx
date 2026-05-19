@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { RefObject } from "react";
+import { GripVertical } from "lucide-react";
 
 import { resolveArtworkSource } from "../desktop";
 import type { TrackListItem } from "../desktop";
@@ -10,13 +11,18 @@ import { VinylDisc } from "../components/ui/VinylDisc";
 export function PlayerPage({
   queueState,
   isPlaying,
+  onQueueReorder,
 }: {
   queueState: QueueState;
   isPlaying: boolean;
   audioRef: RefObject<HTMLAudioElement | null>;
+  onQueueReorder: (trackIds: string[]) => void;
 }) {
   const { activeTrack, upcomingTracks } = queueState;
   const [artworkUrl, setArtworkUrl] = useState<string | null>(null);
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [dropIndex, setDropIndex] = useState<number | null>(null);
+  const dragIndexRef = useRef<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -45,6 +51,47 @@ export function PlayerPage({
 
   const upcoming = upcomingTracks ?? [];
 
+  const handleDragStart = (i: number) => {
+    dragIndexRef.current = i;
+    setDragIndex(i);
+  };
+
+  const handleDragOver = (e: React.DragEvent, i: number) => {
+    e.preventDefault();
+    const src = dragIndexRef.current;
+    if (src === null || src === i) return;
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const mid = rect.top + rect.height / 2;
+    setDropIndex(e.clientY < mid ? i : i + 1);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    const src = dragIndexRef.current;
+    if (src === null || dropIndex === null) {
+      setDragIndex(null);
+      setDropIndex(null);
+      dragIndexRef.current = null;
+      return;
+    }
+
+    const reordered = [...upcoming];
+    const [moved] = reordered.splice(src, 1);
+    const insertAt = dropIndex > src ? dropIndex - 1 : dropIndex;
+    reordered.splice(insertAt, 0, moved);
+
+    onQueueReorder([activeTrack.id, ...reordered.map((t) => t.id)]);
+    setDragIndex(null);
+    setDropIndex(null);
+    dragIndexRef.current = null;
+  };
+
+  const handleDragEnd = () => {
+    setDragIndex(null);
+    setDropIndex(null);
+    dragIndexRef.current = null;
+  };
+
   return (
     <div className="flex h-full min-h-0 items-center bg-black p-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       <section className="relative ml-[4%] flex h-full w-full max-w-[99vh] shrink-0 items-center justify-center overflow-hidden rounded-[clamp(2rem,4vw,3rem)] border border-white/5 bg-[#2c2c2c] shadow-[0_0_100px_rgba(0,0,0,0.5)]">
@@ -66,27 +113,50 @@ export function PlayerPage({
         {upcoming.length > 0 && (
           <div className="flex min-h-0 flex-1 flex-col gap-4">
             <p className="shrink-0 text-[11px] tracking-[0.08em] text-[#4a4a4a]">up next</p>
-            <div className="min-h-0 flex-1 overflow-y-scroll [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <div
+              className="min-h-0 flex-1 overflow-y-scroll [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={handleDrop}
+            >
               {upcoming.map((track: TrackListItem, i) => {
-                const opacity = Math.max(0.22, 1 - i * 0.14);
+                const opacity = dragIndex !== null ? 1 : Math.max(0.22, 1 - i * 0.14);
+                const isDragging = dragIndex === i;
                 return (
-                  <div
-                    key={track.id}
-                    className="flex items-center gap-4 py-2.5"
-                    style={{ opacity }}
-                  >
-                    <span className="w-5 shrink-0 text-right text-[11px] tabular-nums text-[#3a3a3a]">
-                      {String(i + 1).padStart(2, "0")}
-                    </span>
-                    <div className="flex min-w-0 flex-col gap-0.5">
-                      <span className="truncate text-xs font-medium text-[#8f8f8f]">
-                        {track.title}
+                  <div key={track.id} className="relative">
+                    {dropIndex === i && (
+                      <span className="pointer-events-none absolute inset-x-0 top-0 z-10 h-px bg-white/30" />
+                    )}
+                    <div
+                      draggable
+                      onDragStart={() => handleDragStart(i)}
+                      onDragOver={(e) => handleDragOver(e, i)}
+                      onDragEnd={handleDragEnd}
+                      className={[
+                        "group flex items-center gap-3 py-2.5 transition-opacity",
+                        isDragging ? "opacity-30" : "",
+                      ].join(" ")}
+                      style={{ opacity: isDragging ? 0.3 : opacity }}
+                    >
+                      <span className="w-5 shrink-0 text-right text-[11px] tabular-nums text-[#3a3a3a]">
+                        {String(i + 1).padStart(2, "0")}
                       </span>
-                      <div className="flex items-center gap-1.5">
-                        <AdvisoryBadge advisory={track.advisory} />
-                        <span className="truncate text-[11px] text-[#5a5a5a]">{track.artist}</span>
+                      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                        <span className="truncate text-xs font-medium text-[#8f8f8f]">
+                          {track.title}
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <AdvisoryBadge advisory={track.advisory} />
+                          <span className="truncate text-[11px] text-[#5a5a5a]">{track.artist}</span>
+                        </div>
                       </div>
+                      <GripVertical
+                        className="h-3.5 w-3.5 shrink-0 cursor-grab text-[#3a3a3a] opacity-0 transition-opacity group-hover:opacity-100 active:cursor-grabbing"
+                        strokeWidth={2}
+                      />
                     </div>
+                    {dropIndex === i + 1 && i === upcoming.length - 1 && (
+                      <span className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-px bg-white/30" />
+                    )}
                   </div>
                 );
               })}
