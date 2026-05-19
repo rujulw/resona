@@ -48,7 +48,10 @@ export function HomePage({
   albumsState: AlbumsState;
   playlistsState: PlaylistsState;
   conceptAlbumsState: ConceptAlbumsState;
-  onTrackSelect: (track: TrackListItem) => void;
+  onTrackSelect: (
+    track: TrackListItem,
+    options?: { queueTrackIds?: string[]; queueItems?: TrackListItem[]; sourceLabel?: string },
+  ) => void;
 }) {
   const [query, setQuery] = useState("");
   const navigate = useNavigate();
@@ -74,22 +77,34 @@ export function HomePage({
   const results = useMemo<SearchEntry[]>(() => {
     if (!q) return [];
 
+    // Score and sort tracks first so every track entry's onSelect closure captures
+    // the full scored list as queue context — preserving search result order.
+    const scoredTracks = tracksState.items
+      .map((t) => ({ t, score: scoreMatch(t.title, `${t.artist ?? ""} ${t.album ?? ""}`, q) }))
+      .filter(({ score }) => score < Infinity)
+      .sort((a, b) => a.score - b.score);
+
+    const scoredTrackIds = scoredTracks.map(({ t }) => t.id);
+    const scoredTrackItems = scoredTracks.map(({ t }) => t);
+
     const entries: SearchEntry[] = [];
 
-    for (const t of tracksState.items) {
-      const score = scoreMatch(t.title, `${t.artist ?? ""} ${t.album ?? ""}`, q);
-      if (score < Infinity) {
-        entries.push({
-          id: `track:${t.id}`,
-          kind: "track",
-          label: t.title,
-          sublabel: t.album ?? "",
-          meta: t.durationSeconds != null ? formatDuration(Math.round(t.durationSeconds)) : "",
-          artworkKey: t.artworkKey,
-          score,
-          onSelect: () => onTrackSelect(t),
-        });
-      }
+    for (const { t, score } of scoredTracks) {
+      entries.push({
+        id: `track:${t.id}`,
+        kind: "track",
+        label: t.title,
+        sublabel: t.album ?? "",
+        meta: t.durationSeconds != null ? formatDuration(Math.round(t.durationSeconds)) : "",
+        artworkKey: t.artworkKey,
+        score,
+        onSelect: () =>
+          onTrackSelect(t, {
+            queueTrackIds: scoredTrackIds,
+            queueItems: scoredTrackItems,
+            sourceLabel: "home-search",
+          }),
+      });
     }
 
     for (const a of albumsState.items) {
@@ -239,7 +254,17 @@ export function HomePage({
           {recentlyAdded.length > 0 && (
             <HorizontalRow label="jump back in">
               {recentlyAdded.map((track) => (
-                <TrackCard key={track.id} track={track} onSelect={() => onTrackSelect(track)} />
+                <TrackCard
+                  key={track.id}
+                  track={track}
+                  onSelect={() =>
+                    onTrackSelect(track, {
+                      queueTrackIds: recentlyAdded.map((t) => t.id),
+                      queueItems: recentlyAdded,
+                      sourceLabel: "home-recently-added",
+                    })
+                  }
+                />
               ))}
             </HorizontalRow>
           )}

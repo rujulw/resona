@@ -30,7 +30,6 @@ export function usePlaybackCoordinator({
 
   const { audioRef, startTrackPlayback } = usePlaybackMediaRuntime({
     shellState,
-    tracksState,
     trackCatalogRef,
     setTracksState,
     setPlaybackQueueTrackIds,

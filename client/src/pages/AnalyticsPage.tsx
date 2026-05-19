@@ -296,7 +296,10 @@ export function AnalyticsPage({
 }: {
   playlists: PlaylistSummary[];
   allTracks: TrackListItem[];
-  onTrackSelect: (track: TrackListItem) => void;
+  onTrackSelect: (
+    track: TrackListItem,
+    options?: { queueTrackIds?: string[]; queueItems?: TrackListItem[]; sourceLabel?: string },
+  ) => void;
 }) {
   const navigate = useNavigate();
   const [range, setRange] = useState<TimeRange>("all");
@@ -359,7 +362,16 @@ export function AnalyticsPage({
                     entry={t}
                     onClick={() => {
                       const full = tracksById.get(t.trackId);
-                      if (full) onTrackSelect(full);
+                      if (full) {
+                        const queueItems = tracks
+                          .map((entry) => tracksById.get(entry.trackId))
+                          .filter((item): item is TrackListItem => item != null);
+                        onTrackSelect(full, {
+                          queueTrackIds: queueItems.map((item) => item.id),
+                          queueItems,
+                          sourceLabel: "analytics-top-tracks",
+                        });
+                      }
                     }}
                   />
                 ))}
