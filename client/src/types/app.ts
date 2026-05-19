@@ -275,11 +275,20 @@ export type PlaybackChromeActions = {
 };
 
 export type HomeRouteActions = {
-  onTrackSelect: (track: TrackListItem) => void;
+  onTrackSelect: (
+    track: TrackListItem,
+    options?: { queueTrackIds?: string[]; queueItems?: TrackListItem[]; sourceLabel?: string },
+  ) => void;
+  onQueueMutate: (trackId: string, mode: "next" | "last") => void;
+};
+
+export type QueueRouteActions = {
+  onQueueReorder: (trackIds: string[]) => void;
 };
 
 export type AppShellRouteActions = {
   home: HomeRouteActions;
+  queue: QueueRouteActions;
   playlists: PlaylistRouteActions;
   albums: AlbumsRouteActions;
   conceptAlbums: ConceptAlbumsRouteActions;

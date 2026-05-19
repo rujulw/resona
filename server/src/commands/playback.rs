@@ -5,8 +5,9 @@ use crate::database::AppDatabase;
 use crate::library::{LocalLibraryScanner, ScanError};
 use crate::playback::LoadedPlaybackTrackPayload;
 use crate::playback::{
-    emit_playback_state, playback_contract, AutoContinuePayload, AutoContinueResolver,
-    PlaybackContract, PlaybackRuntimeState, PlaybackSnapshot,
+    emit_playback_queue, emit_playback_state, playback_contract, AutoContinuePayload,
+    AutoContinueResolver, PlaybackContract, PlaybackQueueSnapshot, PlaybackRuntimeState,
+    PlaybackSnapshot,
 };
 
 #[tauri::command]
@@ -160,6 +161,29 @@ pub fn resolve_auto_continue(
 ) -> Result<AutoContinuePayload, String> {
     AutoContinueResolver::new(database_state.app_database.clone())
         .resolve(artist.as_deref(), &exclude_track_ids)
+}
+
+#[tauri::command]
+pub fn mutate_queue(
+    app_handle: AppHandle,
+    playback_runtime_state: State<'_, PlaybackRuntimeState>,
+    track_id: String,
+    mode: String,
+) -> Result<PlaybackQueueSnapshot, String> {
+    let snapshot = playback_runtime_state.mutate_queue(track_id, &mode);
+    emit_playback_queue(&app_handle, &snapshot).map_err(|e| e.to_string())?;
+    Ok(snapshot)
+}
+
+#[tauri::command]
+pub fn reorder_queue(
+    app_handle: AppHandle,
+    playback_runtime_state: State<'_, PlaybackRuntimeState>,
+    track_ids: Vec<String>,
+) -> Result<PlaybackQueueSnapshot, String> {
+    let snapshot = playback_runtime_state.reorder_queue(track_ids);
+    emit_playback_queue(&app_handle, &snapshot).map_err(|e| e.to_string())?;
+    Ok(snapshot)
 }
 
 #[cfg(test)]

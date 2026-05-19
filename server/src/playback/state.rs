@@ -186,6 +186,29 @@ impl PlaybackRuntimeState {
             .expect("playback runtime lock should not be poisoned");
         runtime.replace_queue(track_ids, active_track_id, source_label)
     }
+
+    pub fn mutate_queue(&self, track_id: String, mode: &str) -> PlaybackQueueSnapshot {
+        let mut runtime = self
+            .shared
+            .inner
+            .lock()
+            .expect("playback runtime lock should not be poisoned");
+        match mode {
+            "next" => runtime.queue.push_next(track_id),
+            _ => runtime.queue.push_back(track_id),
+        }
+        runtime.queue_snapshot()
+    }
+
+    pub fn reorder_queue(&self, track_ids: Vec<String>) -> PlaybackQueueSnapshot {
+        let mut runtime = self
+            .shared
+            .inner
+            .lock()
+            .expect("playback runtime lock should not be poisoned");
+        runtime.queue.replace_user_queue(track_ids);
+        runtime.queue_snapshot()
+    }
 }
 
 impl PlaybackRuntime {
@@ -251,8 +274,7 @@ impl PlaybackRuntime {
         }
     }
 
-    #[cfg(test)]
-    fn queue_snapshot(&self) -> PlaybackQueueSnapshot {
+    pub(super) fn queue_snapshot(&self) -> PlaybackQueueSnapshot {
         if self.queue.is_empty() {
             return PlaybackQueueSnapshot {
                 track_ids: vec![],

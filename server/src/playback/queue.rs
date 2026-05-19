@@ -90,6 +90,12 @@ impl PlaybackQueue {
         }
     }
 
+    pub fn replace_user_queue(&mut self, track_ids: Vec<String>) {
+        self.user_queue = VecDeque::from(track_ids);
+        self.context_tracks.clear();
+        self.context_cursor = 0;
+    }
+
     pub fn is_empty(&self) -> bool {
         self.user_queue.is_empty() && self.context_tracks.is_empty()
     }

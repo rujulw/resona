@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 
-import { seekPlayback, type TrackListItem } from "../desktop";
+import { mutateQueue, reorderQueue, seekPlayback, type TrackListItem } from "../desktop";
 
 import {
   selectIsRustOutputPlayback,
@@ -81,6 +81,24 @@ export function usePlaybackCoordinator({
     [startTrackPlayback],
   );
 
+  const handleQueueMutate = useCallback(
+    (trackId: string, mode: "next" | "last") => {
+      void mutateQueue(trackId, mode).then((snapshot) => {
+        setPlaybackQueueTrackIds(snapshot.trackIds);
+      });
+    },
+    [setPlaybackQueueTrackIds],
+  );
+
+  const handleQueueReorder = useCallback(
+    (trackIds: string[]) => {
+      void reorderQueue(trackIds).then((snapshot) => {
+        setPlaybackQueueTrackIds(snapshot.trackIds);
+      });
+    },
+    [setPlaybackQueueTrackIds],
+  );
+
   const handlePlaybackSeek = useCallback(
     (positionSeconds: number) => {
       const clampedSeconds = Math.max(
@@ -107,5 +125,7 @@ export function usePlaybackCoordinator({
     handlePlaybackAction,
     handlePlaybackSeek,
     handleTrackSelection,
+    handleQueueMutate,
+    handleQueueReorder,
   };
 }

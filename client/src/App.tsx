@@ -71,6 +71,10 @@ export default function App() {
     actions: {
       home: {
         onTrackSelect: appShell.handleTrackSelection,
+        onQueueMutate: appShell.handleQueueMutate,
+      },
+      queue: {
+        onQueueReorder: appShell.handleQueueReorder,
       },
       playlists: {
         onCreatePlaylist: appShell.handlePlaylistCreate,
