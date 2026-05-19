@@ -102,6 +102,7 @@ export function usePlaybackCoordinator({
   );
 
   return {
+    audioRef,
     queueState,
     handlePlaylistPlaybackHandoff,
     handlePlaybackAction,

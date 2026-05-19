@@ -1,4 +1,4 @@
-import { Home, ListOrdered, Music, Plus, Settings2 } from "lucide-react";
+import { BarChart2, Home, ListOrdered, Music, Plus, Settings2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 
@@ -10,6 +10,7 @@ const routeIcons = {
   home: Home,
   player: ListOrdered,
   scores: Music,
+  analytics: BarChart2,
   settings: Settings2,
 } as const;
 

@@ -273,9 +273,36 @@ pub(crate) fn query_artist_detail(
 pub(crate) fn query_artists_images_dir(
     connection: &rusqlite::Connection,
 ) -> Result<Option<String>, ScanError> {
+    query_setting(connection, "artists_images_dir")
+}
+
+pub(crate) fn upsert_artists_images_dir(
+    connection: &rusqlite::Connection,
+    dir_path: &str,
+) -> Result<(), ScanError> {
+    upsert_setting(connection, "artists_images_dir", dir_path)
+}
+
+pub(crate) fn query_artists_profile_images_dir(
+    connection: &rusqlite::Connection,
+) -> Result<Option<String>, ScanError> {
+    query_setting(connection, "artists_profile_images_dir")
+}
+
+pub(crate) fn upsert_artists_profile_images_dir(
+    connection: &rusqlite::Connection,
+    dir_path: &str,
+) -> Result<(), ScanError> {
+    upsert_setting(connection, "artists_profile_images_dir", dir_path)
+}
+
+fn query_setting(
+    connection: &rusqlite::Connection,
+    key: &str,
+) -> Result<Option<String>, ScanError> {
     match connection.query_row(
-        "SELECT value FROM app_settings WHERE key = 'artists_images_dir'",
-        [],
+        "SELECT value FROM app_settings WHERE key = ?1",
+        params![key],
         |row| row.get::<_, String>(0),
     ) {
         Ok(value) => Ok(Some(value)),
@@ -284,16 +311,15 @@ pub(crate) fn query_artists_images_dir(
     }
 }
 
-pub(crate) fn upsert_artists_images_dir(
+fn upsert_setting(
     connection: &rusqlite::Connection,
-    dir_path: &str,
+    key: &str,
+    value: &str,
 ) -> Result<(), ScanError> {
     connection.execute(
-        "
-        INSERT INTO app_settings (key, value) VALUES ('artists_images_dir', ?1)
-        ON CONFLICT(key) DO UPDATE SET value = excluded.value
-        ",
-        params![dir_path],
+        "INSERT INTO app_settings (key, value) VALUES (?1, ?2)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        params![key, value],
     )?;
     Ok(())
 }

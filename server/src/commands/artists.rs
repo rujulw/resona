@@ -2,8 +2,8 @@ use std::collections::HashMap;
 
 use tauri::State;
 
-use super::{ArtistImageMapState, DatabaseState};
-use crate::artists::{build_artist_image_map, ArtistStore};
+use super::{ArtistImageMapState, ArtistProfileImageMapState, DatabaseState};
+use crate::artists::{build_artist_image_map, build_artist_profile_image_map, ArtistStore};
 use crate::database::AppDatabase;
 use crate::library::{ArtistDetail, ArtistImageConfig, ArtistListItem, ScanError};
 
@@ -77,5 +77,39 @@ pub fn build_initial_artist_image_map(app_database: &AppDatabase) -> HashMap<Str
         .ok()
         .flatten()
         .map(|dir| build_artist_image_map(std::path::Path::new(&dir)))
+        .unwrap_or_default()
+}
+
+#[tauri::command]
+pub fn get_artists_profile_images_dir(
+    database_state: State<'_, DatabaseState>,
+) -> Result<Option<String>, String> {
+    ArtistStore::new(database_state.app_database.clone())
+        .get_artists_profile_images_dir()
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn set_artists_profile_images_dir(
+    database_state: State<'_, DatabaseState>,
+    image_map_state: State<'_, ArtistProfileImageMapState>,
+    dir_path: String,
+) -> Result<(), String> {
+    ArtistStore::new(database_state.app_database.clone())
+        .set_artists_profile_images_dir(&dir_path)
+        .map_err(|e| e.to_string())?;
+    let new_map = build_artist_profile_image_map(std::path::Path::new(&dir_path));
+    *image_map_state.0.lock().expect("profile image map lock") = new_map;
+    Ok(())
+}
+
+pub fn build_initial_artist_profile_image_map(
+    app_database: &AppDatabase,
+) -> HashMap<String, String> {
+    ArtistStore::new(app_database.clone())
+        .get_artists_profile_images_dir()
+        .ok()
+        .flatten()
+        .map(|dir| build_artist_profile_image_map(std::path::Path::new(&dir)))
         .unwrap_or_default()
 }

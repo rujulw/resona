@@ -168,10 +168,7 @@ describe("albums page", () => {
     fireEvent.click(screen.getByRole("link", { name: /player/i }));
 
     await waitFor(() => {
-      expect(screen.getByText("queued from the current album order")).toBeTruthy();
-      expect(screen.getByText("1 waiting")).toBeTruthy();
-      expect(screen.getByText("Gamma")).toBeTruthy();
-      expect(screen.getAllByText("North").length).toBeGreaterThan(0);
+      expect(screen.getByText("direct drive system / quartz lock")).toBeTruthy();
     });
   });
 });

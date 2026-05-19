@@ -4,8 +4,10 @@ use std::sync::{Arc, Mutex};
 use crate::database::AppDatabase;
 
 pub struct ArtistImageMapState(pub Arc<Mutex<HashMap<String, String>>>);
+pub struct ArtistProfileImageMapState(pub Arc<Mutex<HashMap<String, String>>>);
 
 pub mod albums;
+pub mod analytics;
 pub mod artists;
 pub mod concept_albums;
 pub mod library;
@@ -19,8 +21,9 @@ pub mod tests;
 
 pub use albums::{get_album, list_albums};
 pub use artists::{
-    build_initial_artist_image_map, get_artist_detail, get_artists_images_dir, list_artists,
-    set_artists_images_dir,
+    build_initial_artist_image_map, build_initial_artist_profile_image_map, get_artist_detail,
+    get_artists_images_dir, get_artists_profile_images_dir, list_artists, set_artists_images_dir,
+    set_artists_profile_images_dir,
 };
 pub use concept_albums::{
     add_track_to_concept_album, create_concept_album, delete_concept_album,
@@ -40,6 +43,10 @@ pub use playlists::{
     add_track_to_playlist, create_playlist, delete_playlist, describe_playlist_contract,
     get_playlist, handoff_playlist_to_queue, list_playlists, move_playlist_entry,
     remove_playlist_entry, replace_playlist_entries, turn_playlist_to_mixtape, update_playlist,
+};
+pub use analytics::{
+    import_spotify_history_file, import_spotify_history_folder, query_top_artists, query_top_tracks,
+    query_track_play_stats,
 };
 pub use scores::extract_score;
 pub use system::{bootstrap_app, get_shell_state};

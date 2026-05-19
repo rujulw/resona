@@ -312,3 +312,42 @@ export type LibraryPagePayload = {
   total: number;
   pageSize: number;
 };
+
+export type TopTrackEntry = {
+  trackId: string;
+  title: string;
+  artist: string;
+  album: string | null;
+  artworkKey: string | null;
+  advisory?: boolean | null;
+  playCount: number;
+  firstPlayedAt: number;
+  lastPlayedAt: number;
+};
+
+export type TopArtistEntry = {
+  artist: string;
+  playCount: number;
+  trackCount: number;
+  totalMsPlayed: number;
+  firstPlayedAt: number;
+  lastPlayedAt: number;
+  imagePath?: string | null;
+};
+
+export type TrackPlayStats = {
+  trackId: string;
+  playCount: number;
+  firstPlayedAt: number;
+  lastPlayedAt: number;
+};
+
+export type SpotifyImportResult = {
+  filesProcessed: number;
+  matched: number;
+  ghostStored: number;
+  skippedShort: number;
+  skippedPodcast: number;
+  skippedNoTrackMetadata: number;
+  skippedDuplicate: number;
+};

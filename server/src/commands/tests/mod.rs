@@ -9,6 +9,7 @@ use crate::commands::DatabaseState;
 use crate::database::AppDatabase;
 
 pub mod albums_tests;
+pub mod analytics_tests;
 pub mod concept_albums_tests;
 pub mod library_tests;
 pub mod playback_tests;

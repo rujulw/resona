@@ -115,6 +115,27 @@ Build a private, performance-first music player that feels closer to a system ut
 - Added first-class album and artist browse and detail flows so the library can surface grouped releases and performer views beyond track lists.
 - Implemented backend aggregation queries and command wiring to shape album and artist metadata consistently.
 - Wired album and artist interactions into the existing shell navigation and playback flows, keeping the broader desktop experience unchanged.
+- Artist pages support separate banner image and profile picture directories, each configurable through native folder pickers.
+
+## Current Player Baseline
+
+- Added a full-screen player page (`/player`) built around a VinylDisc component with CSS spin animation and tonearm positioning tied to play/pause state.
+- Player right panel renders a numbered setlist with the active track highlighted and advisory tags filling the remaining right-side space.
+- Vinyl spin and tonearm transitions use CSS-only animations (`animate-vinyl`, `pause-vinyl`, `transition-transform duration-1000 ease-in-out`) without Framer Motion.
+
+## Current Analytics Baseline
+
+- Added an analytics page backed by play history recorded in `play_events` with millisecond timestamps and a `source` column distinguishing local plays from imported history.
+- Time window selector offers 4-week, 6-month, and all-time views; 4-week is local-only while 6-month and all-time fold in Spotify import history.
+- Top tracks list, top albums grid (deduped by album identity, not artwork hash), and top artists tiles are all derived from the same `play_events` query surface.
+- Artists with multiple names in tags (comma-separated, featuring notation) are split into individual entries for aggregation.
+
+## Current Spotify Import Baseline
+
+- Added a Spotify GDPR export folder importer that streams multi-file JSON history without loading the full export into memory.
+- Plays are matched to local library tracks by normalized title and artist, then absorbed into `play_events` directly when a match is found.
+- Unmatched plays are stored as ghost plays in `spotify_ghost_plays` and automatically absorbed into `play_events` when a matching track is scanned into the library later.
+- Import summary reports files processed, matched, ghost-stored, and counts for each skip category (short, podcast, no metadata, duplicate).
 
 ## Current Concept Albums Baseline
 
@@ -403,6 +424,12 @@ Current playback smoke coverage includes:
 
 - backend tests for load, play, seek, pause, and completion against the Rust playback runtime
 - frontend shell smoke checks that render backend-owned playback snapshots and transport transitions
+
+Current test surface includes:
+
+- ~115 Rust integration tests spanning library, playback, playlists, concept albums, scores, system, and analytics commands
+- ~109 client tests covering shell query state, page smoke checks, bridge harness, and pure utility functions
+- Analytics tests cover top tracks/artists ranking, source window filtering (local-only 4-week vs all-source 6-month), ghost play absorption, Spotify folder import, idempotent reimport, and skip category enforcement
 
 Current packaging baseline includes:
 

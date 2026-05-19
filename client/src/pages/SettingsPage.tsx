@@ -1,11 +1,17 @@
 import { useEffect, useState } from "react";
-import { FolderOpen, RefreshCw } from "lucide-react";
+import { Download, FolderOpen, RefreshCw } from "lucide-react";
 
 import {
   getArtistsImagesDir,
+  getArtistsProfileImagesDir,
+  importSpotifyHistoryFolder,
   pickArtistsImagesDir,
+  pickArtistsProfileImagesDir,
+  pickSpotifyExportFolder,
   setArtistsImagesDir,
+  setArtistsProfileImagesDir,
 } from "../desktop";
+import type { SpotifyImportResult } from "../desktop";
 import type { ScanState } from "../types/app";
 
 export function SettingsPage({
@@ -23,28 +29,85 @@ export function SettingsPage({
   onPickLibraryDirectory: () => void;
   onScan: () => void;
 }) {
-  const [dirPath, setDirPath] = useState("");
-  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  // Artist banner images (ArtistPage hero)
+  const [bannerDirPath, setBannerDirPath] = useState("");
+  const [bannerSaveStatus, setBannerSaveStatus] = useState<
+    "idle" | "saving" | "saved" | "error"
+  >("idle");
+
+  // Artist profile pictures (Analytics circles)
+  const [profileDirPath, setProfileDirPath] = useState("");
+  const [profileSaveStatus, setProfileSaveStatus] = useState<
+    "idle" | "saving" | "saved" | "error"
+  >("idle");
+
+  // Spotify folder import
+  const [spotifyFolderPath, setSpotifyFolderPath] = useState("");
+  const [importStatus, setImportStatus] = useState<
+    "idle" | "importing" | "done" | "error"
+  >("idle");
+  const [importResult, setImportResult] = useState<SpotifyImportResult | null>(null);
+  const [importError, setImportError] = useState("");
 
   useEffect(() => {
-    void getArtistsImagesDir().then((path) => setDirPath(path ?? ""));
+    void getArtistsImagesDir().then((p) => setBannerDirPath(p ?? ""));
+    void getArtistsProfileImagesDir().then((p) => setProfileDirPath(p ?? ""));
   }, []);
 
-  const handleBrowseArtistImages = () => {
-    void pickArtistsImagesDir(dirPath || null).then((path) => {
+  const handleBrowseBannerImages = () => {
+    void pickArtistsImagesDir(bannerDirPath || null).then((path) => {
       if (!path) return;
-      setSaveStatus("saving");
+      setBannerSaveStatus("saving");
       void setArtistsImagesDir(path)
         .then(() => {
-          setDirPath(path);
-          setSaveStatus("saved");
-          setTimeout(() => setSaveStatus("idle"), 2000);
+          setBannerDirPath(path);
+          setBannerSaveStatus("saved");
+          setTimeout(() => setBannerSaveStatus("idle"), 2000);
         })
         .catch(() => {
-          setSaveStatus("error");
-          setTimeout(() => setSaveStatus("idle"), 3000);
+          setBannerSaveStatus("error");
+          setTimeout(() => setBannerSaveStatus("idle"), 3000);
         });
     });
+  };
+
+  const handleBrowseProfileImages = () => {
+    void pickArtistsProfileImagesDir(profileDirPath || null).then((path) => {
+      if (!path) return;
+      setProfileSaveStatus("saving");
+      void setArtistsProfileImagesDir(path)
+        .then(() => {
+          setProfileDirPath(path);
+          setProfileSaveStatus("saved");
+          setTimeout(() => setProfileSaveStatus("idle"), 2000);
+        })
+        .catch(() => {
+          setProfileSaveStatus("error");
+          setTimeout(() => setProfileSaveStatus("idle"), 3000);
+        });
+    });
+  };
+
+  const handlePickSpotifyFolder = () => {
+    void pickSpotifyExportFolder().then((path) => {
+      if (path) setSpotifyFolderPath(path);
+    });
+  };
+
+  const handleImport = () => {
+    if (!spotifyFolderPath) return;
+    setImportStatus("importing");
+    setImportResult(null);
+    setImportError("");
+    void importSpotifyHistoryFolder(spotifyFolderPath)
+      .then((result) => {
+        setImportResult(result);
+        setImportStatus("done");
+      })
+      .catch((err: unknown) => {
+        setImportError(String(err));
+        setImportStatus("error");
+      });
   };
 
   return (
@@ -58,6 +121,7 @@ export function SettingsPage({
         </span>
       </header>
 
+      {/* Library */}
       <section>
         <SettingRow
           label="Library folder"
@@ -68,7 +132,7 @@ export function SettingsPage({
                 icon={<FolderOpen className="h-4 w-4" />}
                 onClick={onPickLibraryDirectory}
                 disabled={scanState.status === "running"}
-                ariaLabel="choose folder"
+                ariaLabel="choose library folder"
               />
               <ActionButton
                 icon={<RefreshCw className="h-4 w-4" />}
@@ -113,25 +177,116 @@ export function SettingsPage({
         ) : null}
       </section>
 
+      {/* Artist images */}
       <section>
+        <SectionHeader>artists</SectionHeader>
+
         <SettingRow
-          label="Artist banners folder"
-          value={dirPath || "No folder selected"}
+          label="Banner images"
+          sublabel="Full-width photos shown on the artist page"
+          value={bannerDirPath || "No folder selected"}
           actions={
             <ActionButton
               icon={<FolderOpen className="h-4 w-4" />}
-              onClick={handleBrowseArtistImages}
-              disabled={saveStatus === "saving"}
-              ariaLabel="browse"
+              onClick={handleBrowseBannerImages}
+              disabled={bannerSaveStatus === "saving"}
+              ariaLabel="browse banner images"
             />
           }
         />
-
-        {saveStatus === "saved" ? (
+        {bannerSaveStatus === "saved" ? (
           <p className="px-8 pb-4 text-[13px] text-[#6f6f6f]">Saved.</p>
         ) : null}
-        {saveStatus === "error" ? (
+        {bannerSaveStatus === "error" ? (
           <p className="px-8 pb-4 text-[13px] text-[#6f6f6f]">Failed to save.</p>
+        ) : null}
+
+        <SettingRow
+          label="Profile pictures"
+          sublabel="Square photos shown as circles on the analytics page"
+          value={profileDirPath || "No folder selected"}
+          actions={
+            <ActionButton
+              icon={<FolderOpen className="h-4 w-4" />}
+              onClick={handleBrowseProfileImages}
+              disabled={profileSaveStatus === "saving"}
+              ariaLabel="browse profile pictures"
+            />
+          }
+        />
+        {profileSaveStatus === "saved" ? (
+          <p className="px-8 pb-4 text-[13px] text-[#6f6f6f]">Saved.</p>
+        ) : null}
+        {profileSaveStatus === "error" ? (
+          <p className="px-8 pb-4 text-[13px] text-[#6f6f6f]">Failed to save.</p>
+        ) : null}
+      </section>
+
+      {/* Spotify import */}
+      <section>
+        <SectionHeader>import</SectionHeader>
+
+        <SettingRow
+          label="Spotify listening history"
+          sublabel="Point to your extracted Spotify GDPR export folder — all Streaming_History_Audio_*.json files will be imported"
+          value={spotifyFolderPath || "No folder selected"}
+          actions={
+            <>
+              <ActionButton
+                icon={<FolderOpen className="h-4 w-4" />}
+                onClick={handlePickSpotifyFolder}
+                disabled={importStatus === "importing"}
+                ariaLabel="choose spotify folder"
+              />
+              <ActionButton
+                icon={<Download className="h-4 w-4" />}
+                onClick={handleImport}
+                disabled={!spotifyFolderPath || importStatus === "importing"}
+                ariaLabel="import"
+              />
+            </>
+          }
+        />
+
+        {importStatus === "importing" ? (
+          <p className="px-8 pb-4 text-[13px] text-[#6f6f6f]">Importing…</p>
+        ) : null}
+
+        {importStatus === "done" && importResult ? (
+          <div className="mx-8 mb-5 rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-4">
+            <p className="text-[11px] tracking-[0.08em] text-[#6f6f6f]">
+              last import · {importResult.filesProcessed}{" "}
+              {importResult.filesProcessed === 1 ? "file" : "files"}
+            </p>
+            <div className="mt-3 flex flex-wrap gap-6">
+              {(
+                [
+                  ["matched", importResult.matched],
+                  ["queued", importResult.ghostStored],
+                  [
+                    "skipped",
+                    importResult.skippedShort +
+                      importResult.skippedDuplicate +
+                      importResult.skippedNoTrackMetadata +
+                      importResult.skippedPodcast,
+                  ],
+                ] as [string, number][]
+              ).map(([label, value]) => (
+                <div key={label} className="flex items-baseline gap-1.5">
+                  <span className="text-2xl font-bold tracking-[-0.04em] text-[#f2f2f2]">
+                    {value}
+                  </span>
+                  <span className="text-[11px] uppercase tracking-[0.1em] text-[#6f6f6f]">
+                    {label}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        {importStatus === "error" ? (
+          <p className="px-8 pb-4 text-[13px] text-[#6f6f6f]">{importError || "Import failed."}</p>
         ) : null}
       </section>
     </div>
@@ -140,7 +295,7 @@ export function SettingsPage({
 
 function SectionHeader({ children }: { children: React.ReactNode }) {
   return (
-    <div className="border-t border-white/10 px-8 py-3 text-[11px] tracking-[0.08em] text-[#a5a5a5]">
+    <div className="border-t border-white/[0.06] px-8 py-3 text-[11px] tracking-[0.08em] text-[#4a4a4a]">
       {children}
     </div>
   );
@@ -148,18 +303,23 @@ function SectionHeader({ children }: { children: React.ReactNode }) {
 
 function SettingRow({
   label,
+  sublabel,
   value,
   actions,
 }: {
   label: string;
+  sublabel?: string;
   value: string;
   actions: React.ReactNode;
 }) {
   return (
     <div className="flex items-start gap-4 border-t border-white/[0.05] px-8 py-5">
-      <div className="grid min-w-0 flex-1 gap-1">
+      <div className="grid min-w-0 flex-1 gap-0.5">
         <span className="text-[15px] font-medium text-[#f2f2f2]">{label}</span>
-        <span className="break-all text-[13px] text-[#a5a5a5]">{value}</span>
+        {sublabel ? (
+          <span className="text-[11px] text-[#4a4a4a]">{sublabel}</span>
+        ) : null}
+        <span className="mt-0.5 break-all text-[13px] text-[#a5a5a5]">{value}</span>
       </div>
       <div className="flex shrink-0 items-center gap-2">{actions}</div>
     </div>

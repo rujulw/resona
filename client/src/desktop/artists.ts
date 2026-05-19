@@ -16,3 +16,11 @@ export async function getArtistsImagesDir(): Promise<string | null> {
 export async function setArtistsImagesDir(dirPath: string): Promise<void> {
   await invokeDesktop("set_artists_images_dir", { dirPath });
 }
+
+export async function getArtistsProfileImagesDir(): Promise<string | null> {
+  return invokeWithPreviewFallback("get_artists_profile_images_dir", {}, () => null);
+}
+
+export async function setArtistsProfileImagesDir(dirPath: string): Promise<void> {
+  await invokeDesktop("set_artists_profile_images_dir", { dirPath });
+}

@@ -7,8 +7,8 @@ use crate::database::AppDatabase;
 
 const ARTIST_WALK_LIMIT: usize = 15;
 const LIBRARY_FALLBACK_LIMIT: usize = 15;
-// Window for computing year preference: 90 days in seconds
-const YEAR_PREF_WINDOW_SECS: i64 = 7_776_000;
+// Window for computing year preference: 90 days in milliseconds
+const YEAR_PREF_WINDOW_MS: i64 = 7_776_000_000;
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -35,7 +35,8 @@ impl AutoContinueResolver {
         let event_id = format!("{track_id}:{now}");
         connection
             .execute(
-                "INSERT OR IGNORE INTO play_events (id, track_id, played_at) VALUES (?1, ?2, ?3)",
+                "INSERT OR IGNORE INTO play_events (id, track_id, played_at, source)
+                 VALUES (?1, ?2, ?3, 'local')",
                 params![event_id, track_id, now],
             )
             .map_err(|e| e.to_string())?;
@@ -83,7 +84,7 @@ impl AutoContinueResolver {
             .app_database
             .connect()
             .map_err(|e| e.to_string())?;
-        let cutoff = unix_now() - YEAR_PREF_WINDOW_SECS;
+        let cutoff = unix_now() - YEAR_PREF_WINDOW_MS;
 
         // Compute the user's preferred year for this artist from recent play history.
         // AVG of years of recently played tracks by this artist gives a centroid era.
@@ -181,6 +182,6 @@ fn build_exclude_clause(ids: &[String]) -> String {
 fn unix_now() -> i64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_secs() as i64)
+        .map(|d| d.as_millis() as i64)
         .unwrap_or(0)
 }

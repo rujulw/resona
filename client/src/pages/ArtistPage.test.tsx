@@ -171,7 +171,7 @@ describe("artist images dir setting", () => {
     const { default: App } = await import("../App");
     render(<App />);
 
-    fireEvent.click(await screen.findByRole("button", { name: "browse" }));
+    fireEvent.click(await screen.findByRole("button", { name: "browse banner images" }));
 
     await waitFor(() => {
       expect(desktopMocks.setArtistsImagesDirMock).toHaveBeenCalledWith(
@@ -189,7 +189,7 @@ describe("artist images dir setting", () => {
     const { default: App } = await import("../App");
     render(<App />);
 
-    fireEvent.click(await screen.findByRole("button", { name: "browse" }));
+    fireEvent.click(await screen.findByRole("button", { name: "browse banner images" }));
 
     await waitFor(() => {
       expect(desktopMocks.setArtistsImagesDirMock).not.toHaveBeenCalled();

@@ -3,6 +3,12 @@ mod store;
 
 pub use store::ArtistStore;
 
+pub(crate) fn build_artist_profile_image_map(
+    dir: &std::path::Path,
+) -> std::collections::HashMap<String, String> {
+    build_artist_image_map(dir)
+}
+
 pub(crate) fn build_artist_image_map(dir: &std::path::Path) -> std::collections::HashMap<String, String> {
     let mut map = std::collections::HashMap::new();
     let Ok(entries) = std::fs::read_dir(dir) else { return map; };

@@ -100,7 +100,21 @@ export async function pickArtistsImagesDir(
   defaultPath?: string | null,
 ): Promise<string | null> {
   const selected = await open({
-    title: "Choose artist images folder",
+    title: "Choose artist banner images folder",
+    directory: true,
+    multiple: false,
+    recursive: false,
+    defaultPath: defaultPath?.trim() ? defaultPath : undefined,
+  });
+
+  return typeof selected === "string" ? selected : null;
+}
+
+export async function pickArtistsProfileImagesDir(
+  defaultPath?: string | null,
+): Promise<string | null> {
+  const selected = await open({
+    title: "Choose artist profile pictures folder",
     directory: true,
     multiple: false,
     recursive: false,

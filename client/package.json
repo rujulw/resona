@@ -13,9 +13,12 @@
     "@audio-samples/piano-velocity8": "^1.0.5",
     "@tauri-apps/api": "^2.0.0",
     "@tauri-apps/plugin-dialog": "^2.6.0",
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/user-event": "^14.6.1",
     "lucide-react": "^1.7.0",
     "opensheetmusicdisplay": "1.7.1",
     "react": "^19.0.0",
+    "react-color-extractor": "^1.1.2",
     "react-dom": "^19.0.0",
     "react-router-dom": "^7.13.2",
     "tone": "^15.1.22"

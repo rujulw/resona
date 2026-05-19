@@ -4,6 +4,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use rusqlite::{params, OptionalExtension, Transaction};
 
+use crate::analytics::{absorb_ghost_plays, normalize_for_matching};
 use crate::database::{schema, AppDatabase};
 
 use super::super::models::{LibraryRootRecord, NormalizedTrack, ScanError, ScanSummary};
@@ -56,6 +57,15 @@ pub(super) fn persist_scan(
         ensure_analysis_entry(&transaction, &track_id, &now)?;
 
         if is_insert {
+            // Absorb any ghost plays (Spotify-imported, no prior local match) for this track.
+            if let Some(artist) = &track.artist {
+                let _ = absorb_ghost_plays(
+                    &transaction,
+                    &track_id,
+                    &normalize_for_matching(&track.title),
+                    &normalize_for_matching(artist),
+                );
+            }
             inserted_tracks += 1;
         } else {
             updated_tracks += 1;

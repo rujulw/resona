@@ -1,3 +1,4 @@
+import type { RefObject } from "react";
 import type {
   AlbumDetail,
   AlbumSummary,
@@ -152,6 +153,7 @@ export type PlaylistsRouteState = {
 export type QueueRouteState = {
   queueState: QueueState;
   isPlaying: boolean;
+  audioRef: RefObject<HTMLAudioElement | null>;
 };
 
 export type AlbumsRouteState = {
