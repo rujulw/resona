@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { ListEnd, ListStart } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 
 import { ContextMenu } from "../components/ui/ContextMenu";
@@ -271,8 +272,8 @@ export function HomePage({
           y={contextMenu.y}
           onClose={() => setContextMenu(null)}
           items={[
-            { label: "Play next", onClick: () => onQueueMutate(contextMenu.track.id, "next") },
-            { label: "Add to queue", onClick: () => onQueueMutate(contextMenu.track.id, "last") },
+            { label: "Play next", icon: ListStart, onClick: () => onQueueMutate(contextMenu.track.id, "next") },
+            { label: "Add to queue", icon: ListEnd, onClick: () => onQueueMutate(contextMenu.track.id, "last") },
           ]}
         />
       )}

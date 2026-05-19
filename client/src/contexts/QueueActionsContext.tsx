@@ -1,4 +1,5 @@
 import { createContext, useContext, useState } from "react";
+import { ListEnd, ListStart } from "lucide-react";
 import { ContextMenu } from "../components/ui/ContextMenu";
 
 type QueueActionsContextValue = {
@@ -43,8 +44,8 @@ export function useTrackContextMenu() {
         y={menu.y}
         onClose={() => setMenu(null)}
         items={[
-          { label: "Play next", onClick: () => ctx.onQueueMutate(menu.trackId, "next") },
-          { label: "Add to queue", onClick: () => ctx.onQueueMutate(menu.trackId, "last") },
+          { label: "Play next", icon: ListStart, onClick: () => ctx.onQueueMutate(menu.trackId, "next") },
+          { label: "Add to queue", icon: ListEnd, onClick: () => ctx.onQueueMutate(menu.trackId, "last") },
         ]}
       />
     ) : null;
