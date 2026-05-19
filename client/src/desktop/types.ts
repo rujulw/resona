@@ -319,6 +319,7 @@ export type TopTrackEntry = {
   artist: string;
   album: string | null;
   artworkKey: string | null;
+  advisory?: boolean | null;
   playCount: number;
   firstPlayedAt: number;
   lastPlayedAt: number;

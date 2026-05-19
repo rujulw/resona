@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 
 import type { AppShellRouteActions, AppShellRoutesState } from "../../types/app";
 import { AlbumsPage } from "../../pages/AlbumsPage";
+import { AnalyticsPage } from "../../pages/AnalyticsPage";
 import { ArtistPage } from "../../pages/ArtistPage";
 import { ConceptAlbumsPage } from "../../pages/ConceptAlbumsPage";
 import { HomePage } from "../../pages/HomePage";
@@ -153,6 +154,16 @@ export function AppShellRoutes({
         }
       />
       <Route path="/scores" element={<ScoresPage />} />
+      <Route
+        path="/analytics"
+        element={
+          <AnalyticsPage
+            playlists={routes.playlists.playlistsState.items}
+            allTracks={routes.home.tracksState.items}
+            onTrackSelect={actions.home.onTrackSelect}
+          />
+        }
+      />
       <Route
         path="/settings"
         element={
