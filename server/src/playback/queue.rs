@@ -96,6 +96,10 @@ impl PlaybackQueue {
         self.context_cursor = 0;
     }
 
+    pub fn source_label(&self) -> &str {
+        &self.source_label
+    }
+
     pub fn is_empty(&self) -> bool {
         self.user_queue.is_empty() && self.context_tracks.is_empty()
     }

@@ -206,8 +206,9 @@ impl PlaybackRuntimeState {
             .inner
             .lock()
             .expect("playback runtime lock should not be poisoned");
-        runtime.queue.replace_user_queue(track_ids);
-        runtime.queue_snapshot()
+        let active_track_id = runtime.active_track.as_ref().map(|t| t.track_id.clone());
+        let source_label = runtime.queue.source_label().to_owned();
+        runtime.replace_queue(track_ids, active_track_id.as_deref(), &source_label)
     }
 }
 

@@ -100,7 +100,7 @@ describe("PlayerPage", () => {
     expect(screen.getByText("02")).toBeTruthy();
   });
 
-  it("calls onQueueReorder with reordered ids when drop occurs", () => {
+  it("calls onQueueReorder with reordered ids when mouseup occurs on a row", () => {
     const onQueueReorder = vi.fn();
     const activeTrack = makeTrack("t1", "Alpha");
     const upcoming = [makeTrack("t2", "Bravo"), makeTrack("t3", "Charlie"), makeTrack("t4", "Delta")];
@@ -114,14 +114,14 @@ describe("PlayerPage", () => {
       />,
     );
 
-    const rows = screen.getAllByText(/Bravo|Charlie|Delta/).map(
-      (el) => el.closest("[draggable]") as HTMLElement,
-    );
+    // Grip buttons are the [draggable] elements; row wrappers are their parent .relative divs
+    const gripButtons = screen.getAllByRole("button", { name: /Drag/ });
+    const rowWrappers = gripButtons.map((btn) => btn.closest("div.relative") as HTMLElement);
 
-    // drag Bravo (index 0) and drop at Charlie (index 1)
-    fireEvent.dragStart(rows[0]);
-    fireEvent.dragOver(rows[1], { clientY: 9999 }); // bottom half → insert after
-    fireEvent.drop(rows[1]);
+    // mousedown on Bravo's grip starts drag
+    fireEvent.mouseDown(gripButtons[0]);
+    // mouseup on Charlie's row commits reorder (bottom half → after)
+    fireEvent.mouseUp(rowWrappers[1], { clientY: 9999 });
 
     expect(onQueueReorder).toHaveBeenCalledOnce();
     const [ids] = onQueueReorder.mock.calls[0] as [string[]];
@@ -131,7 +131,7 @@ describe("PlayerPage", () => {
     expect(ids).toContain("t4");
   });
 
-  it("cancels drag when dragEnd fires without drop", () => {
+  it("cancels drag when dragEnd fires on grip without drop", () => {
     const onQueueReorder = vi.fn();
     const activeTrack = makeTrack("t1", "Alpha");
     const upcoming = [makeTrack("t2", "Bravo"), makeTrack("t3", "Charlie")];
@@ -145,12 +145,9 @@ describe("PlayerPage", () => {
       />,
     );
 
-    const rows = screen.getAllByText(/Bravo|Charlie/).map(
-      (el) => el.closest("[draggable]") as HTMLElement,
-    );
-
-    fireEvent.dragStart(rows[0]);
-    fireEvent.dragEnd(rows[0]);
+    const gripButtons = screen.getAllByRole("button", { name: /Drag/ });
+    fireEvent.dragStart(gripButtons[0]);
+    fireEvent.dragEnd(gripButtons[0]);
 
     expect(onQueueReorder).not.toHaveBeenCalled();
   });
