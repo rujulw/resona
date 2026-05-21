@@ -129,6 +129,7 @@ pub struct ResolvedPlaybackTrack {
     pub duration_seconds: Option<f64>,
     pub local_path: String,
     pub extension: String,
+    pub artwork_key: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize)]

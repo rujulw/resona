@@ -1,6 +1,7 @@
 pub mod color;
 
 use crate::playback::PlaybackSnapshot;
+use color::{dominant_hue_slot, slot_to_asset_key};
 use discord_rich_presence::{activity, DiscordIpc, DiscordIpcClient};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -19,6 +20,13 @@ pub struct PresenceRuntimeState {
 struct PresenceRuntime {
     last_published_key: Option<PresenceKey>,
     driver: Box<dyn PresenceDriver + Send>,
+    app_data_dir: PathBuf,
+    cached_slot: Option<CachedVinylSlot>,
+}
+
+struct CachedVinylSlot {
+    track_id: String,
+    slot: Option<u8>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -27,6 +35,7 @@ struct PresenceKey {
     title: Option<String>,
     artist: String,
     is_playing: bool,
+    vinyl_slot: Option<u8>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -35,6 +44,7 @@ struct PresencePayload {
     details: String,
     state: String,
     start_timestamp: i64,
+    large_image: String,
 }
 
 trait PresenceDriver {
@@ -73,7 +83,8 @@ impl PresenceDriver for DiscordPresenceDriver {
             .details(payload.details.as_str())
             .state(payload.state.as_str())
             .status_display_type(activity::StatusDisplayType::State)
-            .timestamps(activity::Timestamps::new().start(payload.start_timestamp));
+            .timestamps(activity::Timestamps::new().start(payload.start_timestamp))
+            .assets(activity::Assets::new().large_image(payload.large_image.as_str()));
 
         self.client
             .set_activity(activity)
@@ -103,8 +114,8 @@ impl PresenceDriver for NoopPresenceDriver {
     }
 }
 
-impl Default for PresenceRuntimeState {
-    fn default() -> Self {
+impl PresenceRuntimeState {
+    pub fn new(app_data_dir: PathBuf) -> Self {
         let driver: Box<dyn PresenceDriver + Send> = match load_discord_client_id() {
             Some(client_id) => Box::new(DiscordPresenceDriver::new(client_id.as_str())),
             None => Box::new(NoopPresenceDriver),
@@ -114,6 +125,8 @@ impl Default for PresenceRuntimeState {
             inner: Arc::new(Mutex::new(PresenceRuntime {
                 last_published_key: None,
                 driver,
+                app_data_dir,
+                cached_slot: None,
             })),
         }
     }
@@ -137,7 +150,9 @@ impl PresenceRuntimeState {
             .inner
             .lock()
             .expect("presence runtime lock should not be poisoned");
-        let desired_payload = PresencePayload::from_snapshot(snapshot);
+
+        let vinyl_slot = resolve_vinyl_slot(&mut runtime, snapshot);
+        let desired_payload = PresencePayload::from_snapshot(snapshot, vinyl_slot);
         let desired_key = desired_payload.as_ref().map(|payload| payload.key.clone());
 
         if runtime.last_published_key == desired_key {
@@ -163,7 +178,7 @@ impl PresenceRuntimeState {
 }
 
 impl PresencePayload {
-    fn from_snapshot(snapshot: &PlaybackSnapshot) -> Option<Self> {
+    fn from_snapshot(snapshot: &PlaybackSnapshot, vinyl_slot: Option<u8>) -> Option<Self> {
         if !snapshot.is_playing {
             return None;
         }
@@ -181,12 +196,17 @@ impl PresencePayload {
             .unwrap_or(0)
             .saturating_sub(snapshot.progress_seconds as i64);
 
+        let large_image = vinyl_slot
+            .map(slot_to_asset_key)
+            .unwrap_or_else(|| "vinyl_default".to_owned());
+
         Some(Self {
             key: PresenceKey {
                 track_id: snapshot.track_id.clone(),
                 title: snapshot.track_title.clone(),
                 artist: artist.to_owned(),
                 is_playing: snapshot.is_playing,
+                vinyl_slot,
             },
             details: snapshot
                 .track_title
@@ -194,8 +214,31 @@ impl PresencePayload {
                 .unwrap_or_else(|| "Unknown Track".to_owned()),
             state: format!("{artist}"),
             start_timestamp: started_at,
+            large_image,
         })
     }
+}
+
+fn resolve_vinyl_slot(runtime: &mut PresenceRuntime, snapshot: &PlaybackSnapshot) -> Option<u8> {
+    let track_id = snapshot.track_id.as_deref()?;
+
+    if let Some(ref cached) = runtime.cached_slot {
+        if cached.track_id == track_id {
+            return cached.slot;
+        }
+    }
+
+    let slot = snapshot.track_artwork_key.as_deref().and_then(|key| {
+        let artwork_path = runtime.app_data_dir.join("artwork").join(key);
+        dominant_hue_slot(&artwork_path)
+    });
+
+    runtime.cached_slot = Some(CachedVinylSlot {
+        track_id: track_id.to_owned(),
+        slot,
+    });
+
+    slot
 }
 
 fn load_discord_client_id() -> Option<String> {
@@ -328,6 +371,7 @@ mod tests {
             track_artist: artist.map(str::to_owned),
             track_album: Some("Signals".to_owned()),
             track_advisory: None,
+            track_artwork_key: None,
         }
     }
 
@@ -336,41 +380,39 @@ mod tests {
             inner: Arc::new(Mutex::new(PresenceRuntime {
                 last_published_key: None,
                 driver: Box::new(RecordedDriver { actions }),
+                app_data_dir: std::path::PathBuf::from("/tmp"),
+                cached_slot: None,
             })),
         }
     }
 
     #[test]
     fn builds_presence_payload_only_for_active_playback_with_artist_metadata() {
-        let active = PresencePayload::from_snapshot(&snapshot_with_artist(
-            "track-1",
-            "Alpha",
-            true,
-            Some("North"),
-        ))
+        let active = PresencePayload::from_snapshot(
+            &snapshot_with_artist("track-1", "Alpha", true, Some("North")),
+            None,
+        )
         .expect("playing snapshot with artist should publish presence");
 
         assert_eq!(active.details, "Alpha");
         assert_eq!(active.state, "North");
         assert!(active.start_timestamp > 0);
+        assert_eq!(active.large_image, "vinyl_default");
 
-        assert!(PresencePayload::from_snapshot(&snapshot_with_artist(
-            "track-1",
-            "Alpha",
-            false,
-            Some("North"),
-        ))
+        assert!(PresencePayload::from_snapshot(
+            &snapshot_with_artist("track-1", "Alpha", false, Some("North")),
+            None,
+        )
         .is_none());
-        assert!(PresencePayload::from_snapshot(&snapshot_with_artist(
-            "track-1", "Alpha", true, None
-        ))
+        assert!(PresencePayload::from_snapshot(
+            &snapshot_with_artist("track-1", "Alpha", true, None),
+            None,
+        )
         .is_none());
-        assert!(PresencePayload::from_snapshot(&snapshot_with_artist(
-            "track-1",
-            "Alpha",
-            true,
-            Some("   "),
-        ))
+        assert!(PresencePayload::from_snapshot(
+            &snapshot_with_artist("track-1", "Alpha", true, Some("   ")),
+            None,
+        )
         .is_none());
     }
 

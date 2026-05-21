@@ -23,7 +23,7 @@ fn playback_runtime_loads_track_and_toggles_play_pause() {
         advisory: Some(true),
         duration_seconds: Some(182.0),
         local_path: "/tmp/alpha.mp3".to_owned(),
-        extension: "mp3".to_owned(),
+        extension: "mp3".to_owned(), artwork_key: None,
     });
 
     assert_eq!(loaded.playback.status_label, "Ready");
@@ -53,7 +53,7 @@ fn playback_runtime_accepts_flac_tracks_through_native_output_path() {
         advisory: Some(false),
         duration_seconds: Some(192.0),
         local_path: "/tmp/signal.flac".to_owned(),
-        extension: "flac".to_owned(),
+        extension: "flac".to_owned(), artwork_key: None,
     });
 
     assert_eq!(loaded.playback.status_label, "Ready");
@@ -80,7 +80,7 @@ fn playback_runtime_syncs_timing_seek_completion_and_errors() {
         advisory: None,
         duration_seconds: Some(182.0),
         local_path: "/tmp/alpha.mp3".to_owned(),
-        extension: "mp3".to_owned(),
+        extension: "mp3".to_owned(), artwork_key: None,
     });
 
     let timed = runtime.sync_timing(Some(41), Some(200));

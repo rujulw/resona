@@ -39,7 +39,7 @@ pub fn run() {
     let app_database =
         AppDatabase::initialize_default().expect("failed to initialize resona database");
     let playback_runtime_state = PlaybackRuntimeState::default();
-    let presence_runtime_state = PresenceRuntimeState::default();
+    let presence_runtime_state = PresenceRuntimeState::new(app_database.app_data_dir().to_path_buf());
     register_global_presence(presence_runtime_state.clone());
 
     let initial_banner_map = build_initial_artist_image_map(&app_database);

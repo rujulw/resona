@@ -30,6 +30,7 @@ pub struct PlaybackSnapshot {
     pub track_artist: Option<String>,
     pub track_album: Option<String>,
     pub track_advisory: Option<bool>,
+    pub track_artwork_key: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
