@@ -1,5 +1,5 @@
-import { Pause, Play, StepBack, StepForward } from "lucide-react";
-import type { MouseEvent } from "react";
+import { Pause, Play, SkipBack, SkipForward, StepBack, StepForward, Volume1, Volume2, VolumeX } from "lucide-react";
+import { useState } from "react";
 
 import type { PlaybackShellState } from "../../desktop";
 import type { TrackListItem } from "../../desktop";
@@ -13,13 +13,26 @@ export function PlaybackBar({
   playback,
   onPlaybackAction,
   onSeek,
+  volumeLevel,
+  isMuted,
+  onVolumeChange,
+  onMuteToggle,
 }: {
   activeTrack: TrackListItem | null;
   playback: PlaybackShellState;
   onPlaybackAction: (action: "previous" | "toggle" | "next") => void;
   onSeek: (positionSeconds: number) => void;
+  volumeLevel: number;
+  isMuted: boolean;
+  onVolumeChange: (level: number) => void;
+  onMuteToggle: () => void;
 }) {
   const playbackBar = buildPlaybackBarViewModel({ activeTrack, playback });
+
+  // Local drag state prevents live progress ticks from snapping thumb during drag
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragPosition, setDragPosition] = useState(0);
+
   const transportButtons = [
     {
       action: "previous" as const,
@@ -38,16 +51,28 @@ export function PlaybackBar({
     },
   ];
 
-  const handleSeekClick = (event: MouseEvent<HTMLButtonElement>) => {
-    if (!playbackBar.hasActiveTrack || playbackBar.durationSeconds <= 0) {
-      return;
-    }
+  const VolumeIcon = isMuted ? VolumeX : volumeLevel > 0.5 ? Volume2 : Volume1;
 
-    const bounds = event.currentTarget.getBoundingClientRect();
-    const relativeX = Math.min(Math.max(event.clientX - bounds.left, 0), bounds.width);
-    const nextPosition = (relativeX / bounds.width) * playbackBar.durationSeconds;
-    onSeek(nextPosition);
+  const handleSkipBack = () => {
+    if (playback.progressSeconds !== undefined) {
+      onSeek(playback.progressSeconds - 15);
+    }
   };
+
+  const handleSkipForward = () => {
+    if (playback.progressSeconds !== undefined) {
+      onSeek(playback.progressSeconds + 15);
+    }
+  };
+
+  const seekDisabled = !playbackBar.hasActiveTrack || playbackBar.durationSeconds <= 0;
+  const displayedProgress = isDragging ? dragPosition : playbackBar.progressSeconds;
+  const seekMaxSeconds = playbackBar.durationSeconds > 0 ? playbackBar.durationSeconds : 100;
+  const seekFillPercent =
+    seekMaxSeconds > 0 ? Math.min((displayedProgress / seekMaxSeconds) * 100, 100) : 0;
+
+  const effectiveVolume = isMuted ? 0 : volumeLevel;
+  const volumeFillPercent = effectiveVolume * 100;
 
   return (
     <footer className="col-span-full grid min-h-27 grid-cols-[minmax(260px,1fr)_minmax(420px,640px)_minmax(260px,1fr)] items-center gap-4 border-t border-white/6 bg-[#0e0e0e] px-4">
@@ -72,7 +97,17 @@ export function PlaybackBar({
       </div>
 
       <div className="grid gap-3 px-4 py-4">
-        <div className="flex justify-center gap-2">
+        <div className="flex items-center justify-center gap-1">
+          <button
+            aria-label="Skip back 15 seconds"
+            className="flex h-8 w-8 items-center justify-center rounded-sm text-[#8f8f8f] transition-colors hover:text-[#f2f2f2] disabled:cursor-not-allowed disabled:opacity-45"
+            type="button"
+            disabled={!playbackBar.hasActiveTrack}
+            onClick={handleSkipBack}
+          >
+            <SkipBack className="h-3.5 w-3.5" strokeWidth={2.2} />
+          </button>
+
           {transportButtons.map((item) => {
             const Icon = item.icon;
 
@@ -91,30 +126,79 @@ export function PlaybackBar({
               </button>
             );
           })}
+
+          <button
+            aria-label="Skip forward 15 seconds"
+            className="flex h-8 w-8 items-center justify-center rounded-sm text-[#8f8f8f] transition-colors hover:text-[#f2f2f2] disabled:cursor-not-allowed disabled:opacity-45"
+            type="button"
+            disabled={!playbackBar.hasActiveTrack}
+            onClick={handleSkipForward}
+          >
+            <SkipForward className="h-3.5 w-3.5" strokeWidth={2.2} />
+          </button>
         </div>
 
         <div className="grid gap-2">
-          <button
+          <input
             aria-label="Seek playback"
-            className="block h-1 w-full overflow-hidden rounded-full bg-white/8 text-left disabled:cursor-not-allowed disabled:opacity-45"
-            type="button"
-            disabled={!playbackBar.hasActiveTrack || playbackBar.durationSeconds <= 0}
-            onClick={handleSeekClick}
-          >
-            <span
-              aria-hidden="true"
-              className="block h-full rounded-full bg-[#8f8f8f]"
-              style={{ width: `${playbackBar.progressPercent}%` }}
-            />
-          </button>
+            type="range"
+            min={0}
+            max={seekMaxSeconds}
+            step={0.1}
+            value={displayedProgress}
+            disabled={seekDisabled}
+            style={{
+              background: `linear-gradient(to right, rgba(143,143,143,0.9) ${seekFillPercent}%, rgba(255,255,255,0.08) ${seekFillPercent}%)`,
+            }}
+            className="h-1 w-full cursor-pointer appearance-none rounded-full transition-all disabled:cursor-not-allowed disabled:opacity-45 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:opacity-0 hover:[&::-webkit-slider-thumb]:opacity-100 [&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:opacity-0 hover:[&::-moz-range-thumb]:opacity-100"
+            onPointerDown={() => {
+              if (seekDisabled) return;
+              setIsDragging(true);
+              setDragPosition(playbackBar.progressSeconds);
+            }}
+            onChange={(e) => {
+              if (!isDragging) return;
+              setDragPosition(parseFloat(e.target.value));
+            }}
+            onPointerUp={(e) => {
+              if (!isDragging) return;
+              const value = parseFloat((e.target as HTMLInputElement).value);
+              setIsDragging(false);
+              onSeek(value);
+            }}
+          />
           <div className="flex justify-between text-xs text-[#8f8f8f]">
-            <span>{formatDuration(playbackBar.progressSeconds)}</span>
+            <span>{formatDuration(displayedProgress)}</span>
             <span>{formatDuration(playbackBar.durationSeconds)}</span>
           </div>
         </div>
       </div>
 
-      <div aria-hidden="true" />
+      <div className="flex items-center justify-end gap-2 pr-2">
+        <button
+          aria-label={isMuted ? "Unmute" : "Mute"}
+          className="flex h-8 w-8 items-center justify-center rounded-sm text-[#8f8f8f] transition-colors hover:text-[#f2f2f2]"
+          type="button"
+          onClick={onMuteToggle}
+        >
+          <VolumeIcon className="h-4 w-4" strokeWidth={2.2} />
+        </button>
+        <input
+          aria-label="Volume"
+          type="range"
+          min="0"
+          max="1"
+          step="0.01"
+          value={effectiveVolume}
+          style={{
+            background: `linear-gradient(to right, rgba(242,242,242,0.65) ${volumeFillPercent}%, rgba(255,255,255,0.08) ${volumeFillPercent}%)`,
+          }}
+          className="h-[3px] w-20 cursor-pointer appearance-none rounded-full transition-all [&::-webkit-slider-thumb]:h-2.5 [&::-webkit-slider-thumb]:w-2.5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:opacity-0 hover:[&::-webkit-slider-thumb]:opacity-100 [&::-moz-range-thumb]:h-2.5 [&::-moz-range-thumb]:w-2.5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:opacity-0 hover:[&::-moz-range-thumb]:opacity-100"
+          onChange={(e) => {
+            onVolumeChange(parseFloat(e.target.value));
+          }}
+        />
+      </div>
     </footer>
   );
 }
