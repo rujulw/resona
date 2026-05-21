@@ -101,4 +101,26 @@ describe("desktop analytics bridge", () => {
     const { queryTopTracks } = await import("./analytics");
     expect(await queryTopTracks(28, 10)).toEqual([]);
   });
+
+  it("sets artist analytics excluded flag through the command bridge", async () => {
+    invokeMock.mockResolvedValueOnce(undefined);
+    (globalThis as Record<string, unknown>).__TAURI_INTERNALS__ = {};
+    const { setArtistAnalyticsExcluded } = await import("./analytics");
+    await setArtistAnalyticsExcluded("North", true);
+    expect(invokeMock).toHaveBeenCalledWith("set_artist_analytics_excluded", { artistName: "North", excluded: true });
+  });
+
+  it("lists excluded artists through the command bridge", async () => {
+    invokeMock.mockResolvedValueOnce(["North", "South"]);
+    const { listExcludedArtists } = await import("./analytics");
+    const result = await listExcludedArtists();
+    expect(invokeMock).toHaveBeenCalledWith("list_excluded_artists", {});
+    expect(result).toEqual(["North", "South"]);
+  });
+
+  it("falls back to empty array for listExcludedArtists when bridge unavailable", async () => {
+    invokeMock.mockRejectedValueOnce(new Error("bridge unavailable"));
+    const { listExcludedArtists } = await import("./analytics");
+    expect(await listExcludedArtists()).toEqual([]);
+  });
 });

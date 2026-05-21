@@ -196,6 +196,22 @@ describe("desktop playlist bridge", () => {
     expect(payload.queue.activeTrackId).toBe("track-2");
   });
 
+  it("sets playlist sidebar hidden flag through the command bridge", async () => {
+    invokeMock.mockResolvedValueOnce(undefined);
+    (globalThis as typeof globalThis & { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = {};
+    const { setPlaylistSidebarHidden } = await import("./playlists");
+    await setPlaylistSidebarHidden("playlist-1", true);
+    expect(invokeMock).toHaveBeenCalledWith("set_playlist_sidebar_hidden", { playlistId: "playlist-1", hidden: true });
+  });
+
+  it("unhides a playlist through the command bridge", async () => {
+    invokeMock.mockResolvedValueOnce(undefined);
+    (globalThis as typeof globalThis & { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = {};
+    const { setPlaylistSidebarHidden } = await import("./playlists");
+    await setPlaylistSidebarHidden("playlist-1", false);
+    expect(invokeMock).toHaveBeenCalledWith("set_playlist_sidebar_hidden", { playlistId: "playlist-1", hidden: false });
+  });
+
   it("keeps playlist fallbacks inside the browser preview runtime", async () => {
     invokeMock
       .mockRejectedValueOnce(new Error("bridge unavailable"))
