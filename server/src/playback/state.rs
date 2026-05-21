@@ -41,6 +41,7 @@ pub(super) struct ActivePlaybackTrack {
     pub(super) duration_seconds: u32,
     pub(super) local_path: String,
     pub(super) extension: String,
+    pub(super) artwork_key: Option<String>,
 }
 
 pub(super) struct NativePlaybackController {
@@ -227,6 +228,7 @@ impl PlaybackRuntime {
                 track_artist: track.artist.clone(),
                 track_album: track.album.clone(),
                 track_advisory: track.advisory,
+                track_artwork_key: track.artwork_key.clone(),
             },
             None => PlaybackSnapshot {
                 status_label: self.status_label.clone(),
@@ -240,6 +242,7 @@ impl PlaybackRuntime {
                 track_artist: None,
                 track_album: None,
                 track_advisory: None,
+                track_artwork_key: None,
             },
         }
     }
@@ -256,6 +259,7 @@ impl PlaybackRuntime {
             duration_seconds: track.duration_seconds.unwrap_or(0.0).round() as u32,
             local_path: track.local_path,
             extension: track.extension,
+            artwork_key: track.artwork_key,
         };
 
         self.active_track = Some(active_track.clone());

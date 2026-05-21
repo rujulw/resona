@@ -200,7 +200,8 @@ impl LocalLibraryScanner {
               t.advisory,
               t.duration_seconds,
               ts.local_path,
-              t.extension
+              t.extension,
+              t.artwork_key
             FROM tracks t
             JOIN track_sources ts ON ts.track_id = t.id
             WHERE t.id = ?1
@@ -220,6 +221,7 @@ impl LocalLibraryScanner {
                     duration_seconds: row.get(5)?,
                     local_path: row.get(6)?,
                     extension: row.get(7)?,
+                    artwork_key: row.get(8)?,
                 })
             })
             .optional()
