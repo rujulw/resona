@@ -1,4 +1,4 @@
-import { Pause, Play, SkipBack, SkipForward, StepBack, StepForward, Volume1, Volume2, VolumeX } from "lucide-react";
+import { Pause, Play, StepBack, StepForward, Volume1, Volume2, VolumeX } from "lucide-react";
 import { useState } from "react";
 
 import type { PlaybackShellState } from "../../desktop";
@@ -53,18 +53,6 @@ export function PlaybackBar({
 
   const VolumeIcon = isMuted ? VolumeX : volumeLevel > 0.5 ? Volume2 : Volume1;
 
-  const handleSkipBack = () => {
-    if (playback.progressSeconds !== undefined) {
-      onSeek(playback.progressSeconds - 15);
-    }
-  };
-
-  const handleSkipForward = () => {
-    if (playback.progressSeconds !== undefined) {
-      onSeek(playback.progressSeconds + 15);
-    }
-  };
-
   const seekDisabled = !playbackBar.hasActiveTrack || playbackBar.durationSeconds <= 0;
   const displayedProgress = isDragging ? dragPosition : playbackBar.progressSeconds;
   const seekMaxSeconds = playbackBar.durationSeconds > 0 ? playbackBar.durationSeconds : 100;
@@ -98,16 +86,6 @@ export function PlaybackBar({
 
       <div className="grid gap-3 px-4 py-4">
         <div className="flex items-center justify-center gap-1">
-          <button
-            aria-label="Skip back 15 seconds"
-            className="flex h-8 w-8 items-center justify-center rounded-sm text-[#8f8f8f] transition-colors hover:text-[#f2f2f2] disabled:cursor-not-allowed disabled:opacity-45"
-            type="button"
-            disabled={!playbackBar.hasActiveTrack}
-            onClick={handleSkipBack}
-          >
-            <SkipBack className="h-3.5 w-3.5" strokeWidth={2.2} />
-          </button>
-
           {transportButtons.map((item) => {
             const Icon = item.icon;
 
@@ -127,15 +105,6 @@ export function PlaybackBar({
             );
           })}
 
-          <button
-            aria-label="Skip forward 15 seconds"
-            className="flex h-8 w-8 items-center justify-center rounded-sm text-[#8f8f8f] transition-colors hover:text-[#f2f2f2] disabled:cursor-not-allowed disabled:opacity-45"
-            type="button"
-            disabled={!playbackBar.hasActiveTrack}
-            onClick={handleSkipForward}
-          >
-            <SkipForward className="h-3.5 w-3.5" strokeWidth={2.2} />
-          </button>
         </div>
 
         <div className="grid gap-2">
