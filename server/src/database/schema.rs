@@ -6,12 +6,38 @@ pub const LIBRARY_QUERY_INDEXES_MIGRATION: &str =
     include_str!("../../db/migrations/0002_library_query_indexes.sql");
 pub const FLAC_TRACK_SUPPORT_MIGRATION: &str =
     include_str!("../../db/migrations/0003_flac_track_support.sql");
+pub const EXPLICIT_ADVISORY_METADATA_MIGRATION: &str =
+    include_str!("../../db/migrations/0004_explicit_advisory_metadata.sql");
+pub const LOCAL_PLAYLISTS_FOUNDATION_MIGRATION: &str =
+    include_str!("../../db/migrations/0005_local_playlists_foundation.sql");
+pub const PLAYLIST_ARTWORK_MIGRATION: &str =
+    include_str!("../../db/migrations/0006_playlist_artwork.sql");
+pub const CONCEPT_ALBUMS_FOUNDATION_MIGRATION: &str =
+    include_str!("../../db/migrations/0007_concept_albums_foundation.sql");
+pub const MIXTAPES_FOUNDATION_MIGRATION: &str =
+    include_str!("../../db/migrations/0008_mixtapes_foundation.sql");
+pub const ARTIST_IMAGE_CONFIG_MIGRATION: &str =
+    include_str!("../../db/migrations/0009_artist_image_config.sql");
+pub const TRACK_YEAR_AND_ALBUM_METADATA_MIGRATION: &str =
+    include_str!("../../db/migrations/0010_track_year_and_album_metadata.sql");
+pub const APP_SETTINGS_MIGRATION: &str =
+    include_str!("../../db/migrations/0011_app_settings.sql");
+pub const PLAY_HISTORY_MIGRATION: &str =
+    include_str!("../../db/migrations/0012_play_history.sql");
+pub const PLAY_EVENTS_SOURCE_MIGRATION: &str =
+    include_str!("../../db/migrations/0013_play_events_source.sql");
+pub const GHOST_PLAYS_MIGRATION: &str =
+    include_str!("../../db/migrations/0014_ghost_plays.sql");
 
 pub const TABLE_LIBRARY_ROOTS: &str = "library_roots";
 pub const TABLE_TRACKS: &str = "tracks";
 pub const TABLE_TRACK_SOURCES: &str = "track_sources";
 pub const TABLE_CACHE_ENTRIES: &str = "cache_entries";
 pub const TABLE_ANALYSIS_RESULTS: &str = "analysis_results";
+pub const TABLE_PLAYLISTS: &str = "playlists";
+pub const TABLE_PLAYLIST_ENTRIES: &str = "playlist_entries";
+pub const TABLE_CONCEPT_ALBUMS: &str = "concept_albums";
+pub const TABLE_CONCEPT_ALBUM_ENTRIES: &str = "concept_album_entries";
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SourceMode {
@@ -88,9 +114,12 @@ impl AnalysisStatus {
 #[cfg(test)]
 mod tests {
     use super::{
-        AnalysisStatus, CacheState, SourceMode, TrackSourceStatus, INITIAL_SCHEMA_MIGRATION,
-        TABLE_ANALYSIS_RESULTS, TABLE_CACHE_ENTRIES, TABLE_LIBRARY_ROOTS, TABLE_TRACKS,
-        TABLE_TRACK_SOURCES,
+        AnalysisStatus, CacheState, SourceMode, TrackSourceStatus,
+        CONCEPT_ALBUMS_FOUNDATION_MIGRATION, EXPLICIT_ADVISORY_METADATA_MIGRATION,
+        INITIAL_SCHEMA_MIGRATION, LOCAL_PLAYLISTS_FOUNDATION_MIGRATION, MIXTAPES_FOUNDATION_MIGRATION, PLAYLIST_ARTWORK_MIGRATION,
+        TABLE_ANALYSIS_RESULTS, TABLE_CACHE_ENTRIES, TABLE_CONCEPT_ALBUMS,
+        TABLE_CONCEPT_ALBUM_ENTRIES, TABLE_LIBRARY_ROOTS, TABLE_PLAYLISTS, TABLE_PLAYLIST_ENTRIES,
+        TABLE_TRACKS, TABLE_TRACK_SOURCES,
     };
 
     #[test]
@@ -104,6 +133,17 @@ mod tests {
         ] {
             assert!(INITIAL_SCHEMA_MIGRATION.contains(table));
         }
+    }
+
+    #[test]
+    fn later_migrations_declare_playlist_and_advisory_extensions() {
+        assert!(LOCAL_PLAYLISTS_FOUNDATION_MIGRATION.contains(TABLE_PLAYLISTS));
+        assert!(LOCAL_PLAYLISTS_FOUNDATION_MIGRATION.contains(TABLE_PLAYLIST_ENTRIES));
+        assert!(CONCEPT_ALBUMS_FOUNDATION_MIGRATION.contains(TABLE_CONCEPT_ALBUMS));
+        assert!(CONCEPT_ALBUMS_FOUNDATION_MIGRATION.contains(TABLE_CONCEPT_ALBUM_ENTRIES));
+        assert!(EXPLICIT_ADVISORY_METADATA_MIGRATION.contains("advisory"));
+        assert!(PLAYLIST_ARTWORK_MIGRATION.contains("artwork_key"));
+        assert!(MIXTAPES_FOUNDATION_MIGRATION.contains("is_mixtape"));
     }
 
     #[test]

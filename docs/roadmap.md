@@ -9,6 +9,7 @@ resona aims to become a high-performance music system for private libraries, bal
 - Local music libraries can be imported through a folder picker and indexed recursively
 - Track metadata is persisted and queryable through SQLite
 - Users can search, browse, queue, and play tracks reliably
+- Users can manage first-class local playlists with persisted ordering and playback handoff
 - The first public release stays local-first and open source
 - The application remains open source while integrating private user-controlled storage
 
@@ -41,8 +42,13 @@ resona aims to become a high-performance music system for private libraries, bal
 Current milestone progress:
 - The `tracks` route now exposes inline search, header-driven sort cycling, and a continuous scrollable library view backed by cursor-based query stitching
 - Local ingest now includes duration/artwork fallback improvements and cleaner sparse-tag row metadata
+- The backend library layer is now split more surgically across normalization helpers, metadata parsing, scan persistence, and query SQL construction so future feature work can stay local to the concern being changed
 - Public v1 now has a planned GitHub Actions gate for frontend smoke/build checks and backend Rust test/check coverage
 - Release polish now includes desktop packaging metadata and icon-aware shell controls
+- The client shell now runs through explicit route composition with `AppShell` and `AppShellRoutes` instead of keeping routing and chrome in one file
+- Query/bootstrap logic is now split across `hooks/shell/` modules and playback logic is split across `hooks/playback/` modules
+- Frontend tests are now modularized across route tests, bridge tests, and `appDesktopHarness` helpers instead of relying on a single oversized app test file
+- Backend Rust tests are now also moving into subsystem-owned `tests/` directories with shared support helpers instead of growing one large `tests.rs` file per module
 
 ## Milestone 4: Playback and Queue
 
@@ -59,11 +65,32 @@ Current milestone progress:
 - The queue route now reflects stable next-up behavior from playback order rather than from the filtered tracks table
 - Embedded artwork now renders in the tracks view, queue view, and playback bar
 - Release-hardening fixes now guard against stale playback-source and overlapping library-query races
-- `v1.2.0` now has an explicit Rust-side playback command and event contract
+- The app now has an explicit Rust-side playback command and event contract
 - Rust now owns local playback output for indexed desktop files behind the existing playback runtime
 - The shell now renders playback progress and completion from backend-driven state changes instead of frontend-owned media lifecycle callbacks
 - Native playback smoke coverage now exercises launch, play, seek, pause, and completion through backend and shell tests
-- The next patch-release slice after FLAC is scoped as privacy-safe desktop presence, with a managed Discord RPC client and explicit/advisory metadata treated as a separate follow-up patch
+- Privacy-safe desktop presence now ships with a managed Discord RPC client and explicit/advisory metadata remains source-trusted rather than heuristically inferred
+- The app now includes first-class local playlists with persisted ordering and backend queue handoff
+- Playlist foundations now define storage and ordering contracts that Spotify import and smart playlists can reuse later
+- Playlist reordering now uses a handle-only drag interaction with explicit drop markers and queue-snapshot stability after handoff
+- Backend module hygiene now keeps playlist domain logic in focused files and splits playback runtime state from transport/native-output control paths so later queue and architecture work can land with smaller backend context windows
+- Album and artist foundation work should enter through home-search and track-context detail routes instead of expanding the top-level shell navigation
+- Queue authority has moved fully into Rust through a segmented two-tier model: a `VecDeque`-backed user queue and a cursor-based context window, with lazy auto-continue resolution that walks the artist discography before falling back to a recency-weighted library shuffle
+- A full-screen player page with VinylDisc animation and setlist panel now ships alongside the persistent playback bar
+- An analytics page now ships with top tracks, top albums (deduped by album identity), and top artists across three time windows; the 4-week window is local-only while 6-month and all-time include Spotify import history
+- Spotify GDPR export folder import now ships, streaming multi-file JSON history, matching streams to local tracks by normalized title and artist, storing unmatched plays as ghost plays, and absorbing ghosts automatically when matching tracks are scanned
+- `play_events` now carries a `source` column (`local` vs `spotify-import`) and millisecond timestamps, giving the analytics engine a reliable signal for source-aware window filtering
+- Artist pages now support separate banner image and profile picture directories configured through native folder pickers
+- Test coverage now spans ~115 Rust tests and ~109 client tests including dedicated analytics command tests and shellQueryShared unit tests
+
+Current release status:
+
+- The current app ships the local-first playback baseline, FLAC compatibility, privacy-safe Rich Presence, trusted advisory metadata, first-class playlists, full album and artist pages, and Spotify listening history import in one coherent desktop release
+- The analytics page ships with top tracks, top albums, top artists, time window selection, and source-aware filtering (4-week local-only vs 6-month/all-time including Spotify history)
+- The full-screen player page ships with VinylDisc spin animation, tonearm positioning, numbered setlist panel, and advisory tag display
+- Spotify GDPR export import ships with streaming multi-file JSON parsing, ghost play storage, automatic absorption during scan, and a detailed import summary
+- Artist profile images ship with separate banner and profile picture directory configuration
+- The next release work should build on that baseline with the scores page, timbre-driven audio intelligence surfaces, and Atlas remote storage integration
 
 ## Milestone 5: Cache and Remote Media
 
@@ -99,7 +126,6 @@ Current milestone progress:
 - Native output still needs dedicated validation for memory, CPU, and device-compatibility behavior
 - Library import behavior for malformed tags, missing artwork, permission failures, and non-MP3 files should be documented during implementation
 - Atlas sync and timbre analysis should stay explicitly deferred until the public v1 local-first release is stable
-- Queue ownership is still more shell-derived than the long-term Rust-first playback model
 - Tagged macOS release builds still need an explicit artifact-upload step so DMG output is downloadable from GitHub Actions
 
 ## Release Gate

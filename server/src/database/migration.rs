@@ -4,7 +4,7 @@ use crate::database::schema;
 
 use super::DatabaseError;
 
-pub const MIGRATIONS: [Migration; 3] = [
+pub const MIGRATIONS: [Migration; 14] = [
     Migration {
         id: "0001_initial_schema",
         sql: schema::INITIAL_SCHEMA_MIGRATION,
@@ -16,6 +16,50 @@ pub const MIGRATIONS: [Migration; 3] = [
     Migration {
         id: "0003_flac_track_support",
         sql: schema::FLAC_TRACK_SUPPORT_MIGRATION,
+    },
+    Migration {
+        id: "0004_explicit_advisory_metadata",
+        sql: schema::EXPLICIT_ADVISORY_METADATA_MIGRATION,
+    },
+    Migration {
+        id: "0005_local_playlists_foundation",
+        sql: schema::LOCAL_PLAYLISTS_FOUNDATION_MIGRATION,
+    },
+    Migration {
+        id: "0006_playlist_artwork",
+        sql: schema::PLAYLIST_ARTWORK_MIGRATION,
+    },
+    Migration {
+        id: "0007_concept_albums_foundation",
+        sql: schema::CONCEPT_ALBUMS_FOUNDATION_MIGRATION,
+    },
+    Migration {
+        id: "0008_mixtapes_foundation",
+        sql: schema::MIXTAPES_FOUNDATION_MIGRATION,
+    },
+    Migration {
+        id: "0009_artist_image_config",
+        sql: schema::ARTIST_IMAGE_CONFIG_MIGRATION,
+    },
+    Migration {
+        id: "0010_track_year_and_album_metadata",
+        sql: schema::TRACK_YEAR_AND_ALBUM_METADATA_MIGRATION,
+    },
+    Migration {
+        id: "0011_app_settings",
+        sql: schema::APP_SETTINGS_MIGRATION,
+    },
+    Migration {
+        id: "0012_play_history",
+        sql: schema::PLAY_HISTORY_MIGRATION,
+    },
+    Migration {
+        id: "0013_play_events_source",
+        sql: schema::PLAY_EVENTS_SOURCE_MIGRATION,
+    },
+    Migration {
+        id: "0014_ghost_plays",
+        sql: schema::GHOST_PLAYS_MIGRATION,
     },
 ];
 
@@ -30,6 +74,31 @@ pub struct MigrationStatus {
 pub struct Migration {
     pub id: &'static str,
     pub sql: &'static str,
+}
+
+// Executes each semicolon-delimited statement individually. For ADD COLUMN statements,
+// "duplicate column name" errors are ignored so migrations are idempotent against partial runs.
+fn execute_migration_statements(
+    transaction: &rusqlite::Transaction,
+    sql: &str,
+) -> Result<(), DatabaseError> {
+    for raw in sql.split(';') {
+        let stmt = raw.trim();
+        if stmt.is_empty() {
+            continue;
+        }
+        match transaction.execute_batch(stmt) {
+            Ok(()) => {}
+            Err(rusqlite::Error::SqliteFailure(_, Some(ref msg)))
+                if stmt.to_ascii_uppercase().contains("ADD COLUMN")
+                    && msg.contains("duplicate column name") =>
+            {
+                // Column already exists — treat as a no-op.
+            }
+            Err(e) => return Err(DatabaseError::from(e)),
+        }
+    }
+    Ok(())
 }
 
 pub(crate) fn run_migrations(connection: &mut rusqlite::Connection) -> Result<(), DatabaseError> {
@@ -52,7 +121,7 @@ pub(crate) fn run_migrations(connection: &mut rusqlite::Connection) -> Result<()
 
         if already_applied == 0 {
             let transaction = connection.unchecked_transaction()?;
-            transaction.execute_batch(migration.sql)?;
+            execute_migration_statements(&transaction, migration.sql)?;
             transaction.execute(
                 "
                 INSERT INTO schema_migrations (id, applied_at)

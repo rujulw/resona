@@ -37,3 +37,5 @@ test-results/
 # Misc
 .cache/
 tmp/
+.claude/
+.mcp.json

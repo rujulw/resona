@@ -1,678 +1,158 @@
-import { useEffect, useRef, useState } from "react";
-
-import {
-  bootstrapApp,
-  getShellState,
-  loadPlaybackTrack,
-  pickLibraryDirectory,
-  playbackAction,
-  queryLibrary,
-  reportPlaybackError,
-  scanLocalLibrary,
-  seekPlayback,
-  subscribePlaybackState,
-  type TrackListItem,
-} from "../desktop";
-import type {
-  BootstrapState,
-  ImportSummary,
-  QueueState,
-  ScanState,
-  ShellState,
-  TracksQueryState,
-  TracksState,
-} from "../types/app";
+import { usePlaybackCoordinator } from "./usePlaybackCoordinator";
+import { useShellQueryState } from "./useShellQueryState";
+import { getAlbum } from "../desktop";
+import type { AlbumDetail, TrackListItem } from "../desktop";
 
 export function useAppShell() {
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const playbackRequestIdRef = useRef(0);
-  const tracksRequestIdRef = useRef(0);
-  const trackCatalogRef = useRef(new Map<string, TrackListItem>());
-  const playbackQueueTrackIdsRef = useRef<string[]>([]);
-  const activeTrackIdRef = useRef<string | null>(null);
-  const [bootstrapState, setBootstrapState] = useState<BootstrapState>({
-    status: "loading",
+  const shellQueryState = useShellQueryState();
+  const playbackCoordinator = usePlaybackCoordinator({
+    shellState: shellQueryState.shellState,
+    tracksState: shellQueryState.tracksState,
+    playlistsState: shellQueryState.playlistsState,
+    conceptAlbumsState: shellQueryState.conceptAlbumsState,
+    trackCatalogRef: shellQueryState.trackCatalogRef,
+    setShellState: shellQueryState.setShellState,
+    setTracksState: shellQueryState.setTracksState,
+    setPlaylistsState: shellQueryState.setPlaylistsState,
   });
-  const [shellState, setShellState] = useState<ShellState | null>(null);
-  const [tracksState, setTracksState] = useState<TracksState>({
-    status: "loading",
-    items: [],
-    total: 0,
-    selectedTrackId: null,
-  });
-  const [libraryPath, setLibraryPath] = useState("");
-  const [scanState, setScanState] = useState<ScanState>({
-    status: "idle",
-    message: "",
-    lastScan: null,
-  });
-  const [tracksQueryState, setTracksQueryState] = useState<TracksQueryState>({
-    searchDraft: "",
-    search: "",
-    sortKey: "title",
-    sortDirection: "asc",
-  });
-  const [playbackQueueTrackIds, setPlaybackQueueTrackIds] = useState<string[]>([]);
-  const completionHandledRef = useRef<string | null>(null);
 
-  const isRustOutputPlayback = shellState?.playback.outputOwner === "rust";
+  const buildAlbumQueueItems = (albumDetail: AlbumDetail): TrackListItem[] =>
+    albumDetail.tracks.map((track) => ({
+      id: track.id,
+      title: track.title,
+      artist: track.artist ?? albumDetail.album.artist,
+      album: albumDetail.album.title,
+      advisory: track.advisory ?? null,
+      durationSeconds: track.durationSeconds,
+      artworkKey: track.artworkKey ?? albumDetail.album.artworkKey,
+      relativePath: "",
+      extension: track.extension,
+      sourceStatus: "local-only",
+      cacheState: "none",
+      analysisStatus: "pending",
+      indexedAt: "",
+    }));
 
-  useEffect(() => {
-    playbackQueueTrackIdsRef.current = playbackQueueTrackIds;
-  }, [playbackQueueTrackIds]);
+  return {
+    audioRef: playbackCoordinator.audioRef,
+    bootstrapState: shellQueryState.bootstrapState,
+    albumsState: shellQueryState.albumsState,
+    conceptAlbumsState: shellQueryState.conceptAlbumsState,
+    playlistsState: shellQueryState.playlistsState,
+    queueState: playbackCoordinator.queueState,
+    shellState: shellQueryState.shellState,
+    tracksState: shellQueryState.tracksState,
+    libraryPath: shellQueryState.libraryPath,
+    scanState: shellQueryState.scanState,
+    handlePickLibraryDirectory: shellQueryState.handlePickLibraryDirectory,
+    handleAlbumSelection: shellQueryState.handleAlbumSelection,
+    handleConceptAlbumCreate: shellQueryState.handleConceptAlbumCreate,
+    handleConceptAlbumDelete: shellQueryState.handleConceptAlbumDelete,
+    handleConceptAlbumArtworkChange: shellQueryState.handleConceptAlbumArtworkChange,
+    handleConceptAlbumEntryMove: shellQueryState.handleConceptAlbumEntryMove,
+    handleConceptAlbumEntriesReplace: shellQueryState.handleConceptAlbumEntriesReplace,
+    handleConceptAlbumEntryRemove: shellQueryState.handleConceptAlbumEntryRemove,
+    handleConceptAlbumRename: shellQueryState.handleConceptAlbumRename,
+    handleConceptAlbumSelection: shellQueryState.handleConceptAlbumSelection,
+    handleConceptAlbumTrackAdd: shellQueryState.handleConceptAlbumTrackAdd,
+    handlePlaylistCreate: shellQueryState.handlePlaylistCreate,
+    handlePlaylistDelete: shellQueryState.handlePlaylistDelete,
+    handlePlaylistArtworkChange: shellQueryState.handlePlaylistArtworkChange,
+    handlePlaylistEntryMove: shellQueryState.handlePlaylistEntryMove,
+    handlePlaylistEntriesReplace: shellQueryState.handlePlaylistEntriesReplace,
+    handlePlaylistEntryRemove: shellQueryState.handlePlaylistEntryRemove,
+    handlePlaylistPlaybackHandoff: playbackCoordinator.handlePlaylistPlaybackHandoff,
+    handlePlaylistRename: shellQueryState.handlePlaylistRename,
+    handlePlaylistSelection: shellQueryState.handlePlaylistSelection,
+    handlePlaylistTurnToMixtape: shellQueryState.handlePlaylistTurnToMixtape,
+    handlePlaylistTrackAdd: shellQueryState.handlePlaylistTrackAdd,
+    handlePlaybackAction: playbackCoordinator.handlePlaybackAction,
+    handlePlaybackSeek: playbackCoordinator.handlePlaybackSeek,
+    handleTrackSelection: playbackCoordinator.handleTrackSelection,
+    handleQueueMutate: playbackCoordinator.handleQueueMutate,
+    handleQueueReorder: playbackCoordinator.handleQueueReorder,
+    handleAlbumPlaybackHandoff: (albumId: string, startTrackId?: string) => {
+      const activeAlbum = shellQueryState.albumsState.activeAlbum;
+      if (!activeAlbum || activeAlbum.album.id !== albumId || activeAlbum.tracks.length === 0) {
+        return;
+      }
 
-  useEffect(() => {
-    activeTrackIdRef.current = shellState?.playback.trackId ?? tracksState.selectedTrackId;
-  }, [shellState?.playback.trackId, tracksState.selectedTrackId]);
+      const queueItems = buildAlbumQueueItems(activeAlbum);
+      const selectedTrack =
+        queueItems.find((track) => track.id === startTrackId) ?? queueItems[0];
 
-  useEffect(() => {
-    let cancelled = false;
+      playbackCoordinator.handleTrackSelection(selectedTrack, {
+        queueTrackIds: queueItems.map((track) => track.id),
+        queueItems,
+        sourceLabel: "album-handoff",
+      });
+    },
+    handlePlayAlbumById: async (albumId: string) => {
+      const albumDetail = await getAlbum(albumId);
+      if (!albumDetail || albumDetail.tracks.length === 0) return;
+      const queueItems = buildAlbumQueueItems(albumDetail);
+      playbackCoordinator.handleTrackSelection(queueItems[0], {
+        queueTrackIds: queueItems.map((t) => t.id),
+        queueItems,
+        sourceLabel: "artist-handoff",
+      });
+    },
+    handleAlbumTrackSelection: (trackId: string) => {
+      const activeAlbum = shellQueryState.albumsState.activeAlbum;
+      if (!activeAlbum) {
+        return;
+      }
 
-    void Promise.all([
-      bootstrapApp(),
-      getShellState(),
-      fetchAllTracks({
-        search: null,
-        sortKey: "title",
-        sortDirection: "asc",
-      }),
-    ])
-      .then(([payload, shellPayload, libraryPage]) => {
-        if (cancelled) {
-          return;
-        }
-
-        document.title = payload.windowTitle;
-        setBootstrapState({ status: "ready", payload });
-        setShellState({
-          libraryRows: shellPayload.libraryRows,
-          playback: shellPayload.playback,
+      const queueItems = buildAlbumQueueItems(activeAlbum);
+      const track = queueItems.find((item) => item.id === trackId);
+      if (track) {
+        playbackCoordinator.handleTrackSelection(track, {
+          queueTrackIds: queueItems.map((item) => item.id),
+          queueItems,
+          sourceLabel: "album-handoff",
         });
-        setTracksState({
-          status: "ready",
-          items: libraryPage.items,
-          total: libraryPage.total,
-          selectedTrackId: null,
-        });
-        mergeTrackCatalog(trackCatalogRef.current, libraryPage.items);
-      })
-      .catch((error: unknown) => {
-        if (cancelled) {
-          return;
-        }
-
-        const message =
-          error instanceof Error ? error.message : "Failed to bootstrap app";
-        setBootstrapState({ status: "error", message });
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
-    let detached = false;
-    let unlisten: (() => void) | undefined;
-
-    void subscribePlaybackState((playback) => {
-      if (detached) {
+      }
+    },
+    handleConceptAlbumPlaybackHandoff: (
+      conceptAlbumId: string,
+      startEntryId?: string,
+    ) => {
+      const activeConceptAlbum = shellQueryState.conceptAlbumsState.activeConceptAlbum;
+      if (
+        !activeConceptAlbum ||
+        activeConceptAlbum.conceptAlbum.id !== conceptAlbumId ||
+        activeConceptAlbum.entries.length === 0
+      ) {
         return;
       }
 
-      setShellState((existing) => {
-        if (!existing) {
-          return existing;
-        }
-
-        return {
-          ...existing,
-          playback: {
-            ...existing.playback,
-            ...playback,
-            isPlaying: playback.isPlaying ?? existing.playback.isPlaying ?? false,
-            trackId: playback.trackId ?? existing.playback.trackId ?? null,
-            trackTitle: playback.trackTitle ?? existing.playback.trackTitle ?? null,
-            trackArtist: playback.trackArtist ?? existing.playback.trackArtist ?? null,
-            trackAlbum: playback.trackAlbum ?? existing.playback.trackAlbum ?? null,
-          },
-        };
-      });
-    }).then((dispose) => {
-      if (detached) {
-        dispose();
-        return;
-      }
-
-      unlisten = dispose;
-    });
-
-    return () => {
-      detached = true;
-      unlisten?.();
-    };
-  }, []);
-
-  useEffect(() => {
-    const audio = new Audio();
-    audio.preload = "metadata";
-    audioRef.current = audio;
-
-    return () => {
-      try {
-        audio.pause();
-      } catch {
-        // jsdom does not implement media teardown fully, but the browser/webview does.
-      }
-      audioRef.current = null;
-    };
-  }, []);
-
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio || !shellState?.playback.trackId) {
-      return;
-    }
-
-    if (shellState.playback.outputOwner === "rust") {
-      if (!audio.paused) {
-        audio.pause();
-      }
-      return;
-    }
-
-    if (!audio.src) {
-      return;
-    }
-
-    if (shellState.playback.isPlaying) {
-      if (!audio.paused) {
-        return;
-      }
-
-      void audio.play().catch(() => {
-        void playbackAction("toggle");
-      });
-      return;
-    }
-
-    if (!audio.paused) {
-      audio.pause();
-    }
-  }, [
-    shellState?.playback.isPlaying,
-    shellState?.playback.outputOwner,
-    shellState?.playback.trackId,
-  ]);
-
-  useEffect(() => {
-    const playback = shellState?.playback;
-    if (!playback || playback.outputOwner !== "rust" || playback.statusLabel !== "Ended") {
-      completionHandledRef.current = null;
-      return;
-    }
-
-    const completionKey = `${playback.trackId ?? "none"}:${playback.progressSeconds}`;
-    if (completionHandledRef.current === completionKey) {
-      return;
-    }
-    completionHandledRef.current = completionKey;
-
-    const activeTrackId = playback.trackId ?? tracksState.selectedTrackId;
-    const activeIndex = activeTrackId
-      ? playbackQueueTrackIdsRef.current.findIndex((trackId) => trackId === activeTrackId)
-      : -1;
-    const nextTrackId =
-      activeIndex >= 0 ? playbackQueueTrackIdsRef.current[activeIndex + 1] : undefined;
-    const nextTrack = nextTrackId
-      ? trackCatalogRef.current.get(nextTrackId)
-      : undefined;
-
-    if (nextTrack) {
-      void startTrackPlayback(nextTrack, true);
-    }
-  }, [
-    shellState?.playback.outputOwner,
-    shellState?.playback.progressSeconds,
-    shellState?.playback.statusLabel,
-    shellState?.playback.trackId,
-    tracksState.selectedTrackId,
-  ]);
-
-  const refreshShellState = () => {
-    void getShellState().then((shellPayload) => {
-      setShellState((existing) => ({
-        libraryRows: shellPayload.libraryRows,
-        playback: existing?.playback ?? shellPayload.playback,
+      const queueItems = activeConceptAlbum.entries.map((entry) => ({
+        id: entry.trackId,
+        title: entry.title,
+        artist: entry.artist ?? activeConceptAlbum.conceptAlbum.artist,
+        album: activeConceptAlbum.conceptAlbum.title,
+        advisory: entry.advisory ?? null,
+        durationSeconds: entry.durationSeconds,
+        artworkKey: entry.artworkKey ?? activeConceptAlbum.conceptAlbum.artworkKey,
+        relativePath: "",
+        extension: entry.extension,
+        sourceStatus: "local-only",
+        cacheState: "none",
+        analysisStatus: "pending",
+        indexedAt: "",
       }));
-    });
-  };
+      const selectedEntry =
+        activeConceptAlbum.entries.find((entry) => entry.entryId === startEntryId) ??
+        activeConceptAlbum.entries[0];
+      const selectedTrack =
+        queueItems.find((track) => track.id === selectedEntry.trackId) ?? queueItems[0];
 
-  const refreshTracks = (overrides?: Partial<TracksQueryState>) => {
-    const effectiveQuery = {
-      ...tracksQueryState,
-      ...overrides,
-    };
-    const requestId = tracksRequestIdRef.current + 1;
-    tracksRequestIdRef.current = requestId;
-
-    setTracksState((existing) => ({
-      ...existing,
-      status: "loading",
-    }));
-
-    void fetchAllTracks({
-      search: effectiveQuery.search || null,
-      sortKey: effectiveQuery.sortKey,
-      sortDirection: effectiveQuery.sortDirection,
-    })
-      .then((libraryPage) => {
-        if (tracksRequestIdRef.current != requestId) {
-          return;
-        }
-
-        mergeTrackCatalog(trackCatalogRef.current, libraryPage.items);
-        setTracksState({
-          status: "ready",
-          items: libraryPage.items,
-          total: libraryPage.total,
-          selectedTrackId:
-            existingSelectedTrackId(libraryPage.items, tracksState.selectedTrackId),
-        });
-        setTracksQueryState((existing) => ({
-          ...existing,
-          ...overrides,
-        }));
-      })
-      .catch((error: unknown) => {
-        if (tracksRequestIdRef.current != requestId) {
-          return;
-        }
-
-        setTracksState({
-          status: "error",
-          items: [],
-          total: 0,
-          selectedTrackId: null,
-          message:
-            error instanceof Error ? error.message : "Failed to load track library.",
-        });
-        setTracksQueryState((existing) => ({
-          ...existing,
-          ...overrides,
-        }));
+      playbackCoordinator.handleTrackSelection(selectedTrack, {
+        queueTrackIds: queueItems.map((track) => track.id),
+        queueItems,
+        sourceLabel: "concept-album-handoff",
       });
+    },
+    handleScan: shellQueryState.handleScan,
   };
-
-  const handlePlaybackAction = (action: "previous" | "toggle" | "next") => {
-    const audio = audioRef.current;
-
-    if (action === "previous" || action === "next") {
-      const activeTrackId = shellState?.playback.trackId ?? tracksState.selectedTrackId;
-      const activeIndex = activeTrackId
-        ? playbackQueueTrackIds.findIndex((trackId) => trackId === activeTrackId)
-        : -1;
-
-      const currentProgressSeconds = isRustOutputPlayback
-        ? shellState?.playback.progressSeconds ?? 0
-        : audio?.currentTime ?? 0;
-
-      if (action === "previous" && currentProgressSeconds > 3 && activeTrackId) {
-        if (audio) {
-          audio.currentTime = 0;
-        }
-        void seekPlayback(0);
-        return;
-      }
-
-      const targetIndex =
-        activeIndex >= 0
-          ? action === "previous"
-            ? activeIndex - 1
-            : activeIndex + 1
-          : action === "next"
-            ? 0
-            : -1;
-      const targetTrackId =
-        targetIndex >= 0 ? playbackQueueTrackIds[targetIndex] : undefined;
-      const targetTrack = targetTrackId
-        ? trackCatalogRef.current.get(targetTrackId)
-        : undefined;
-
-      if (targetTrack) {
-        void startTrackPlayback(targetTrack, true);
-        return;
-      }
-    }
-
-    if (action === "toggle") {
-      if (shellState?.playback.trackId && (isRustOutputPlayback || (audio && audio.src))) {
-        void playbackAction("toggle");
-        return;
-      }
-
-      if (!shellState?.playback.trackId && tracksState.items.length > 0) {
-        void startTrackPlayback(tracksState.items[0], true);
-        return;
-      }
-    }
-
-    void playbackAction(action);
-  };
-
-  const handleTrackSelection = (track: TrackListItem) => {
-    startTrackPlayback(track, true);
-  };
-
-  const handlePlaybackSeek = (positionSeconds: number) => {
-    const clampedSeconds = Math.max(
-      0,
-      Math.min(
-        Math.round(positionSeconds),
-        shellState?.playback.durationSeconds ?? Math.round(positionSeconds),
-      ),
-    );
-
-    if (audioRef.current && !isRustOutputPlayback) {
-      audioRef.current.currentTime = clampedSeconds;
-    }
-
-    void seekPlayback(clampedSeconds);
-  };
-
-  const startTrackPlayback = async (track: TrackListItem, autoplay: boolean) => {
-    const requestId = playbackRequestIdRef.current + 1;
-    playbackRequestIdRef.current = requestId;
-    setPlaybackQueueTrackIds((existing) => {
-      const visibleTrackIds = tracksState.items.map((item) => item.id);
-      if (visibleTrackIds.includes(track.id)) {
-        return visibleTrackIds;
-      }
-
-      if (existing.includes(track.id)) {
-        return existing;
-      }
-
-      return [track.id];
-    });
-    trackCatalogRef.current.set(track.id, track);
-
-    setTracksState((existing) => ({
-      ...existing,
-      selectedTrackId: track.id,
-    }));
-    const payload = await loadPlaybackTrack(track.id);
-    if (playbackRequestIdRef.current != requestId) {
-      return;
-    }
-
-    if (!payload) {
-      void reportPlaybackError("Local source unavailable");
-      return;
-    }
-
-    const audio = audioRef.current;
-    if (!audio) {
-      return;
-    }
-
-    audio.pause();
-    if (payload.playback.outputOwner === "rust") {
-      audio.src = "";
-    } else {
-      audio.src = payload.source.assetUrl;
-    }
-    audio.currentTime = 0;
-
-    if (!autoplay) {
-      return;
-    }
-
-    void playbackAction("toggle");
-  };
-
-  const handleScan = () => {
-    const trimmedPath = libraryPath.trim();
-    if (!trimmedPath) {
-      setScanState({
-        status: "error",
-        message: "Choose a folder before scanning your library.",
-        lastScan: scanState.lastScan,
-      });
-      return;
-    }
-
-    setScanState({
-      status: "running",
-      message: "Scanning local library...",
-      lastScan: scanState.lastScan,
-    });
-
-    void scanLocalLibrary(trimmedPath)
-      .then((summary) => {
-        const lastScan = toImportSummary(summary);
-        setScanState({
-          status: "success",
-          message:
-            summary.discoveredTracks > 0
-              ? `Indexed ${summary.discoveredTracks} track(s) from ${summary.libraryRootName}.`
-              : `Scan finished for ${summary.libraryRootName}, but no supported audio files were found.`,
-          lastScan,
-        });
-        refreshShellState();
-        refreshTracks();
-      })
-      .catch((error: unknown) => {
-        setScanState({
-          status: "error",
-          message:
-            error instanceof Error ? error.message : "Failed to scan local library.",
-          lastScan: scanState.lastScan,
-        });
-      });
-  };
-
-  const handlePickLibraryDirectory = () => {
-    void pickLibraryDirectory(libraryPath)
-      .then((selectedPath) => {
-        if (!selectedPath) {
-          return;
-        }
-
-        setLibraryPath(selectedPath);
-        setScanState({
-          status: "idle",
-          message: `Selected ${selectedPath}.`,
-          lastScan: scanState.lastScan,
-        });
-      })
-      .catch((error: unknown) => {
-        setScanState({
-          status: "error",
-          message:
-            error instanceof Error
-              ? error.message
-              : "Failed to open folder picker.",
-          lastScan: scanState.lastScan,
-        });
-      });
-  };
-
-  const handleTracksSearchDraftChange = (value: string) => {
-    setTracksQueryState((existing) => ({
-      ...existing,
-      searchDraft: value,
-    }));
-  };
-
-  const handleTracksSearchSubmit = () => {
-    refreshTracks({
-      search: tracksQueryState.searchDraft.trim(),
-    });
-  };
-
-  const handleTracksTitleHeaderSort = () => {
-    const nextSort =
-      tracksQueryState.sortKey === "title" && tracksQueryState.sortDirection === "asc"
-        ? { sortKey: "title" as const, sortDirection: "desc" as const }
-        : tracksQueryState.sortKey === "title" &&
-            tracksQueryState.sortDirection === "desc"
-          ? { sortKey: "artist" as const, sortDirection: "asc" as const }
-          : tracksQueryState.sortKey === "artist" &&
-              tracksQueryState.sortDirection === "asc"
-            ? { sortKey: "artist" as const, sortDirection: "desc" as const }
-            : { sortKey: "title" as const, sortDirection: "asc" as const };
-
-    refreshTracks({
-      ...nextSort,
-    });
-  };
-
-  const handleTracksAlbumHeaderSort = () => {
-    const nextSort =
-      tracksQueryState.sortKey === "album" && tracksQueryState.sortDirection === "asc"
-        ? { sortKey: "album" as const, sortDirection: "desc" as const }
-        : tracksQueryState.sortKey === "album" &&
-            tracksQueryState.sortDirection === "desc"
-          ? { sortKey: "title" as const, sortDirection: "asc" as const }
-          : { sortKey: "album" as const, sortDirection: "asc" as const };
-
-    refreshTracks({
-      ...nextSort,
-    });
-  };
-
-  const queueState = deriveQueueState(
-    trackCatalogRef.current,
-    playbackQueueTrackIds,
-    shellState?.playback.trackId ?? tracksState.selectedTrackId,
-  );
-
-  return {
-    bootstrapState,
-    queueState,
-    shellState,
-    tracksState,
-    tracksQueryState,
-    libraryPath,
-    scanState,
-    setLibraryPath,
-    handlePickLibraryDirectory,
-    handlePlaybackAction,
-    handlePlaybackSeek,
-    handleTrackSelection,
-    handleScan,
-    handleTracksSearchDraftChange,
-    handleTracksSearchSubmit,
-    handleTracksTitleHeaderSort,
-    handleTracksAlbumHeaderSort,
-  };
-}
-
-async function fetchAllTracks(options: {
-  search: string | null;
-  sortKey: "title" | "artist" | "album" | "indexed_at";
-  sortDirection: "asc" | "desc";
-}) {
-  const items: TrackListItem[] = [];
-  const seenCursors = new Set<string>();
-  let cursor: string | null = null;
-  let total = 0;
-
-  while (true) {
-    const page = await queryLibrary({
-      pageSize: 200,
-      cursor,
-      search: options.search,
-      sortKey: options.sortKey,
-      sortDirection: options.sortDirection,
-    });
-
-    items.push(...page.items);
-    total = page.total;
-
-    if (!page.nextCursor || seenCursors.has(page.nextCursor)) {
-      return {
-        items,
-        total,
-      };
-    }
-
-    seenCursors.add(page.nextCursor);
-    cursor = page.nextCursor;
-  }
-}
-
-function toImportSummary(summary: {
-  libraryRootId: string;
-  libraryRootName: string;
-  rootPath: string;
-  discoveredTracks: number;
-  insertedTracks: number;
-  updatedTracks: number;
-  removedTracks: number;
-}): ImportSummary {
-  return {
-    libraryRootId: summary.libraryRootId,
-    libraryRootName: summary.libraryRootName,
-    rootPath: summary.rootPath,
-    discoveredTracks: summary.discoveredTracks,
-    insertedTracks: summary.insertedTracks,
-    updatedTracks: summary.updatedTracks,
-    removedTracks: summary.removedTracks,
-  };
-}
-
-function existingSelectedTrackId(
-  items: TrackListItem[],
-  currentSelectedTrackId: string | null,
-): string | null {
-  if (!currentSelectedTrackId) {
-    return null;
-  }
-
-  return items.some((item) => item.id === currentSelectedTrackId)
-    ? currentSelectedTrackId
-    : null;
-}
-
-function deriveQueueState(
-  trackCatalog: Map<string, TrackListItem>,
-  queueTrackIds: string[],
-  activeTrackId: string | null | undefined,
-): QueueState {
-  if (!activeTrackId) {
-    return {
-      activeTrack: null,
-      upcomingTracks: [],
-      totalTracks: 0,
-    };
-  }
-
-  const queueItems = queueTrackIds
-    .map((trackId) => trackCatalog.get(trackId))
-    .filter((track): track is TrackListItem => Boolean(track));
-  const activeIndex = queueItems.findIndex((item) => item.id === activeTrackId);
-  if (activeIndex < 0) {
-    return {
-      activeTrack: trackCatalog.get(activeTrackId) ?? null,
-      upcomingTracks: [],
-      totalTracks: trackCatalog.has(activeTrackId) ? 1 : 0,
-    };
-  }
-
-  return {
-    activeTrack: queueItems[activeIndex],
-    upcomingTracks: queueItems.slice(activeIndex + 1),
-    totalTracks: queueItems.length - activeIndex,
-  };
-}
-
-function mergeTrackCatalog(
-  trackCatalog: Map<string, TrackListItem>,
-  items: TrackListItem[],
-) {
-  for (const item of items) {
-    trackCatalog.set(item.id, item);
-  }
 }

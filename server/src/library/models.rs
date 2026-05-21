@@ -30,6 +30,89 @@ pub struct LibraryPage {
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct AlbumSummary {
+    pub id: String,
+    pub title: String,
+    pub artist: Option<String>,
+    pub track_count: usize,
+    pub total_duration_seconds: Option<f64>,
+    pub artwork_key: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AlbumTrackItem {
+    pub id: String,
+    pub title: String,
+    pub artist: Option<String>,
+    pub advisory: Option<bool>,
+    pub duration_seconds: Option<f64>,
+    pub artwork_key: Option<String>,
+    pub extension: String,
+    pub track_number: Option<i64>,
+    pub disc_number: Option<i64>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AlbumDetail {
+    pub album: AlbumSummary,
+    pub tracks: Vec<AlbumTrackItem>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ArtistListItem {
+    pub name: String,
+    pub album_count: usize,
+    pub track_count: usize,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DiscographyItemKind {
+    Album,
+    ConceptAlbum,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DiscographyAlbum {
+    pub id: String,
+    pub title: String,
+    pub year: Option<i64>,
+    pub artwork_key: Option<String>,
+    pub track_count: usize,
+    pub kind: DiscographyItemKind,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ArtistDetail {
+    pub name: String,
+    pub albums: Vec<DiscographyAlbum>,
+    pub features: Vec<DiscographyAlbum>,
+    pub playlists: Vec<ArtistPlaylistItem>,
+    pub track_count: usize,
+    pub image_config: Option<ArtistImageConfig>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ArtistPlaylistItem {
+    pub id: String,
+    pub title: String,
+    pub artwork_key: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ArtistImageConfig {
+    pub local_image_path: String,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PlaybackSource {
     pub track_id: String,
     pub local_path: String,
@@ -42,6 +125,7 @@ pub struct ResolvedPlaybackTrack {
     pub title: String,
     pub artist: Option<String>,
     pub album: Option<String>,
+    pub advisory: Option<bool>,
     pub duration_seconds: Option<f64>,
     pub local_path: String,
     pub extension: String,
@@ -61,6 +145,7 @@ pub struct LibraryTrackItem {
     pub title: String,
     pub artist: Option<String>,
     pub album: Option<String>,
+    pub advisory: Option<bool>,
     pub duration_seconds: Option<f64>,
     pub artwork_key: Option<String>,
     pub relative_path: String,
@@ -124,8 +209,10 @@ pub(crate) struct NormalizedTrack {
     pub album: Option<String>,
     pub album_artist: Option<String>,
     pub genre: Option<String>,
+    pub advisory: Option<bool>,
     pub track_number: Option<i64>,
     pub disc_number: Option<i64>,
+    pub year: Option<i64>,
     pub duration_seconds: Option<f64>,
     pub artwork_key: Option<String>,
     pub artwork_bytes: Option<Vec<u8>>,
@@ -140,6 +227,51 @@ pub(crate) struct LibraryCursor {
     pub sort_direction: SortDirection,
     pub sort_value: String,
     pub track_id: String,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct AlbumLookupKey {
+    pub album_key: String,
+    pub artist_key: String,
+}
+
+impl AlbumLookupKey {
+    pub(crate) fn new(album: &str, artist: Option<&str>) -> Self {
+        Self {
+            album_key: normalize_album_group_value(album),
+            artist_key: normalize_album_group_value(artist.unwrap_or_default()),
+        }
+    }
+
+    pub(crate) fn encode(&self) -> String {
+        format!(
+            "album:{}:{}",
+            escape_album_key_segment(&self.album_key),
+            escape_album_key_segment(&self.artist_key)
+        )
+    }
+
+    pub(crate) fn decode(value: &str) -> Option<Self> {
+        let encoded = value.strip_prefix("album:")?;
+        let (album_key, artist_key) = encoded.split_once(':')?;
+
+        Some(Self {
+            album_key: unescape_album_key_segment(album_key),
+            artist_key: unescape_album_key_segment(artist_key),
+        })
+    }
+}
+
+fn normalize_album_group_value(value: &str) -> String {
+    value.trim().to_lowercase()
+}
+
+fn escape_album_key_segment(value: &str) -> String {
+    value.replace('%', "%25").replace(':', "%3A")
+}
+
+fn unescape_album_key_segment(value: &str) -> String {
+    value.replace("%3A", ":").replace("%25", "%")
 }
 
 #[derive(Debug)]

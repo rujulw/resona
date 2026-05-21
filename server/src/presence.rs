@@ -79,7 +79,9 @@ impl PresenceDriver for DiscordPresenceDriver {
     }
 
     fn clear(&mut self) -> Result<(), String> {
-        self.client.clear_activity().map_err(|error| error.to_string())
+        self.client
+            .clear_activity()
+            .map_err(|error| error.to_string())
     }
 }
 
@@ -256,11 +258,13 @@ fn same_path(left: &Path, right: &Path) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{
-        candidate_dotenv_paths, read_discord_client_id_from_dotenv, PresenceDriver, PresencePayload,
-        PresenceRuntime, PresenceRuntimeState,
+        candidate_dotenv_paths, read_discord_client_id_from_dotenv, PresenceDriver,
+        PresencePayload, PresenceRuntime, PresenceRuntimeState,
     };
     use crate::playback::PlaybackSnapshot;
+    use std::fs;
     use std::sync::{Arc, Mutex};
+    use std::time::{SystemTime, UNIX_EPOCH};
 
     #[derive(Default)]
     struct RecordedDriver {
@@ -321,6 +325,7 @@ mod tests {
             track_title: Some(track_title.to_owned()),
             track_artist: artist.map(str::to_owned),
             track_album: Some("Signals".to_owned()),
+            track_advisory: None,
         }
     }
 
@@ -344,31 +349,27 @@ mod tests {
         .expect("playing snapshot with artist should publish presence");
 
         assert_eq!(active.details, "Alpha");
-        assert_eq!(active.state, "Listening to North");
+        assert_eq!(active.state, "North");
         assert!(active.start_timestamp > 0);
 
-        assert!(
-            PresencePayload::from_snapshot(&snapshot_with_artist(
-                "track-1",
-                "Alpha",
-                false,
-                Some("North"),
-            ))
-            .is_none()
-        );
-        assert!(
-            PresencePayload::from_snapshot(&snapshot_with_artist("track-1", "Alpha", true, None))
-                .is_none()
-        );
-        assert!(
-            PresencePayload::from_snapshot(&snapshot_with_artist(
-                "track-1",
-                "Alpha",
-                true,
-                Some("   "),
-            ))
-            .is_none()
-        );
+        assert!(PresencePayload::from_snapshot(&snapshot_with_artist(
+            "track-1",
+            "Alpha",
+            false,
+            Some("North"),
+        ))
+        .is_none());
+        assert!(PresencePayload::from_snapshot(&snapshot_with_artist(
+            "track-1", "Alpha", true, None
+        ))
+        .is_none());
+        assert!(PresencePayload::from_snapshot(&snapshot_with_artist(
+            "track-1",
+            "Alpha",
+            true,
+            Some("   "),
+        ))
+        .is_none());
     }
 
     #[test]
@@ -376,12 +377,17 @@ mod tests {
         let actions = Arc::new(Mutex::new(Vec::new()));
         let runtime = test_runtime_state(Arc::clone(&actions));
 
-        runtime.sync_snapshot(&snapshot_with_artist("track-1", "Alpha", true, Some("North")));
+        runtime.sync_snapshot(&snapshot_with_artist(
+            "track-1",
+            "Alpha",
+            true,
+            Some("North"),
+        ));
 
         let actions = actions.lock().expect("actions lock should not be poisoned");
         assert_eq!(actions.len(), 2);
         assert_eq!(actions[0], "connect");
-        assert!(actions[1].starts_with("set:Alpha|Listening to North|"));
+        assert!(actions[1].starts_with("set:Alpha|North|"));
         assert!(!actions[1].contains("Signals"));
     }
 
@@ -390,14 +396,29 @@ mod tests {
         let actions = Arc::new(Mutex::new(Vec::new()));
         let runtime = test_runtime_state(Arc::clone(&actions));
 
-        runtime.sync_snapshot(&snapshot_with_artist("track-1", "Alpha", true, Some("North")));
-        runtime.sync_snapshot(&snapshot_with_artist("track-1", "Alpha", true, Some("North")));
-        runtime.sync_snapshot(&snapshot_with_artist("track-1", "Alpha", false, Some("North")));
+        runtime.sync_snapshot(&snapshot_with_artist(
+            "track-1",
+            "Alpha",
+            true,
+            Some("North"),
+        ));
+        runtime.sync_snapshot(&snapshot_with_artist(
+            "track-1",
+            "Alpha",
+            true,
+            Some("North"),
+        ));
+        runtime.sync_snapshot(&snapshot_with_artist(
+            "track-1",
+            "Alpha",
+            false,
+            Some("North"),
+        ));
 
         let actions = actions.lock().expect("actions lock should not be poisoned");
         assert_eq!(actions.len(), 4);
         assert_eq!(actions[0], "connect");
-        assert!(actions[1].starts_with("set:Alpha|Listening to North|"));
+        assert!(actions[1].starts_with("set:Alpha|North|"));
         assert_eq!(actions[2], "connect");
         assert_eq!(actions[3], "clear");
     }
@@ -407,15 +428,25 @@ mod tests {
         let actions = Arc::new(Mutex::new(Vec::new()));
         let runtime = test_runtime_state(Arc::clone(&actions));
 
-        runtime.sync_snapshot(&snapshot_with_artist("track-1", "Alpha", true, Some("North")));
-        runtime.sync_snapshot(&snapshot_with_artist("track-2", "Beta", true, Some("North")));
+        runtime.sync_snapshot(&snapshot_with_artist(
+            "track-1",
+            "Alpha",
+            true,
+            Some("North"),
+        ));
+        runtime.sync_snapshot(&snapshot_with_artist(
+            "track-2",
+            "Beta",
+            true,
+            Some("North"),
+        ));
 
         let actions = actions.lock().expect("actions lock should not be poisoned");
         assert_eq!(actions.len(), 4);
         assert_eq!(actions[0], "connect");
-        assert!(actions[1].starts_with("set:Alpha|Listening to North|"));
+        assert!(actions[1].starts_with("set:Alpha|North|"));
         assert_eq!(actions[2], "connect");
-        assert!(actions[3].starts_with("set:Beta|Listening to North|"));
+        assert!(actions[3].starts_with("set:Beta|North|"));
     }
 
     #[test]
@@ -428,19 +459,27 @@ mod tests {
     #[test]
     fn reads_client_id_from_repo_local_dotenv_when_env_var_is_absent() {
         std::env::remove_var("RESONA_DISCORD_CLIENT_ID");
-        let current_dir = std::env::current_dir().expect("current dir should resolve");
-        let root_dotenv = current_dir.join(".env");
-        let parent_dotenv = current_dir
-            .parent()
-            .expect("server dir should have parent")
-            .join(".env");
+        let original_dir = std::env::current_dir().expect("current dir should resolve");
+        let temp_dir = std::env::temp_dir().join(format!(
+            "resona-presence-test-{}",
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .expect("current time should be after unix epoch")
+                .as_nanos()
+        ));
+        let nested_dir = temp_dir.join("server");
+        fs::create_dir_all(&nested_dir).expect("temp test directories should be created");
+        fs::write(
+            temp_dir.join(".env"),
+            "RESONA_DISCORD_CLIENT_ID=test-client-id\n",
+        )
+        .expect("temp dotenv should be written");
 
-        assert!(
-            root_dotenv.exists() || parent_dotenv.exists(),
-            "test expects a local .env in the repo root or current dir",
-        );
-
+        std::env::set_current_dir(&nested_dir).expect("should enter temp server dir");
         let value = read_discord_client_id_from_dotenv();
-        assert!(value.is_some());
+        std::env::set_current_dir(&original_dir).expect("should restore original current dir");
+        fs::remove_dir_all(&temp_dir).expect("temp test directories should be removed");
+
+        assert_eq!(value.as_deref(), Some("test-client-id"));
     }
 }

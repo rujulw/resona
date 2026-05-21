@@ -1,6 +1,58 @@
 # Bug Log
 
-## 2026-04-03 - Added smoke coverage for backend-owned playback sync in `v1.2.0`
+## 2026-04-17 - Split backend modules and test storage into smaller coverage-friendly units
+- Status: fixed
+- Severity: medium
+- Symptom: backend feature work was increasingly forced to reopen large subsystem files and one broad `server/src/library/tests.rs`, which made it harder to grow coverage and raised context cost for later features like artist/album views and queue/runtime changes.
+- Root cause: the repo had the right top-level subsystem split, but several internals had grown into oversized files that mixed metadata parsing, scan persistence, runtime controls, and broad test fixtures.
+- Fix: split `library` into focused normalization, metadata, scanner-persistence, and query-SQL modules; flattened low-value playlist micro-files while keeping playlist domain behavior separated by concern; split playback runtime state from runtime controls; and moved library backend tests into `server/src/library/tests/` with focused suites plus shared support helpers.
+- Verification: `cargo test library`, `cargo test playlists`, and `cargo test playback` all passed after the refactor.
+- Files touched:
+  - `server/src/library/mod.rs`
+  - `server/src/library/normalization/mod.rs`
+  - `server/src/library/normalization/helpers.rs`
+  - `server/src/library/normalization/metadata.rs`
+  - `server/src/library/query/mod.rs`
+  - `server/src/library/query/sql.rs`
+  - `server/src/library/scanner/mod.rs`
+  - `server/src/library/scanner/persistence.rs`
+  - `server/src/library/tests/mod.rs`
+  - `server/src/library/tests/support.rs`
+  - `server/src/library/tests/normalization_tests.rs`
+  - `server/src/library/tests/query_tests.rs`
+  - `server/src/library/tests/scanner_tests.rs`
+  - `server/src/playlists/mod.rs`
+  - `server/src/playlists/metadata.rs`
+  - `server/src/playlists/entries.rs`
+  - `server/src/playlists/queries.rs`
+  - `server/src/playback/mod.rs`
+  - `server/src/playback/state.rs`
+  - `server/src/playback/controls.rs`
+  - `docs/architecture.md`
+  - `docs/roadmap.md`
+- Linked commit/PR: pending
+- Notes: this was a hygiene refactor aimed at lowering future backend context cost, not at changing the shipped product surface.
+
+## 2026-04-13 - Fixed playlist drag reorder snapping back and starting from the wrong surface
+- Status: fixed
+- Severity: high
+- Symptom: playlist drag reorder looked partly active in the UI, but dropping could snap the entry back to its old position, and dragging could start from the entire saved-order row instead of only from the reorder grip.
+- Root cause: the first drag implementation leaned on row-level HTML drag behavior and non-optimistic shell updates, which made reorder commits feel flaky and blurred row-selection intent with reorder intent.
+- Fix: moved reorder initiation onto the dedicated handle, switched the saved-order interaction to a handle-owned pointer drag flow with explicit insertion markers, added optimistic saved-order updates in the playlist view, and expanded smoke coverage for reorder persistence plus queue-snapshot stability after handoff.
+- Verification: `npm test -- --run src/App.test.tsx` passed with 32 frontend tests and `cargo test playlist_reorder_does_not_mutate_an_existing_handoff_queue_snapshot` passed.
+- Files touched:
+  - `client/src/pages/PlaylistsPage.tsx`
+  - `client/src/App.test.tsx`
+  - `server/src/commands.rs`
+  - `README.md`
+  - `docs/design.md`
+  - `docs/architecture.md`
+  - `docs/roadmap.md`
+  - `release-smoke-checklist.md`
+- Linked commit/PR: pending
+- Notes: this closed both the UX bug and the contract gap by making reordering explicit at the handle level while keeping handed-off playback queues snapshot-based.
+
+## 2026-04-03 - Added smoke coverage for backend-owned playback sync in `v1.5.1`
 - Status: fixed
 - Severity: medium
 - Symptom: after shifting playback authority into Rust, the repo still lacked a tight smoke-check layer proving the backend timing/seek/completion/error path and the frontend playback-bar rendering path stayed aligned.
@@ -12,7 +64,32 @@
   - `server/src/playback/mod.rs`
   - `client/src/App.test.tsx`
 - Linked commit/PR: pending
-- Notes: this closes a release-readiness gap for `v1.2.0` by checking the current backend-owned playback model at both the Rust and shell layers.
+- Notes: this closes a release-readiness gap for `v1.5.1` by checking the current backend-owned playback model at both the Rust and shell layers.
+
+## 2026-04-11 - Closed playlist release-readiness gaps before the `v1.5.1` push
+- Status: fixed
+- Severity: medium
+- Symptom: the repo had first-class playlist persistence and queue handoff, but the release surface still lacked aligned version metadata, playlist smoke coverage for the current shell, and release-check documentation that matched the actual product.
+- Root cause: playlist implementation outpaced the repository metadata and release docs, leaving `v1.2.x` references and older smoke expectations in place even after the playlist route matured.
+- Fix: updated repository metadata to `1.5.1`, added playlist-route smoke coverage for saved-order and dialog creation flows, and refreshed release documentation to treat playlists as part of the current baseline instead of future scope.
+- Verification: `npx vitest run src/App.test.tsx` passed with the playlist smoke suite and `npm run build` passed for the `v1.5.1` client bundle.
+- Files touched:
+  - `client/src/App.test.tsx`
+  - `client/src/desktop.ts`
+  - `client/src/desktop/playlists.ts`
+  - `client/src/desktop/library.ts`
+  - `client/src/desktop/types.ts`
+  - `client/package.json`
+  - `client/package-lock.json`
+  - `server/Cargo.toml`
+  - `server/tauri.conf.json`
+  - `README.md`
+  - `docs/architecture.md`
+  - `docs/design.md`
+  - `docs/roadmap.md`
+  - `release-smoke-checklist.md`
+- Linked commit/PR: pending
+- Notes: this ties the release narrative to the actual shipped playlist feature set instead of leaving playlists described as “next up.”
 
 ## 2026-04-03 - Avoided split playback authority between React and the backend runtime
 - Status: fixed
@@ -25,6 +102,9 @@
   - `server/src/commands.rs`
   - `server/src/lib.rs`
   - `client/src/desktop.ts`
+  - `client/src/desktop/runtime.ts`
+  - `client/src/desktop/playback.ts`
+  - `client/src/desktop/types.ts`
   - `client/src/desktop.test.ts`
   - `client/src/hooks/useAppShell.ts`
   - `client/src/App.test.tsx`
@@ -43,6 +123,9 @@
   - `server/src/playback/mod.rs`
   - `server/src/commands.rs`
   - `client/src/desktop.ts`
+  - `client/src/desktop/playback.ts`
+  - `client/src/desktop/runtime.ts`
+  - `client/src/desktop/types.ts`
   - `client/src/desktop.test.ts`
   - `client/src/hooks/useAppShell.ts`
   - `client/src/App.test.tsx`
@@ -174,6 +257,7 @@
   - `server/capabilities/default.json`
   - `server/tauri.conf.json`
   - `client/src/desktop.ts`
+  - `client/src/desktop/library.ts`
   - `client/src/hooks/useAppShell.ts`
 - Linked commit/PR: pending
 - Notes: canceling the picker is now treated as a quiet no-op rather than as a noisy status update, which better matches desktop utility expectations.

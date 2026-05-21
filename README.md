@@ -10,12 +10,15 @@ Build a private, performance-first music player that feels closer to a system ut
 
 - Select a local music folder through the desktop app instead of entering raw filesystem paths
 - Recursively discover MP3 files in the selected folder and nested subfolders
+- Index FLAC alongside MP3 in the same local-first library flow
 - Persist track metadata in SQLite
 - Browse large libraries in a scrollable tracks table with search and header-driven sorting
 - Search tracks quickly without loading the full library into React state as one giant boot payload
 - Play indexed local tracks with persistent transport controls and progress sync
 - Manage queue, play/pause, previous, next, and restart-on-previous behavior
 - Render embedded artwork across the library table, queue page, and playback bar
+- Surface trusted advisory metadata and privacy-safe Discord Rich Presence
+- Create, artwork, reorder, and play back first-class local playlists with persisted ordering
 - Keep playback queue behavior stable even when the tracks route is filtered by search
 
 ## Non-Goals
@@ -78,18 +81,19 @@ Build a private, performance-first music player that feels closer to a system ut
 - Desktop shell: Tauri
 - Core engine: Rust
 - Database: SQLite
-- Audio path: frontend-owned Web Audio in public `v1.0.0`, with backend-owned playback state and native Rust local desktop output in `v1.2.0`
-- Remote storage: Atlas integration deferred until `v3.0.0`
-- Analysis engine: `timbre` integration deferred until `v2.0.0`
+- Audio path: Rust-owned playback state and native local output, with the React shell acting as renderer/controller for transport and queue surfaces
+- Remote storage: Atlas integration deferred until a later release
+- Analysis engine: `timbre` integration deferred until a later release
 
 ## Frontend Foundation
 
-- The desktop client now uses `react-router-dom` for a persistent shell with `home`, `tracks`, `queue`, and `settings` routes
+- The desktop client uses `react-router-dom` for a persistent shell with `home`, `tracks`, `playlists`, `queue`, and `settings` routes
 - The left sidebar and bottom playback bar stay mounted across route changes
-- The top window area now uses app-owned desktop chrome instead of relying fully on native title text
-- Release polish now includes Lucide-based navigation and transport icons instead of text-only shell controls
-- The client code is now split into `components/`, `pages/`, `hooks/`, `types/`, `constants/`, and `utils/` rather than keeping the shell in one `App.tsx`
-- The `tracks` route now uses a full-width inline search field, header-driven sorting, and a scrollable library table inside the persistent desktop shell
+- `App.tsx` now acts as route composition, building grouped `chrome`, `routes`, `actions`, and playback props for `AppShell` and `AppShellRoutes`
+- `useAppShell` is now a thin composition hook over `useShellQueryState` and `usePlaybackCoordinator` instead of one growing all-purpose shell hook
+- Query/bootstrap responsibilities are split into `hooks/shell/` modules and playback responsibilities are split into `hooks/playback/` modules
+- Release polish includes app-owned desktop chrome plus Lucide-based navigation and transport icons
+- The `tracks` route uses an inline search field, header-driven sorting, and a scrollable library table inside the persistent shell
 
 ## Current Playback Baseline
 
@@ -98,21 +102,113 @@ Build a private, performance-first music player that feels closer to a system ut
 - Transport controls now handle play, pause, previous, next, restart-on-previous, seek, and backend-driven progress updates
 - The queue route reflects a stable next-up flow derived from playback order rather than the currently filtered tracks table
 
+## Current Playlist Baseline
+
+- Local playlists are now persisted in SQLite instead of being treated like a temporary saved filter
+- Playlist entry identity is separate from track identity, so duplicate tracks can be intentionally preserved as distinct saved-order rows
+- Playlist pages now support dialog-based creation, custom cover artwork, handle-only drag reorder, entry removal, and queue handoff from either the full playlist or a chosen row
+- Saved-order rows now support selection, keyboard removal, double-click playback from the playlist's own ordering context, and explicit before-or-after drop markers while reordering
+- Queue handoff stays snapshot-based: changing saved playlist order later does not silently rewrite an already active playback queue
+
+## Current Albums and Artists Baseline
+
+- Added first-class album and artist browse and detail flows so the library can surface grouped releases and performer views beyond track lists.
+- Implemented backend aggregation queries and command wiring to shape album and artist metadata consistently.
+- Wired album and artist interactions into the existing shell navigation and playback flows, keeping the broader desktop experience unchanged.
+- Artist pages support separate banner image and profile picture directories, each configurable through native folder pickers.
+
+## Current Player Baseline
+
+- Added a full-screen player page (`/player`) built around a VinylDisc component with CSS spin animation and tonearm positioning tied to play/pause state.
+- Player right panel renders a numbered setlist with the active track highlighted and advisory tags filling the remaining right-side space.
+- Vinyl spin and tonearm transitions use CSS-only animations (`animate-vinyl`, `pause-vinyl`, `transition-transform duration-1000 ease-in-out`) without Framer Motion.
+
+## Current Analytics Baseline
+
+- Added an analytics page backed by play history recorded in `play_events` with millisecond timestamps and a `source` column distinguishing local plays from imported history.
+- Time window selector offers 4-week, 6-month, and all-time views; 4-week is local-only while 6-month and all-time fold in Spotify import history.
+- Top tracks list, top albums grid (deduped by album identity, not artwork hash), and top artists tiles are all derived from the same `play_events` query surface.
+- Artists with multiple names in tags (comma-separated, featuring notation) are split into individual entries for aggregation.
+
+## Current Spotify Import Baseline
+
+- Added a Spotify GDPR export folder importer that streams multi-file JSON history without loading the full export into memory.
+- Plays are matched to local library tracks by normalized title and artist, then absorbed into `play_events` directly when a match is found.
+- Unmatched plays are stored as ghost plays in `spotify_ghost_plays` and automatically absorbed into `play_events` when a matching track is scanned into the library later.
+- Import summary reports files processed, matched, ghost-stored, and counts for each skip category (short, podcast, no metadata, duplicate).
+
+## Current Concept Albums Baseline
+
+- Added first-class concept album flows to support editable release-style projects alongside locked albums and freeform playlists.
+- Implemented concept album storage, detail hydration, and ordered-entry shaping by reusing proven playlist mutation patterns and album-style presentation contracts.
+- Wired concept album creation, editing, reordering, and playback handoff behavior through the existing shell and queue flows.
+
+## Current Mixtapes Baseline
+
+- Introduced a "Turn to mixtape" flow that allows users to permanently lock a playlist's contents and sequence.
+- Extended the existing playlist model to support a locked mixtape state, reusing the established playlist UI and backend primitives.
+- Updated the frontend to disable adding new tracks, reordering, or editing once a playlist is converted into a mixtape.
+- Replaced individual track artwork placeholders in the mixtape view with the mixtape's cover image for a unified aesthetic.
+
+## Current Queue Baseline
+
+- Queue authority has moved fully into Rust through a segmented two-tier model: an explicit user queue backed by a `VecDeque<TrackId>` and a zero-copy cursor over the active playlist or album context window.
+- `resolve_next()` is the single dispatch point: it drains the user queue first (O(1) `pop_front`), advances the context cursor second (O(1) index increment), and only falls through to auto-continue when both tiers are exhausted.
+- "Play next" maps to `push_front` and "add to queue" maps to `push_back` on the `VecDeque`, both O(1) without the shifting cost of a plain `Vec`.
+- Auto-continue resolves by walking the last-played artist's discography in release order, filtering already-played tracks with an O(1) `HashSet` lookup, then falling back to a recency-weighted library shuffle when the artist catalogue is exhausted.
+- The `playback://queue-changed` event contract and `PlaybackQueueSnapshot` payload shape remain stable; only the internal resolution strategy changed.
+
+## Current Queue UX Baseline
+
+- Right-click context menu on any track surface (library table, album detail, playlist detail, concept album detail, artist page, search results) exposes "Play next" and "Add to queue" actions with Lucide icons.
+- `QueueActionsContext` provides `onQueueMutate` app-wide without prop-drilling through page and component layers; `useTrackContextMenu` hook encapsulates menu state and portal render for any track-rendering surface.
+- Native WebView context menu (back/reload/inspect) is suppressed globally via `document.addEventListener("contextmenu", e => e.preventDefault())` in `main.tsx` so the custom React menu is always the only menu shown.
+- Player setlist populates immediately when a track is selected — `selectActivePlaybackTrackId` now prioritizes `selectedTrackId` (set synchronously on track selection) over the stale `shellState.playback.trackId` that arrives later from Rust events.
+- Player setlist supports drag-and-drop reorder: grip handle appears on hover, drop indicators mark the insertion point, and releasing calls `reorderQueue` with the active track kept first.
+
+## Current Collection UI Baseline
+
+- All collection detail views (Playlists, Mixtapes, Albums, Concept Albums) are unified under a premium, edge-to-edge AMOLED black aesthetic.
+- Headers use consistent typography scaling, larger artwork dimensions, and a seamless gradient fade `from-white/[0.07] to-transparent`.
+- Tracklist sequences are borderless, using a shared grid layout with hover-state interactions (e.g., track numbers swapping to play buttons, drag handles appearing on hover) to minimize visual noise.
+- Explicit/advisory metadata badges are standardized into a minimalist, borderless square design.
+
 ## Current Playback Contract
 
-The playback migration boundary is now implemented in code rather than only described as a roadmap note.
+The playback boundary is implemented in code rather than only described as a roadmap note.
 
 - Rust now owns the playback runtime for loaded-track identity, transport state, progress, seek, completion, and output ownership
-- The command surface centers on `load_playback_track`, `playback_action`, `seek_playback`, `replace_playback_queue`, and `get_playback_snapshot`
+- The command surface centers on `load_playback_track`, `playback_action`, `seek_playback`, `sync_playback_timing`, `complete_playback`, and `report_playback_error`
 - The event surface centers on `playback://state-changed` and `playback://queue-changed`
 - The frontend shell now acts as a renderer/controller for playback state rather than the system of record
+
+Current frontend bridge layout:
+
+- `client/src/desktop.ts` is a compatibility barrel that re-exports the bridge surface
+- `client/src/desktop/types.ts` holds shared payload and contract types
+- `client/src/desktop/runtime.ts` holds runtime detection, invoke helpers, and payload normalizers
+- `client/src/desktop/shell.ts` owns bootstrap and shell-state bridge calls
+- `client/src/desktop/playback.ts` owns playback commands, playback event subscription, and playback contract helpers
+- `client/src/desktop/playlists.ts` owns playlist CRUD, entry ordering, and playlist-to-queue handoff
+- `client/src/desktop/library.ts` owns library query/scan calls, asset resolution, and native picker helpers
+
+Current frontend shell layout:
+
+- `client/src/App.tsx` maps shell state into route-facing and chrome-facing view models
+- `client/src/components/layout/AppShell.tsx` owns the persistent frame and playback chrome wiring
+- `client/src/components/layout/AppShellRoutes.tsx` owns the route table for `home`, `tracks`, `playlists`, `queue`, and `settings`
+- `client/src/hooks/useAppShell.ts` composes query/bootstrap state with playback coordination
+- `client/src/hooks/useShellQueryState.ts` owns bootstrap, shell refresh, library scan, track queries, and playlist queries
+- `client/src/hooks/usePlaybackCoordinator.ts` composes the playback runtime bridge, media runtime, queue sync, and auto-advance helpers
+- `client/src/hooks/shell/` and `client/src/hooks/playback/` hold the focused units extracted from the earlier larger hooks
 
 Current implementation status:
 
 - Rust owns local-file playback output for desktop playback and emits playback snapshots back into the shell
 - `get_shell_state` reflects backend playback snapshots instead of only hard-coded idle defaults
 - The shell renders transport, timing, and completion state from backend snapshots and events rather than frontend media lifecycle callbacks
-- Native playback smoke coverage now exercises launch, play, seek, pause, and completion across backend and shell tests
+- Frontend coverage is split across bridge tests, page tests, and the app desktop harness rather than one oversized `App.test.tsx`
+- Native playback smoke coverage exercises launch, play, seek, pause, and completion across backend and shell tests
 
 ## Native Output Direction
 
@@ -138,10 +234,10 @@ Constraints recorded up front:
 - benchmark memory and playback behavior separately instead of assuming native output is automatically lighter
 - defer gapless playback, EQ, DSP, and advanced output-device UX until after native output is stable
 
-Expected result:
+Current result:
 
-- the shell should stop owning active audio execution for local desktop playback
-- playback lifecycle behavior should become more deterministic on desktop
+- the shell no longer owns active audio execution for local desktop playback
+- playback lifecycle behavior is more deterministic on desktop because timing, seek, completion, and error state now round-trip through the backend contract
 - future native clients should be able to reuse more playback behavior without moving authority back into the UI
 
 ## MVP Subsystems
@@ -157,9 +253,9 @@ The current ingest baseline now goes beyond tag-only metadata:
 - Track rows also fall back more gracefully when tags are sparse by cleaning file-stem titles and using album-artist / parent-folder metadata when available
 - The tracks table now renders artwork tiles for indexed items, and the queue view now shows larger cover art for the active track
 
-### `v1.2.1` FLAC Compatibility Scope
+### FLAC Compatibility
 
-The next patch release should expand the local-first engine from MP3-only handling to a mixed MP3 + FLAC library without widening product scope beyond local desktop playback.
+The current release includes mixed MP3 + FLAC local-library support without widening product scope beyond local desktop playback.
 
 Compatibility goals:
 - allow recursive scan and indexing of `.flac` files alongside `.mp3`
@@ -175,18 +271,18 @@ Metadata and ingest rules:
 
 Playback rules:
 - native desktop playback should accept FLAC anywhere the runtime already accepts indexed local MP3 tracks
-- source resolution should remain `local -> cache -> remote`, with FLAC entering only through the local path in `v1.2.1`
+- source resolution should remain `local -> cache -> remote`, with FLAC entering only through the local path
 - transport, seek, completion, queue progression, and snapshot events should behave the same regardless of MP3 or FLAC source format
 
-Out of scope for `v1.2.1`:
+Out of scope:
 - remote FLAC streaming
 - format-specific transcoding
 - ReplayGain, cue sheets, gapless-album logic, or audiophile device UX
 - duplicate-resolution UI between MP3 and FLAC copies of the same release
 
-### `v1.2.2` Privacy-Safe Presence Scope
+### Privacy-Safe Presence
 
-The next patch after FLAC should add desktop Discord Rich Presence carefully, without turning `resona` into a social product or leaking library details from a private local-first app.
+The current release includes a privacy-safe desktop Discord Rich Presence slice without turning `resona` into a social product or leaking library details from a private local-first app.
 
 Presence goals:
 - publish lightweight now-playing state to Discord while desktop playback is active
@@ -214,6 +310,31 @@ Local setup for the first desktop presence pass:
 - keep Discord desktop running with activity status enabled
 - use a track that already has trusted artist metadata, because artist is the only listening identity exposed in the first slice
 - do not use a Discord client secret; the first presence pass only needs the public application client id
+
+### Trusted Advisory Metadata
+
+The current release includes explicit/advisory metadata as a narrow metadata-normalization feature, not as a new recommendation, lyrics, or content-analysis subsystem.
+
+Trusted sources for the first advisory slice:
+- local source tags that explicitly mark a track as advisory or parental-warning content
+- imported provider metadata later, when that provider already exposes an explicit/advisory field directly
+- normalized truth should prefer source-declared advisory values over UI guesses or inferred text patterns
+
+Fallback rules:
+- if a trusted source marks the track advisory, preserve and surface that value
+- if trusted metadata is absent, keep the advisory state unknown/empty rather than defaulting to clean or explicit
+- do not infer explicitness from lyrics, filenames, folder names, genres, or punctuation heuristics
+- do not let advisory metadata participate in track identity, duplicate resolution, or playback routing
+
+UI contract for the first slice:
+- advisory state should surface as a small badge near track identity, not as a new primary navigation mode
+- absence of an advisory badge should mean metadata was unavailable or neutral, not that `resona` proved the track is clean
+
+Out of scope:
+- lyric scanning or text classification
+- moderation-style content scoring
+- parental-control policy engines
+- advisory-driven auto-skip, mute, or queue filtering rules
 
 ## Engineering Notes
 
@@ -311,6 +432,14 @@ Current playback smoke coverage includes:
 
 - backend tests for load, play, seek, pause, and completion against the Rust playback runtime
 - frontend shell smoke checks that render backend-owned playback snapshots and transport transitions
+
+Current test surface includes:
+
+- ~115 Rust integration tests spanning library, playback, playlists, concept albums, scores, system, and analytics commands
+- ~177 client tests covering shell query state, page smoke checks, bridge harness, context menu, queue actions, player setlist drag-and-drop, and pure utility functions
+- Analytics tests cover top tracks/artists ranking, source window filtering (local-only 4-week vs all-source 6-month), ghost play absorption, Spotify folder import, idempotent reimport, and skip category enforcement
+- Desktop bridge tests cover all command surfaces for albums, artists, analytics, concept albums, playback, playlists, and library modules
+- Coverage thresholds enforced at 80% for lines/statements/branches and 70% for functions (React event handler inflation is excluded from function denominator via targeted exclusions)
 
 Current packaging baseline includes:
 
