@@ -35,9 +35,10 @@ pub use library::{
     query_library, resolve_artwork_source, resolve_track_playback_source, scan_local_library,
 };
 pub use playback::{
-    complete_playback, describe_playback_contract, load_playback_track, mutate_queue,
-    playback_action, record_play_event, reorder_queue, report_playback_error,
-    resolve_auto_continue, seek_playback, sync_playback_timing,
+    complete_playback, describe_playback_contract, get_persisted_volume, load_playback_track,
+    mutate_queue, playback_action, record_play_event, reorder_queue, report_playback_error,
+    resolve_auto_continue, seek_playback, set_persisted_volume, set_volume, sync_playback_timing,
+    update_now_playing,
 };
 pub use playlists::{
     add_track_to_playlist, create_playlist, delete_playlist, describe_playlist_contract,

@@ -1,3 +1,4 @@
+use rusqlite::OptionalExtension;
 use tauri::{AppHandle, State};
 
 use super::DatabaseState;
@@ -190,4 +191,71 @@ pub fn reorder_queue(
 pub fn playback_state_for_action(action: &str) -> PlaybackSnapshot {
     let runtime = PlaybackRuntimeState::default();
     runtime.apply_action(action)
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NowPlayingPayload {
+    pub title: String,
+    pub artist: String,
+    pub album: Option<String>,
+    pub artwork_url: Option<String>,
+    pub duration_secs: Option<f64>,
+    pub position_secs: Option<f64>,
+    pub is_playing: bool,
+}
+
+/// Stub: Tauri's WebKit-based WebView bridges navigator.mediaSession to macOS Now Playing
+/// automatically. This command is an IPC anchor for future native escalation if needed.
+#[tauri::command]
+pub fn update_now_playing(_payload: NowPlayingPayload) -> Result<(), String> {
+    Ok(())
+}
+
+#[tauri::command]
+pub fn set_volume(
+    playback_runtime_state: State<'_, PlaybackRuntimeState>,
+    level: f32,
+) -> Result<(), String> {
+    playback_runtime_state.set_volume(level.clamp(0.0, 1.0));
+    Ok(())
+}
+
+#[tauri::command]
+pub fn get_persisted_volume(database_state: State<'_, DatabaseState>) -> Result<f32, String> {
+    let conn = database_state
+        .app_database
+        .connect()
+        .map_err(|e| e.to_string())?;
+    let result: Option<String> = conn
+        .query_row(
+            "SELECT value FROM app_settings WHERE key = 'volume_level'",
+            [],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?;
+    Ok(result
+        .and_then(|v| v.parse::<f32>().ok())
+        .unwrap_or(1.0)
+        .clamp(0.0, 1.0))
+}
+
+#[tauri::command]
+pub fn set_persisted_volume(
+    database_state: State<'_, DatabaseState>,
+    level: f32,
+) -> Result<(), String> {
+    let clamped = level.clamp(0.0, 1.0);
+    let conn = database_state
+        .app_database
+        .connect()
+        .map_err(|e| e.to_string())?;
+    conn.execute(
+        "INSERT INTO app_settings (key, value) VALUES ('volume_level', ?1)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        rusqlite::params![clamped.to_string()],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
 }
