@@ -348,7 +348,7 @@ export function Sidebar({ conceptAlbums, playlists }: SidebarProps) {
             onClick={handleHideFromSidebar}
             className="w-full rounded-sm px-3 py-2 text-left text-[13px] text-[#d4d4d4] hover:bg-white/10 hover:text-white"
           >
-            hide from sidebar
+            Hide
           </button>
         </div>
       )}

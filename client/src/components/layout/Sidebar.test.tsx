@@ -5,9 +5,11 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { setupAppDesktopHarness, desktopMocks } from "../../test/appDesktopHarness";
 
-async function getSidebar() {
+async function getSidebar(): Promise<HTMLElement> {
   await screen.findByRole("heading", { name: "resona", level: 1 });
-  return document.querySelector("aside");
+  const aside = document.querySelector("aside");
+  if (!aside) throw new Error("sidebar <aside> not found");
+  return aside as HTMLElement;
 }
 
 describe("Sidebar context menu", () => {
@@ -39,9 +41,9 @@ describe("Sidebar context menu", () => {
 
     fireEvent.contextMenu(playlistLink);
 
-    expect(screen.getByText("hide from sidebar")).toBeTruthy();
+    expect(screen.getByText("Hide")).toBeTruthy();
 
-    fireEvent.click(screen.getByText("hide from sidebar"));
+    fireEvent.click(screen.getByText("Hide"));
 
     await waitFor(() => {
       expect(within(sidebar).queryByText("Desk Set")).toBeNull();
@@ -72,9 +74,9 @@ describe("Sidebar context menu", () => {
 
     fireEvent.contextMenu(caLink);
 
-    expect(screen.getByText("hide from sidebar")).toBeTruthy();
+    expect(screen.getByText("Hide")).toBeTruthy();
 
-    fireEvent.click(screen.getByText("hide from sidebar"));
+    fireEvent.click(screen.getByText("Hide"));
 
     await waitFor(() => {
       expect(within(sidebar).queryByText("Night Archive")).toBeNull();
@@ -105,12 +107,12 @@ describe("Sidebar context menu", () => {
     const playlistLink = await within(sidebar).findByText("Desk Set");
 
     fireEvent.contextMenu(playlistLink);
-    expect(screen.getByText("hide from sidebar")).toBeTruthy();
+    expect(screen.getByText("Hide")).toBeTruthy();
 
     fireEvent.keyDown(window, { key: "Escape" });
 
     await waitFor(() => {
-      expect(screen.queryByText("hide from sidebar")).toBeNull();
+      expect(screen.queryByText("Hide")).toBeNull();
     });
   });
 
