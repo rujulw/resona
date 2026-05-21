@@ -263,5 +263,56 @@ describe("desktop playback bridge", () => {
     expect(detach).toEqual(expect.any(Function));
     expect(detach()).toBeUndefined();
   });
-  
+
+  it("pushes a track to the front of the queue via mutate_queue with mode next", async () => {
+    invokeMock.mockResolvedValueOnce({ trackIds: ["track-2", "track-1"], activeTrackId: "track-1", sourceLabel: "search" });
+
+    const { mutateQueue } = await import("./playback");
+    const snapshot = await mutateQueue("track-2", "next");
+
+    expect(invokeMock).toHaveBeenCalledWith("mutate_queue", { trackId: "track-2", mode: "next" });
+    expect(snapshot.trackIds[0]).toBe("track-2");
+  });
+
+  it("appends a track to the end of the queue via mutate_queue with mode last", async () => {
+    invokeMock.mockResolvedValueOnce({ trackIds: ["track-1", "track-2"], activeTrackId: "track-1", sourceLabel: "search" });
+
+    const { mutateQueue } = await import("./playback");
+    const snapshot = await mutateQueue("track-2", "last");
+
+    expect(invokeMock).toHaveBeenCalledWith("mutate_queue", { trackId: "track-2", mode: "last" });
+    expect(snapshot.trackIds[snapshot.trackIds.length - 1]).toBe("track-2");
+  });
+
+  it("replaces queue order via reorder_queue", async () => {
+    const newOrder = ["track-3", "track-1", "track-2"];
+    invokeMock.mockResolvedValueOnce({ trackIds: newOrder, activeTrackId: "track-3", sourceLabel: "manual" });
+
+    const { reorderQueue } = await import("./playback");
+    const snapshot = await reorderQueue(newOrder);
+
+    expect(invokeMock).toHaveBeenCalledWith("reorder_queue", { trackIds: newOrder });
+    expect(snapshot.trackIds).toEqual(newOrder);
+  });
+
+  it("falls back to empty snapshot for mutateQueue when bridge is unavailable", async () => {
+    invokeMock.mockRejectedValueOnce(new Error("bridge unavailable"));
+
+    const { mutateQueue } = await import("./playback");
+    const snapshot = await mutateQueue("track-x", "next");
+
+    expect(snapshot.trackIds).toEqual([]);
+    expect(snapshot.activeTrackId).toBeNull();
+  });
+
+  it("falls back to provided trackIds for reorderQueue when bridge is unavailable", async () => {
+    invokeMock.mockRejectedValueOnce(new Error("bridge unavailable"));
+
+    const { reorderQueue } = await import("./playback");
+    const ids = ["track-a", "track-b"];
+    const snapshot = await reorderQueue(ids);
+
+    expect(snapshot.trackIds).toEqual(ids);
+  });
+
 });

@@ -47,6 +47,8 @@ export const desktopMocks = {
   pickArtistsProfileImagesDirMock: vi.fn(),
   importSpotifyHistoryFolderMock: vi.fn(),
   pickSpotifyExportFolderMock: vi.fn(),
+  mutateQueueMock: vi.fn(),
+  reorderQueueMock: vi.fn(),
 };
 
 type PlaybackSnapshot = {
@@ -166,6 +168,8 @@ vi.mock("../desktop", () => ({
   pickArtistsProfileImagesDir: (...args: unknown[]) => desktopMocks.pickArtistsProfileImagesDirMock(...args),
   importSpotifyHistoryFolder: (...args: unknown[]) => desktopMocks.importSpotifyHistoryFolderMock(...args),
   pickSpotifyExportFolder: () => desktopMocks.pickSpotifyExportFolderMock(),
+  mutateQueue: (...args: unknown[]) => desktopMocks.mutateQueueMock(...args),
+  reorderQueue: (...args: unknown[]) => desktopMocks.reorderQueueMock(...args),
 }));
 
 export function setupAppDesktopHarness() {

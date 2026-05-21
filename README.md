@@ -158,6 +158,14 @@ Build a private, performance-first music player that feels closer to a system ut
 - Auto-continue resolves by walking the last-played artist's discography in release order, filtering already-played tracks with an O(1) `HashSet` lookup, then falling back to a recency-weighted library shuffle when the artist catalogue is exhausted.
 - The `playback://queue-changed` event contract and `PlaybackQueueSnapshot` payload shape remain stable; only the internal resolution strategy changed.
 
+## Current Queue UX Baseline
+
+- Right-click context menu on any track surface (library table, album detail, playlist detail, concept album detail, artist page, search results) exposes "Play next" and "Add to queue" actions with Lucide icons.
+- `QueueActionsContext` provides `onQueueMutate` app-wide without prop-drilling through page and component layers; `useTrackContextMenu` hook encapsulates menu state and portal render for any track-rendering surface.
+- Native WebView context menu (back/reload/inspect) is suppressed globally via `document.addEventListener("contextmenu", e => e.preventDefault())` in `main.tsx` so the custom React menu is always the only menu shown.
+- Player setlist populates immediately when a track is selected — `selectActivePlaybackTrackId` now prioritizes `selectedTrackId` (set synchronously on track selection) over the stale `shellState.playback.trackId` that arrives later from Rust events.
+- Player setlist supports drag-and-drop reorder: grip handle appears on hover, drop indicators mark the insertion point, and releasing calls `reorderQueue` with the active track kept first.
+
 ## Current Collection UI Baseline
 
 - All collection detail views (Playlists, Mixtapes, Albums, Concept Albums) are unified under a premium, edge-to-edge AMOLED black aesthetic.
@@ -428,8 +436,10 @@ Current playback smoke coverage includes:
 Current test surface includes:
 
 - ~115 Rust integration tests spanning library, playback, playlists, concept albums, scores, system, and analytics commands
-- ~109 client tests covering shell query state, page smoke checks, bridge harness, and pure utility functions
+- ~177 client tests covering shell query state, page smoke checks, bridge harness, context menu, queue actions, player setlist drag-and-drop, and pure utility functions
 - Analytics tests cover top tracks/artists ranking, source window filtering (local-only 4-week vs all-source 6-month), ghost play absorption, Spotify folder import, idempotent reimport, and skip category enforcement
+- Desktop bridge tests cover all command surfaces for albums, artists, analytics, concept albums, playback, playlists, and library modules
+- Coverage thresholds enforced at 80% for lines/statements/branches and 70% for functions (React event handler inflation is excluded from function denominator via targeted exclusions)
 
 Current packaging baseline includes:
 
