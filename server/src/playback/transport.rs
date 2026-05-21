@@ -45,6 +45,7 @@ pub(super) enum NativePlaybackCommand {
     Play { path: String, position_seconds: u32 },
     Pause,
     Seek { position_seconds: u32 },
+    SetVolume { level: f32 },
     Stop,
 }
 
@@ -101,6 +102,11 @@ pub(super) fn native_playback_loop(
                 if let Some((_, sink)) = &stream_and_sink {
                     let _ = sink.try_seek(Duration::from_secs(position_seconds as u64));
                     last_position_seconds = position_seconds;
+                }
+            }
+            Ok(NativePlaybackCommand::SetVolume { level }) => {
+                if let Some((_, sink)) = &stream_and_sink {
+                    sink.set_volume(level);
                 }
             }
             Ok(NativePlaybackCommand::Stop) => {

@@ -201,6 +201,19 @@ impl PlaybackRuntimeState {
         runtime.queue_snapshot()
     }
 
+    pub fn set_volume(&self, level: f32) {
+        let runtime = self
+            .shared
+            .inner
+            .lock()
+            .expect("playback runtime lock should not be poisoned");
+        if let Some(native_output) = &runtime.native_output {
+            let _ = native_output
+                .command_tx
+                .send(NativePlaybackCommand::SetVolume { level });
+        }
+    }
+
     pub fn reorder_queue(&self, track_ids: Vec<String>) -> PlaybackQueueSnapshot {
         let mut runtime = self
             .shared

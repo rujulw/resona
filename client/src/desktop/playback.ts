@@ -177,3 +177,29 @@ export async function reorderQueue(
     () => ({ trackIds, activeTrackId: null, sourceLabel: "" }),
   );
 }
+
+export type NowPlayingPayload = {
+  title: string;
+  artist: string;
+  album: string | null;
+  artworkUrl: string | null;
+  durationSecs: number | null;
+  positionSecs: number | null;
+  isPlaying: boolean;
+};
+
+export async function updateNowPlaying(payload: NowPlayingPayload): Promise<void> {
+  return invokeWithPreviewFallback("update_now_playing", payload, () => undefined);
+}
+
+export async function setVolume(level: number): Promise<void> {
+  return invokeWithPreviewFallback("set_volume", { level }, () => undefined);
+}
+
+export async function getPersistedVolume(): Promise<number> {
+  return invokeWithPreviewFallback("get_persisted_volume", undefined, () => 1.0);
+}
+
+export async function setPersistedVolume(level: number): Promise<void> {
+  return invokeWithPreviewFallback("set_persisted_volume", { level }, () => undefined);
+}
