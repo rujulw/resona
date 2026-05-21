@@ -11,6 +11,8 @@ import { usePlaybackMediaRuntime } from "./playback/usePlaybackMediaRuntime";
 import type { PlaybackCoordinatorParams } from "./playback/playbackCoordinatorShared";
 import { usePlaybackQueueSync } from "./playback/usePlaybackQueueSync";
 import { usePlaybackRuntimeBridge } from "./playback/usePlaybackRuntimeBridge";
+import { useKeyboardShortcuts } from "./useKeyboardShortcuts";
+import { useMediaSession } from "./useMediaSession";
 
 export function usePlaybackCoordinator({
   shellState,
@@ -25,8 +27,6 @@ export function usePlaybackCoordinator({
   void conceptAlbumsState;
   const [playbackQueueTrackIds, setPlaybackQueueTrackIds] = useState<string[]>([]);
   const [playbackQueueSourceLabel, setPlaybackQueueSourceLabel] = useState<string | null>(null);
-
-  usePlaybackRuntimeBridge({ setShellState });
 
   const { audioRef, startTrackPlayback } = usePlaybackMediaRuntime({
     shellState,
@@ -51,6 +51,15 @@ export function usePlaybackCoordinator({
       setPlaylistsState,
       startTrackPlayback,
     });
+
+  usePlaybackRuntimeBridge({
+    setShellState,
+    mediaKeys: {
+      onPlayPause: useCallback(() => handlePlaybackAction("toggle"), [handlePlaybackAction]),
+      onNextTrack: useCallback(() => handlePlaybackAction("next"), [handlePlaybackAction]),
+      onPrevTrack: useCallback(() => handlePlaybackAction("previous"), [handlePlaybackAction]),
+    },
+  });
 
   usePlaybackAutoAdvance({
     shellState,
@@ -117,6 +126,52 @@ export function usePlaybackCoordinator({
     },
     [audioRef, isRustOutputPlayback, playbackDurationSeconds],
   );
+
+  useMediaSession({
+    track: shellState?.playback.trackId
+      ? {
+          title: shellState.playback.trackTitle ?? "",
+          artist: shellState.playback.trackArtist ?? null,
+          album: shellState.playback.trackAlbum ?? null,
+          artworkKey: null,
+          durationSecs: shellState.playback.durationSeconds ?? null,
+          progressSecs: shellState.playback.progressSeconds ?? null,
+        }
+      : null,
+    isPlaying: shellState?.playback.isPlaying ?? false,
+    handlers: {
+      onPlayPause: useCallback(() => handlePlaybackAction("toggle"), [handlePlaybackAction]),
+      onNextTrack: useCallback(() => handlePlaybackAction("next"), [handlePlaybackAction]),
+      onPrevTrack: useCallback(() => handlePlaybackAction("previous"), [handlePlaybackAction]),
+      onSeekBackward: useCallback(
+        (offset?: number) =>
+          handlePlaybackSeek((audioRef.current?.currentTime ?? 0) - (offset ?? 10)),
+        [audioRef, handlePlaybackSeek],
+      ),
+      onSeekForward: useCallback(
+        (offset?: number) =>
+          handlePlaybackSeek((audioRef.current?.currentTime ?? 0) + (offset ?? 10)),
+        [audioRef, handlePlaybackSeek],
+      ),
+    },
+  });
+
+  useKeyboardShortcuts({
+    onPlayPause: useCallback(
+      () => handlePlaybackAction("toggle"),
+      [handlePlaybackAction],
+    ),
+    onSeekBack: useCallback(
+      () => handlePlaybackSeek((audioRef.current?.currentTime ?? 0) - 10),
+      [audioRef, handlePlaybackSeek],
+    ),
+    onSeekForward: useCallback(
+      () => handlePlaybackSeek((audioRef.current?.currentTime ?? 0) + 10),
+      [audioRef, handlePlaybackSeek],
+    ),
+    onPrevTrack: useCallback(() => handlePlaybackAction("previous"), [handlePlaybackAction]),
+    onNextTrack: useCallback(() => handlePlaybackAction("next"), [handlePlaybackAction]),
+  });
 
   return {
     audioRef,
