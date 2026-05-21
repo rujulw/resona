@@ -3,7 +3,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { useNavigate } from "react-router-dom";
 
-import { queryTopArtists, queryTopTracks, resolveArtworkSource } from "../desktop";
+import { queryTopArtists, queryTopTracks, resolveArtworkSource, setArtistAnalyticsExcluded } from "../desktop";
 import type { PlaylistSummary, TopArtistEntry, TopTrackEntry, TrackListItem } from "../desktop";
 import { AdvisoryBadge } from "../components/ui/AdvisoryBadge";
 import { useTrackContextMenu } from "../contexts/QueueActionsContext";
@@ -177,10 +177,23 @@ function AlbumTile({ album, onClick }: { album: DerivedAlbum; onClick: () => voi
   );
 }
 
-function ArtistTile({ entry, onClick }: { entry: TopArtistEntry; onClick: () => void }) {
+function ArtistTile({
+  entry,
+  onClick,
+  onContextMenu,
+}: {
+  entry: TopArtistEntry;
+  onClick: () => void;
+  onContextMenu: (e: React.MouseEvent) => void;
+}) {
   const imgSrc = entry.imagePath ? convertFileSrc(entry.imagePath) : null;
   return (
-    <button type="button" onClick={onClick} className="min-w-0 flex-1 flex flex-col items-center">
+    <button
+      type="button"
+      onClick={onClick}
+      onContextMenu={onContextMenu}
+      className="min-w-0 flex-1 flex flex-col items-center"
+    >
       <div className="mb-2 aspect-square w-full overflow-hidden rounded-full bg-white/[0.06]">
         {imgSrc ? (
           <img src={imgSrc} alt={entry.artist} className="h-full w-full object-cover" />
@@ -315,6 +328,8 @@ export function AnalyticsPage({
   const [albumPage, setAlbumPage] = useState(0);
   const [artistPage, setArtistPage] = useState(0);
   const [playlistPage, setPlaylistPage] = useState(0);
+  const [artistCtxMenu, setArtistCtxMenu] = useState<{ x: number; y: number; name: string } | null>(null);
+  const artistCtxRef = useRef<HTMLDivElement>(null);
 
   const tracksById = useMemo(
     () => new Map(allTracks.map((t) => [t.id, t])),
@@ -344,6 +359,30 @@ export function AnalyticsPage({
     setArtistPage(0);
     setPlaylistPage(0);
   }, [range]);
+
+  useEffect(() => {
+    if (!artistCtxMenu) return;
+    const handleDown = (e: MouseEvent) => {
+      if (artistCtxRef.current && !artistCtxRef.current.contains(e.target as Node)) {
+        setArtistCtxMenu(null);
+      }
+    };
+    const handleEsc = (e: KeyboardEvent) => { if (e.key === "Escape") setArtistCtxMenu(null); };
+    window.addEventListener("mousedown", handleDown);
+    window.addEventListener("keydown", handleEsc);
+    return () => {
+      window.removeEventListener("mousedown", handleDown);
+      window.removeEventListener("keydown", handleEsc);
+    };
+  }, [artistCtxMenu]);
+
+  const handleExcludeArtist = () => {
+    if (!artistCtxMenu) return;
+    const { name } = artistCtxMenu;
+    setArtistCtxMenu(null);
+    setArtists((prev) => prev.filter((a) => a.artist !== name));
+    void setArtistAnalyticsExcluded(name, true);
+  };
 
   const albums = deriveTopAlbums(tracks);
   const pagedAlbums = getPage(albums, albumPage);
@@ -436,6 +475,10 @@ export function AnalyticsPage({
                         key={a.artist}
                         entry={a}
                         onClick={() => navigate(artistRoute(a.artist))}
+                        onContextMenu={(e) => {
+                          e.preventDefault();
+                          setArtistCtxMenu({ x: e.clientX, y: e.clientY, name: a.artist });
+                        }}
                       />
                     ))}{padTiles(pagedArtists.length)}</>}
             </div>
@@ -464,6 +507,22 @@ export function AnalyticsPage({
           </section>
         </div>
       </div>
+
+      {artistCtxMenu && (
+        <div
+          ref={artistCtxRef}
+          style={{ position: "fixed", top: artistCtxMenu.y, left: artistCtxMenu.x }}
+          className="z-50 min-w-36 rounded-sm border border-white/10 bg-[#0e0e0e] p-1 shadow-2xl"
+        >
+          <button
+            type="button"
+            onClick={handleExcludeArtist}
+            className="w-full rounded-sm px-3 py-2 text-left text-[13px] text-[#d4d4d4] hover:bg-white/10 hover:text-white"
+          >
+            exclude
+          </button>
+        </div>
+      )}
     </div>
   );
 }

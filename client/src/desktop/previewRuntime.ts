@@ -144,6 +144,7 @@ export function createPreviewConceptAlbum(
       : null,
     artworkPath,
     entryCount: 0,
+    hiddenFromSidebar: false,
     createdAt: now,
     updatedAt: now,
   };
@@ -384,6 +385,7 @@ export function createPreviewPlaylist(
     artworkPath,
     entryCount: 0,
     isMixtape: false,
+    hiddenFromSidebar: false,
     createdAt: now,
     updatedAt: now,
   };

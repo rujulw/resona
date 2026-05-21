@@ -170,6 +170,10 @@ vi.mock("../desktop", () => ({
   pickSpotifyExportFolder: () => desktopMocks.pickSpotifyExportFolderMock(),
   mutateQueue: (...args: unknown[]) => desktopMocks.mutateQueueMock(...args),
   reorderQueue: (...args: unknown[]) => desktopMocks.reorderQueueMock(...args),
+  listExcludedArtists: () => Promise.resolve([]),
+  setPlaylistSidebarHidden: () => Promise.resolve(),
+  setConceptAlbumSidebarHidden: () => Promise.resolve(),
+  setArtistAnalyticsExcluded: () => Promise.resolve(),
 }));
 
 export function setupAppDesktopHarness() {

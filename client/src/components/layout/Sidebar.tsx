@@ -4,6 +4,10 @@ import { NavLink, useNavigate } from "react-router-dom";
 
 import { primaryRoutes } from "../../constants/routes";
 import type { ConceptAlbumSummary, PlaylistSummary } from "../../desktop";
+import {
+  setConceptAlbumSidebarHidden,
+  setPlaylistSidebarHidden,
+} from "../../desktop";
 import { ArtworkTile } from "../ui/ArtworkTile";
 
 const routeIcons = {
@@ -65,10 +69,20 @@ function FadeDivider() {
   );
 }
 
+type CtxMenu = {
+  x: number;
+  y: number;
+  itemId: string;
+  itemType: "playlist" | "concept-album";
+} | null;
+
 export function Sidebar({ conceptAlbums, playlists }: SidebarProps) {
   const navigate = useNavigate();
   const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false);
   const createMenuRef = useRef<HTMLDivElement | null>(null);
+  const [localHidden, setLocalHidden] = useState<Set<string>>(new Set());
+  const [ctxMenu, setCtxMenu] = useState<CtxMenu>(null);
+  const ctxMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!isCreateMenuOpen) return;
@@ -95,6 +109,43 @@ export function Sidebar({ conceptAlbums, playlists }: SidebarProps) {
       window.removeEventListener("keydown", handleEscape);
     };
   }, [isCreateMenuOpen]);
+
+  useEffect(() => {
+    if (!ctxMenu) return;
+    const handleDown = (e: MouseEvent) => {
+      if (ctxMenuRef.current && !ctxMenuRef.current.contains(e.target as Node)) {
+        setCtxMenu(null);
+      }
+    };
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setCtxMenu(null);
+    };
+    window.addEventListener("mousedown", handleDown);
+    window.addEventListener("keydown", handleEsc);
+    return () => {
+      window.removeEventListener("mousedown", handleDown);
+      window.removeEventListener("keydown", handleEsc);
+    };
+  }, [ctxMenu]);
+
+  const handleHideFromSidebar = () => {
+    if (!ctxMenu) return;
+    const { itemId, itemType } = ctxMenu;
+    setCtxMenu(null);
+    setLocalHidden((prev) => new Set([...prev, itemId]));
+    if (itemType === "playlist") {
+      void setPlaylistSidebarHidden(itemId, true);
+    } else {
+      void setConceptAlbumSidebarHidden(itemId, true);
+    }
+  };
+
+  const visiblePlaylists = playlists.filter(
+    (p) => !p.hiddenFromSidebar && !localHidden.has(p.id),
+  );
+  const visibleConceptAlbums = conceptAlbums.filter(
+    (a) => !a.hiddenFromSidebar && !localHidden.has(a.id),
+  );
 
   return (
     <aside className="flex h-full w-64 flex-col border-r border-white/5 bg-black">
@@ -199,10 +250,19 @@ export function Sidebar({ conceptAlbums, playlists }: SidebarProps) {
         {/* List */}
         <div className="min-h-0 flex-1 overflow-y-auto pr-1">
           <div className="flex flex-col gap-1.5">
-            {playlists.map((playlist) => (
+            {visiblePlaylists.map((playlist) => (
               <NavLink
                 key={playlist.id}
                 to={getCollectionLink("playlist", playlist.id)}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setCtxMenu({
+                    x: e.clientX,
+                    y: e.clientY,
+                    itemId: playlist.id,
+                    itemType: "playlist",
+                  });
+                }}
                 className={({ isActive }) =>
                   [
                     "group rounded-sm px-3 py-2.5 transition-all",
@@ -229,10 +289,19 @@ export function Sidebar({ conceptAlbums, playlists }: SidebarProps) {
               </NavLink>
             ))}
 
-            {conceptAlbums.map((conceptAlbum) => (
+            {visibleConceptAlbums.map((conceptAlbum) => (
               <NavLink
                 key={conceptAlbum.id}
                 to={getCollectionLink("concept-album", conceptAlbum.id)}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setCtxMenu({
+                    x: e.clientX,
+                    y: e.clientY,
+                    itemId: conceptAlbum.id,
+                    itemType: "concept-album",
+                  });
+                }}
                 className={({ isActive }) =>
                   [
                     "group rounded-sm px-3 py-2.5 transition-all",
@@ -259,7 +328,7 @@ export function Sidebar({ conceptAlbums, playlists }: SidebarProps) {
               </NavLink>
             ))}
 
-            {playlists.length === 0 && conceptAlbums.length === 0 && (
+            {visiblePlaylists.length === 0 && visibleConceptAlbums.length === 0 && (
               <div className="px-3 py-2 text-sm text-neutral-600">
                 No collections yet.
               </div>
@@ -267,6 +336,22 @@ export function Sidebar({ conceptAlbums, playlists }: SidebarProps) {
           </div>
         </div>
       </div>
+
+      {ctxMenu && (
+        <div
+          ref={ctxMenuRef}
+          style={{ position: "fixed", top: ctxMenu.y, left: ctxMenu.x }}
+          className="z-50 min-w-36 rounded-sm border border-white/10 bg-[#0e0e0e] p-1 shadow-2xl"
+        >
+          <button
+            type="button"
+            onClick={handleHideFromSidebar}
+            className="w-full rounded-sm px-3 py-2 text-left text-[13px] text-[#d4d4d4] hover:bg-white/10 hover:text-white"
+          >
+            hide from sidebar
+          </button>
+        </div>
+      )}
     </aside>
   );
 }

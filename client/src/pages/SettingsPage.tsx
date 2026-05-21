@@ -5,11 +5,17 @@ import {
   getArtistsImagesDir,
   getArtistsProfileImagesDir,
   importSpotifyHistoryFolder,
+  listConceptAlbums,
+  listExcludedArtists,
+  listPlaylists,
   pickArtistsImagesDir,
   pickArtistsProfileImagesDir,
   pickSpotifyExportFolder,
   setArtistsImagesDir,
   setArtistsProfileImagesDir,
+  setArtistAnalyticsExcluded,
+  setConceptAlbumSidebarHidden,
+  setPlaylistSidebarHidden,
 } from "../desktop";
 import type { SpotifyImportResult } from "../desktop";
 import type { ScanState } from "../types/app";
@@ -40,6 +46,39 @@ export function SettingsPage({
   const [profileSaveStatus, setProfileSaveStatus] = useState<
     "idle" | "saving" | "saved" | "error"
   >("idle");
+
+  // Hidden collections / excluded artists
+  const [hiddenPlaylists, setHiddenPlaylists] = useState<{ id: string; name: string }[]>([]);
+  const [hiddenConceptAlbums, setHiddenConceptAlbums] = useState<{ id: string; title: string }[]>([]);
+  const [excludedArtists, setExcludedArtists] = useState<string[]>([]);
+
+  useEffect(() => {
+    void Promise.all([listPlaylists(), listConceptAlbums(), listExcludedArtists()]).then(
+      ([pl, ca, artists]) => {
+        setHiddenPlaylists(pl.filter((p) => p.hiddenFromSidebar).map((p) => ({ id: p.id, name: p.name })));
+        setHiddenConceptAlbums(ca.filter((a) => a.hiddenFromSidebar).map((a) => ({ id: a.id, title: a.title })));
+        setExcludedArtists(artists);
+      },
+    );
+  }, []);
+
+  const handleShowPlaylist = (id: string) => {
+    void setPlaylistSidebarHidden(id, false).then(() =>
+      setHiddenPlaylists((prev) => prev.filter((p) => p.id !== id)),
+    );
+  };
+
+  const handleShowConceptAlbum = (id: string) => {
+    void setConceptAlbumSidebarHidden(id, false).then(() =>
+      setHiddenConceptAlbums((prev) => prev.filter((a) => a.id !== id)),
+    );
+  };
+
+  const handleShowArtist = (name: string) => {
+    void setArtistAnalyticsExcluded(name, false).then(() =>
+      setExcludedArtists((prev) => prev.filter((a) => a !== name)),
+    );
+  };
 
   // Spotify folder import
   const [spotifyFolderPath, setSpotifyFolderPath] = useState("");
@@ -289,6 +328,38 @@ export function SettingsPage({
           <p className="px-8 pb-4 text-[13px] text-[#6f6f6f]">{importError || "Import failed."}</p>
         ) : null}
       </section>
+
+      {/* Visibility */}
+      {(hiddenPlaylists.length > 0 || hiddenConceptAlbums.length > 0 || excludedArtists.length > 0) && (
+        <section>
+          <SectionHeader>visibility</SectionHeader>
+
+          {hiddenPlaylists.map((p) => (
+            <HiddenItemRow
+              key={p.id}
+              label={p.name}
+              sublabel="hidden from sidebar"
+              onShow={() => handleShowPlaylist(p.id)}
+            />
+          ))}
+          {hiddenConceptAlbums.map((a) => (
+            <HiddenItemRow
+              key={a.id}
+              label={a.title}
+              sublabel="concept album · hidden from sidebar"
+              onShow={() => handleShowConceptAlbum(a.id)}
+            />
+          ))}
+          {excludedArtists.map((name) => (
+            <HiddenItemRow
+              key={name}
+              label={name}
+              sublabel="excluded from analytics"
+              onShow={() => handleShowArtist(name)}
+            />
+          ))}
+        </section>
+      )}
     </div>
   );
 }
@@ -322,6 +393,32 @@ function SettingRow({
         <span className="mt-0.5 break-all text-[13px] text-[#a5a5a5]">{value}</span>
       </div>
       <div className="flex shrink-0 items-center gap-2">{actions}</div>
+    </div>
+  );
+}
+
+function HiddenItemRow({
+  label,
+  sublabel,
+  onShow,
+}: {
+  label: string;
+  sublabel: string;
+  onShow: () => void;
+}) {
+  return (
+    <div className="flex items-center gap-4 border-t border-white/[0.05] px-8 py-4">
+      <div className="min-w-0 flex-1">
+        <span className="text-[13px] font-medium text-[#a5a5a5]">{label}</span>
+        <p className="text-[11px] text-[#4a4a4a]">{sublabel}</p>
+      </div>
+      <button
+        type="button"
+        onClick={onShow}
+        className="shrink-0 rounded-sm border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] tracking-[0.06em] text-[#8f8f8f] transition-colors hover:bg-white/10 hover:text-white"
+      >
+        show
+      </button>
     </div>
   );
 }
