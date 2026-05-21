@@ -180,6 +180,7 @@ export type ConceptAlbumSummary = {
   description: string | null;
   artworkKey: string | null;
   entryCount: number;
+  hiddenFromSidebar: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -221,6 +222,7 @@ export type PlaylistSummary = {
   artworkKey: string | null;
   entryCount: number;
   isMixtape: boolean;
+  hiddenFromSidebar: boolean;
   createdAt: string;
   updatedAt: string;
 };

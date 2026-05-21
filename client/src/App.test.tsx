@@ -93,6 +93,10 @@ vi.mock("./desktop", () => ({
   pickArtistsProfileImagesDir: (...args: unknown[]) => pickArtistsProfileImagesDirMock(...args),
   importSpotifyHistoryFolder: (...args: unknown[]) => importSpotifyHistoryFolderMock(...args),
   pickSpotifyExportFolder: () => pickSpotifyExportFolderMock(),
+  listExcludedArtists: () => Promise.resolve([]),
+  setPlaylistSidebarHidden: () => Promise.resolve(),
+  setConceptAlbumSidebarHidden: () => Promise.resolve(),
+  setArtistAnalyticsExcluded: () => Promise.resolve(),
 }));
 
 class MockAudio extends EventTarget {

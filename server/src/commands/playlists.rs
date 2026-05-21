@@ -267,6 +267,18 @@ pub fn handoff_playlist_to_queue(
     Ok(payload)
 }
 
+#[tauri::command]
+pub fn set_playlist_sidebar_hidden(
+    database_state: State<'_, DatabaseState>,
+    playlist_id: String,
+    hidden: bool,
+) -> Result<(), String> {
+    let db = &database_state.app_database;
+    PlaylistStore::new(db.clone())
+        .set_hidden(&playlist_id, hidden)
+        .map_err(|e| e.to_string())
+}
+
 pub fn handoff_playlist_to_queue_with_database(
     app_database: &AppDatabase,
     playback_runtime_state: &PlaybackRuntimeState,

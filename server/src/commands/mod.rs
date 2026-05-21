@@ -29,7 +29,7 @@ pub use concept_albums::{
     add_track_to_concept_album, create_concept_album, delete_concept_album,
     describe_concept_album_contract, get_concept_album, list_concept_albums,
     move_concept_album_entry, remove_concept_album_entry, replace_concept_album_entries,
-    update_concept_album,
+    set_concept_album_sidebar_hidden, update_concept_album,
 };
 pub use library::{
     query_library, resolve_artwork_source, resolve_track_playback_source, scan_local_library,
@@ -42,11 +42,12 @@ pub use playback::{
 pub use playlists::{
     add_track_to_playlist, create_playlist, delete_playlist, describe_playlist_contract,
     get_playlist, handoff_playlist_to_queue, list_playlists, move_playlist_entry,
-    remove_playlist_entry, replace_playlist_entries, turn_playlist_to_mixtape, update_playlist,
+    remove_playlist_entry, replace_playlist_entries, set_playlist_sidebar_hidden,
+    turn_playlist_to_mixtape, update_playlist,
 };
 pub use analytics::{
-    import_spotify_history_file, import_spotify_history_folder, query_top_artists, query_top_tracks,
-    query_track_play_stats,
+    import_spotify_history_file, import_spotify_history_folder, list_excluded_artists,
+    query_top_artists, query_top_tracks, query_track_play_stats, set_artist_analytics_excluded,
 };
 pub use scores::extract_score;
 pub use system::{bootstrap_app, get_shell_state};

@@ -61,6 +61,7 @@ pub(super) fn load_concept_albums(
           concept_albums.artwork_key,
           concept_albums.created_at,
           concept_albums.updated_at,
+          concept_albums.hidden_from_sidebar,
           COUNT(concept_album_entries.id) AS entry_count
         FROM concept_albums
         LEFT JOIN concept_album_entries
@@ -72,7 +73,8 @@ pub(super) fn load_concept_albums(
           concept_albums.description,
           concept_albums.artwork_key,
           concept_albums.created_at,
-          concept_albums.updated_at
+          concept_albums.updated_at,
+          concept_albums.hidden_from_sidebar
         ORDER BY lower(concept_albums.title) ASC, concept_albums.created_at ASC
         ",
     )?;
@@ -86,7 +88,8 @@ pub(super) fn load_concept_albums(
             artwork_key: row.get(4)?,
             created_at: row.get(5)?,
             updated_at: row.get(6)?,
-            entry_count: row.get::<_, i64>(7)? as usize,
+            hidden_from_sidebar: row.get::<_, i64>(7)? != 0,
+            entry_count: row.get::<_, i64>(8)? as usize,
         })
     })?;
 
@@ -113,6 +116,7 @@ pub(super) fn load_concept_album_summary(
               concept_albums.artwork_key,
               concept_albums.created_at,
               concept_albums.updated_at,
+              concept_albums.hidden_from_sidebar,
               COUNT(concept_album_entries.id) AS entry_count
             FROM concept_albums
             LEFT JOIN concept_album_entries
@@ -125,7 +129,8 @@ pub(super) fn load_concept_album_summary(
               concept_albums.description,
               concept_albums.artwork_key,
               concept_albums.created_at,
-              concept_albums.updated_at
+              concept_albums.updated_at,
+              concept_albums.hidden_from_sidebar
             ",
             [concept_album_id],
             |row| {
@@ -137,7 +142,8 @@ pub(super) fn load_concept_album_summary(
                     artwork_key: row.get(4)?,
                     created_at: row.get(5)?,
                     updated_at: row.get(6)?,
-                    entry_count: row.get::<_, i64>(7)? as usize,
+                    hidden_from_sidebar: row.get::<_, i64>(7)? != 0,
+                    entry_count: row.get::<_, i64>(8)? as usize,
                 })
             },
         )
@@ -321,5 +327,17 @@ pub(super) fn validate_entry_positions(
         }
     }
 
+    Ok(())
+}
+
+pub(super) fn set_concept_album_hidden(
+    connection: &rusqlite::Connection,
+    concept_album_id: &str,
+    hidden: bool,
+) -> Result<(), ConceptAlbumError> {
+    connection.execute(
+        "UPDATE concept_albums SET hidden_from_sidebar = ?2 WHERE id = ?1",
+        rusqlite::params![concept_album_id, hidden as i64],
+    )?;
     Ok(())
 }

@@ -33,6 +33,7 @@ pub struct ConceptAlbumSummary {
     pub description: Option<String>,
     pub artwork_key: Option<String>,
     pub entry_count: usize,
+    pub hidden_from_sidebar: bool,
     pub created_at: String,
     pub updated_at: String,
 }

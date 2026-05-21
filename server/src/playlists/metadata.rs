@@ -3,7 +3,7 @@ use rusqlite::params;
 use super::artwork::{import_playlist_artwork, remove_playlist_artwork};
 use super::queries::{
     generated_identifier, load_playlist_detail, load_playlist_summary, load_playlists,
-    normalize_optional_text, timestamp_now,
+    normalize_optional_text, set_playlist_hidden, timestamp_now,
 };
 use super::types::{PlaylistDetail, PlaylistError, PlaylistSummary};
 use super::PlaylistStore;
@@ -102,6 +102,11 @@ impl PlaylistStore {
         load_playlist_summary(&connection, playlist_id)?.ok_or_else(|| {
             PlaylistError::NotFound(format!("playlist {playlist_id} disappeared after update"))
         })
+    }
+
+    pub fn set_hidden(&self, playlist_id: &str, hidden: bool) -> Result<(), PlaylistError> {
+        let connection = self.app_database.connect()?;
+        set_playlist_hidden(&connection, playlist_id, hidden)
     }
 
     pub fn delete_playlist(&self, playlist_id: &str) -> Result<(), PlaylistError> {

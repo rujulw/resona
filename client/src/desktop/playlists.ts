@@ -1,4 +1,5 @@
 import {
+  invokeDesktop,
   invokeWithPreviewFallback,
   normalizeOptionalText,
   normalizePlaylistMutationPayload,
@@ -146,6 +147,13 @@ export async function removePlaylistEntry(
     },
     () => removePreviewPlaylistEntry(playlistId, entryId),
   );
+}
+
+export async function setPlaylistSidebarHidden(
+  playlistId: string,
+  hidden: boolean,
+): Promise<void> {
+  return invokeDesktop("set_playlist_sidebar_hidden", { playlistId, hidden });
 }
 
 export async function handoffPlaylistToQueue(

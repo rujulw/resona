@@ -30,6 +30,17 @@ export async function queryTopArtists(
   );
 }
 
+export async function setArtistAnalyticsExcluded(
+  artistName: string,
+  excluded: boolean,
+): Promise<void> {
+  return invokeDesktop("set_artist_analytics_excluded", { artistName, excluded });
+}
+
+export async function listExcludedArtists(): Promise<string[]> {
+  return invokeWithPreviewFallback("list_excluded_artists", {}, () => []);
+}
+
 export async function queryTrackPlayStats(
   trackId: string,
 ): Promise<TrackPlayStats | null> {

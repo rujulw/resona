@@ -1,4 +1,5 @@
 import {
+  invokeDesktop,
   invokeWithPreviewFallback,
   normalizeConceptAlbumMutationPayload,
 } from "./runtime";
@@ -128,6 +129,13 @@ export async function replaceConceptAlbumEntries(
     },
     () => replacePreviewConceptAlbumEntries(conceptAlbumId, entries),
   );
+}
+
+export async function setConceptAlbumSidebarHidden(
+  conceptAlbumId: string,
+  hidden: boolean,
+): Promise<void> {
+  return invokeDesktop("set_concept_album_sidebar_hidden", { conceptAlbumId, hidden });
 }
 
 export async function removeConceptAlbumEntry(

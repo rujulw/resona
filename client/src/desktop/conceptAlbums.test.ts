@@ -113,4 +113,20 @@ describe("desktop conceptAlbums bridge", () => {
     const { listConceptAlbums } = await import("./conceptAlbums");
     expect(await listConceptAlbums()).toEqual([]);
   });
+
+  it("sets concept album sidebar hidden flag through the command bridge", async () => {
+    invokeMock.mockResolvedValueOnce(undefined);
+    (globalThis as Record<string, unknown>).__TAURI_INTERNALS__ = {};
+    const { setConceptAlbumSidebarHidden } = await import("./conceptAlbums");
+    await setConceptAlbumSidebarHidden("ca-1", true);
+    expect(invokeMock).toHaveBeenCalledWith("set_concept_album_sidebar_hidden", { conceptAlbumId: "ca-1", hidden: true });
+  });
+
+  it("unhides a concept album through the command bridge", async () => {
+    invokeMock.mockResolvedValueOnce(undefined);
+    (globalThis as Record<string, unknown>).__TAURI_INTERNALS__ = {};
+    const { setConceptAlbumSidebarHidden } = await import("./conceptAlbums");
+    await setConceptAlbumSidebarHidden("ca-1", false);
+    expect(invokeMock).toHaveBeenCalledWith("set_concept_album_sidebar_hidden", { conceptAlbumId: "ca-1", hidden: false });
+  });
 });

@@ -60,6 +60,7 @@ pub(super) fn load_playlists(
           playlists.is_mixtape,
           playlists.created_at,
           playlists.updated_at,
+          playlists.hidden_from_sidebar,
           COUNT(playlist_entries.id) AS entry_count
         FROM playlists
         LEFT JOIN playlist_entries ON playlist_entries.playlist_id = playlists.id
@@ -70,7 +71,8 @@ pub(super) fn load_playlists(
           playlists.artwork_key,
           playlists.is_mixtape,
           playlists.created_at,
-          playlists.updated_at
+          playlists.updated_at,
+          playlists.hidden_from_sidebar
         ORDER BY lower(playlists.name) ASC, playlists.created_at ASC
         ",
     )?;
@@ -84,7 +86,8 @@ pub(super) fn load_playlists(
             is_mixtape: row.get::<_, i64>(4)? != 0,
             created_at: row.get(5)?,
             updated_at: row.get(6)?,
-            entry_count: row.get::<_, i64>(7)? as usize,
+            hidden_from_sidebar: row.get::<_, i64>(7)? != 0,
+            entry_count: row.get::<_, i64>(8)? as usize,
         })
     })?;
 
@@ -111,6 +114,7 @@ pub(super) fn load_playlist_summary(
               playlists.is_mixtape,
               playlists.created_at,
               playlists.updated_at,
+              playlists.hidden_from_sidebar,
               COUNT(playlist_entries.id) AS entry_count
             FROM playlists
             LEFT JOIN playlist_entries ON playlist_entries.playlist_id = playlists.id
@@ -122,7 +126,8 @@ pub(super) fn load_playlist_summary(
               playlists.artwork_key,
               playlists.is_mixtape,
               playlists.created_at,
-              playlists.updated_at
+              playlists.updated_at,
+              playlists.hidden_from_sidebar
             ",
             [playlist_id],
             |row| {
@@ -134,7 +139,8 @@ pub(super) fn load_playlist_summary(
                     is_mixtape: row.get::<_, i64>(4)? != 0,
                     created_at: row.get(5)?,
                     updated_at: row.get(6)?,
-                    entry_count: row.get::<_, i64>(7)? as usize,
+                    hidden_from_sidebar: row.get::<_, i64>(7)? != 0,
+                    entry_count: row.get::<_, i64>(8)? as usize,
                 })
             },
         )
@@ -338,5 +344,17 @@ pub(super) fn validate_entry_positions(
             ));
         }
     }
+    Ok(())
+}
+
+pub(super) fn set_playlist_hidden(
+    connection: &rusqlite::Connection,
+    playlist_id: &str,
+    hidden: bool,
+) -> Result<(), PlaylistError> {
+    connection.execute(
+        "UPDATE playlists SET hidden_from_sidebar = ?2 WHERE id = ?1",
+        rusqlite::params![playlist_id, hidden as i64],
+    )?;
     Ok(())
 }
