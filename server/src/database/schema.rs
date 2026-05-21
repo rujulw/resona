@@ -28,6 +28,10 @@ pub const PLAY_EVENTS_SOURCE_MIGRATION: &str =
     include_str!("../../db/migrations/0013_play_events_source.sql");
 pub const GHOST_PLAYS_MIGRATION: &str =
     include_str!("../../db/migrations/0014_ghost_plays.sql");
+pub const COLLECTION_SIDEBAR_VISIBILITY_MIGRATION: &str =
+    include_str!("../../db/migrations/0015_collection_sidebar_visibility.sql");
+pub const ARTIST_ANALYTICS_OVERRIDES_MIGRATION: &str =
+    include_str!("../../db/migrations/0016_artist_analytics_overrides.sql");
 
 pub const TABLE_LIBRARY_ROOTS: &str = "library_roots";
 pub const TABLE_TRACKS: &str = "tracks";
