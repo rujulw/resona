@@ -44,6 +44,6 @@ pub use import::{
     normalize as normalize_for_matching, SpotifyImportOptions, SpotifyImportResult,
 };
 pub use queries::{
-    get_top_artists, get_top_tracks, get_track_play_stats, AnalyticsWindow, TopArtistEntry,
-    TopTrackEntry, TrackPlayStats,
+    get_top_artists, get_top_tracks, get_track_play_stats, list_excluded_artists,
+    set_artist_analytics_excluded, AnalyticsWindow, TopArtistEntry, TopTrackEntry, TrackPlayStats,
 };

@@ -41,6 +41,7 @@ pub struct PlaylistSummary {
     pub artwork_key: Option<String>,
     pub entry_count: usize,
     pub is_mixtape: bool,
+    pub hidden_from_sidebar: bool,
     pub created_at: String,
     pub updated_at: String,
 }

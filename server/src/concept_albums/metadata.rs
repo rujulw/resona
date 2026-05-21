@@ -3,7 +3,7 @@ use rusqlite::params;
 use super::artwork::{import_concept_album_artwork, remove_concept_album_artwork};
 use super::queries::{
     generated_identifier, load_concept_album_detail, load_concept_album_summary,
-    load_concept_albums, normalize_optional_text, timestamp_now,
+    load_concept_albums, normalize_optional_text, set_concept_album_hidden, timestamp_now,
 };
 use super::types::{ConceptAlbumDetail, ConceptAlbumError, ConceptAlbumSummary};
 use super::ConceptAlbumStore;
@@ -121,6 +121,15 @@ impl ConceptAlbumStore {
                 "concept album {concept_album_id} disappeared after update"
             ))
         })
+    }
+
+    pub fn set_hidden(
+        &self,
+        concept_album_id: &str,
+        hidden: bool,
+    ) -> Result<(), ConceptAlbumError> {
+        let connection = self.app_database.connect()?;
+        set_concept_album_hidden(&connection, concept_album_id, hidden)
     }
 
     pub fn delete_concept_album(&self, concept_album_id: &str) -> Result<(), ConceptAlbumError> {

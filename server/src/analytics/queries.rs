@@ -276,6 +276,18 @@ pub fn get_top_artists(
         }
     }
 
+    // Remove artists excluded via artist_analytics_overrides.
+    let excluded: std::collections::HashSet<String> = {
+        let mut stmt = conn.prepare(
+            "SELECT artist_name FROM artist_analytics_overrides WHERE excluded = 1",
+        )?;
+        let names: Vec<String> = stmt
+            .query_map([], |row| row.get::<_, String>(0))?
+            .collect::<Result<_, _>>()?;
+        names.into_iter().collect()
+    };
+    map.retain(|name, _| !excluded.contains(name));
+
     let mut results: Vec<TopArtistEntry> = map
         .into_iter()
         .map(|(artist, agg)| {
@@ -316,6 +328,28 @@ fn split_featuring(s: &str) -> Vec<String> {
         }
     }
     vec![s.trim().to_string()]
+}
+
+pub fn set_artist_analytics_excluded(
+    conn: &Connection,
+    artist_name: &str,
+    excluded: bool,
+) -> Result<(), rusqlite::Error> {
+    conn.execute(
+        "INSERT INTO artist_analytics_overrides (artist_name, excluded)
+         VALUES (?1, ?2)
+         ON CONFLICT(artist_name) DO UPDATE SET excluded = ?2",
+        rusqlite::params![artist_name, excluded as i64],
+    )?;
+    Ok(())
+}
+
+pub fn list_excluded_artists(conn: &Connection) -> Result<Vec<String>, rusqlite::Error> {
+    let mut stmt = conn.prepare(
+        "SELECT artist_name FROM artist_analytics_overrides WHERE excluded = 1 ORDER BY artist_name ASC",
+    )?;
+    let rows = stmt.query_map([], |row| row.get::<_, String>(0))?;
+    rows.collect()
 }
 
 pub fn get_track_play_stats(

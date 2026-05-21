@@ -234,6 +234,18 @@ pub fn replace_concept_album_entries_with_database(
     ConceptAlbumStore::new(app_database.clone()).replace_entries(concept_album_id, entries)
 }
 
+#[tauri::command]
+pub fn set_concept_album_sidebar_hidden(
+    database_state: State<'_, DatabaseState>,
+    concept_album_id: String,
+    hidden: bool,
+) -> Result<(), String> {
+    let db = &database_state.app_database;
+    ConceptAlbumStore::new(db.clone())
+        .set_hidden(&concept_album_id, hidden)
+        .map_err(|e| e.to_string())
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ConceptAlbumEntryInput {

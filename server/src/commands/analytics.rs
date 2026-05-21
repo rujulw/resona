@@ -1,6 +1,7 @@
 use crate::analytics::{
     get_top_artists, get_top_tracks, get_track_play_stats, import_spotify_history,
-    import_spotify_history_folder as do_import_folder, AnalyticsWindow, SpotifyImportOptions,
+    import_spotify_history_folder as do_import_folder, list_excluded_artists as do_list_excluded,
+    set_artist_analytics_excluded as do_set_excluded, AnalyticsWindow, SpotifyImportOptions,
     SpotifyImportResult, TopArtistEntry, TopTrackEntry, TrackPlayStats,
 };
 use crate::commands::{ArtistProfileImageMapState, DatabaseState};
@@ -52,6 +53,30 @@ pub fn query_track_play_stats(
         .connect()
         .map_err(|e| e.to_string())?;
     get_track_play_stats(&conn, &track_id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn set_artist_analytics_excluded(
+    database_state: tauri::State<DatabaseState>,
+    artist_name: String,
+    excluded: bool,
+) -> Result<(), String> {
+    let conn = database_state
+        .app_database
+        .connect()
+        .map_err(|e| e.to_string())?;
+    do_set_excluded(&conn, &artist_name, excluded).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn list_excluded_artists(
+    database_state: tauri::State<DatabaseState>,
+) -> Result<Vec<String>, String> {
+    let conn = database_state
+        .app_database
+        .connect()
+        .map_err(|e| e.to_string())?;
+    do_list_excluded(&conn).map_err(|e| e.to_string())
 }
 
 #[tauri::command]

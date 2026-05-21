@@ -20,16 +20,16 @@ use crate::commands::{
     extract_score, get_album, get_artist_detail, get_artists_images_dir,
     get_artists_profile_images_dir, get_concept_album, get_playlist, get_shell_state,
     handoff_playlist_to_queue, import_spotify_history_file, import_spotify_history_folder,
-    list_albums, list_artists, list_concept_albums, list_playlists, load_playback_track,
-    move_concept_album_entry, move_playlist_entry, mutate_queue, playback_action, query_library,
-    query_top_artists, query_top_tracks, query_track_play_stats, record_play_event,
-    remove_concept_album_entry, remove_playlist_entry, replace_concept_album_entries,
-    replace_playlist_entries, reorder_queue, report_playback_error, resolve_artwork_source,
-    resolve_auto_continue, resolve_track_playback_source, scan_local_library, seek_playback,
-    set_artists_images_dir,
-    set_artists_profile_images_dir, sync_playback_timing, turn_playlist_to_mixtape,
-    update_concept_album, update_playlist, ArtistImageMapState, ArtistProfileImageMapState,
-    DatabaseState,
+    list_albums, list_artists, list_concept_albums, list_excluded_artists, list_playlists,
+    load_playback_track, move_concept_album_entry, move_playlist_entry, mutate_queue,
+    playback_action, query_library, query_top_artists, query_top_tracks, query_track_play_stats,
+    record_play_event, remove_concept_album_entry, remove_playlist_entry,
+    replace_concept_album_entries, replace_playlist_entries, reorder_queue, report_playback_error,
+    resolve_artwork_source, resolve_auto_continue, resolve_track_playback_source,
+    scan_local_library, seek_playback, set_artist_analytics_excluded, set_artists_images_dir,
+    set_artists_profile_images_dir, set_concept_album_sidebar_hidden, set_playlist_sidebar_hidden,
+    sync_playback_timing, turn_playlist_to_mixtape, update_concept_album, update_playlist,
+    ArtistImageMapState, ArtistProfileImageMapState, DatabaseState,
 };
 use crate::database::AppDatabase;
 use crate::playback::PlaybackRuntimeState;
@@ -113,7 +113,11 @@ pub fn run() {
             get_artists_images_dir,
             set_artists_images_dir,
             get_artists_profile_images_dir,
-            set_artists_profile_images_dir
+            set_artists_profile_images_dir,
+            set_playlist_sidebar_hidden,
+            set_concept_album_sidebar_hidden,
+            set_artist_analytics_excluded,
+            list_excluded_artists
         ])
         .run(tauri::generate_context!())
         .expect("failed to run resona tauri application");
