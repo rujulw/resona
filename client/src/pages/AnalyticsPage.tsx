@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { queryTopArtists, queryTopTracks, resolveArtworkSource } from "../desktop";
 import type { PlaylistSummary, TopArtistEntry, TopTrackEntry, TrackListItem } from "../desktop";
 import { AdvisoryBadge } from "../components/ui/AdvisoryBadge";
+import { useTrackContextMenu } from "../contexts/QueueActionsContext";
 import { artistRoute } from "../constants/routes";
 
 type TimeRange = "4w" | "6m" | "all";
@@ -123,11 +124,15 @@ function PagerHeader({
 
 const TRACK_ROW_HEIGHT = "3.75rem"; // ~60px
 
-function TrackRow({ entry, onClick }: { entry: TopTrackEntry; onClick: () => void }) {
+function TrackRow({ entry, trackId, onClick }: { entry: TopTrackEntry; trackId: string; onClick: () => void }) {
+  const { handleContextMenu, contextMenuEl } = useTrackContextMenu();
   return (
+    <>
+    {contextMenuEl}
     <button
       type="button"
       onClick={onClick}
+      onContextMenu={(e) => handleContextMenu(e, trackId)}
       className="group flex w-full shrink-0 items-center gap-3 rounded-sm px-2 text-left transition-colors hover:bg-white/5"
       style={{ height: TRACK_ROW_HEIGHT }}
     >
@@ -142,6 +147,7 @@ function TrackRow({ entry, onClick }: { entry: TopTrackEntry; onClick: () => voi
         </div>
       </div>
     </button>
+    </>
   );
 }
 
@@ -296,7 +302,10 @@ export function AnalyticsPage({
 }: {
   playlists: PlaylistSummary[];
   allTracks: TrackListItem[];
-  onTrackSelect: (track: TrackListItem) => void;
+  onTrackSelect: (
+    track: TrackListItem,
+    options?: { queueTrackIds?: string[]; queueItems?: TrackListItem[]; sourceLabel?: string },
+  ) => void;
 }) {
   const navigate = useNavigate();
   const [range, setRange] = useState<TimeRange>("all");
@@ -357,9 +366,19 @@ export function AnalyticsPage({
                   <TrackRow
                     key={t.trackId}
                     entry={t}
+                    trackId={t.trackId}
                     onClick={() => {
                       const full = tracksById.get(t.trackId);
-                      if (full) onTrackSelect(full);
+                      if (full) {
+                        const queueItems = tracks
+                          .map((entry) => tracksById.get(entry.trackId))
+                          .filter((item): item is TrackListItem => item != null);
+                        onTrackSelect(full, {
+                          queueTrackIds: queueItems.map((item) => item.id),
+                          queueItems,
+                          sourceLabel: "analytics-top-tracks",
+                        });
+                      }
                     }}
                   />
                 ))}

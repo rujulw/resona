@@ -61,7 +61,7 @@ fn seed_play_event(conn: &Connection, track_id: &str, played_at: i64) {
 fn unix_now() -> i64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_secs() as i64)
+        .map(|d| d.as_millis() as i64)
         .unwrap_or(0)
 }
 
@@ -143,7 +143,7 @@ fn artist_walk_prefers_era_matching_recent_play_history() {
     seed_track(&conn, "em-new", Some("Eminem"), Some(2018));
 
     // User has been playing the old era recently.
-    let recent = unix_now() - 3600; // 1 hour ago — within 90-day window
+    let recent = unix_now() - 3_600_000; // 1 hour ago — within 90-day window
     seed_play_event(&conn, "em-old", recent);
     drop(conn);
 
@@ -238,7 +238,7 @@ fn library_fallback_prefers_unplayed_tracks_over_recently_played() {
     seed_track(&conn, "unplayed", Some("Artist"), Some(2000));
 
     // Only "played" has a play event.
-    let recent = unix_now() - 3600;
+    let recent = unix_now() - 3_600_000;
     seed_play_event(&conn, "played", recent);
     drop(conn);
 

@@ -2,6 +2,7 @@ import { Plus } from "lucide-react";
 
 import type { PlaylistDetail, TrackListItem } from "../../desktop";
 import type { TracksState } from "../../types/app";
+import { useTrackContextMenu } from "../../contexts/QueueActionsContext";
 import { ArtworkTile } from "./ArtworkTile";
 
 export function PlaylistLibrarySection({
@@ -19,7 +20,10 @@ export function PlaylistLibrarySection({
   onSearchDraftChange: (value: string) => void;
   onTrackAdd: (track: TrackListItem) => void;
 }) {
+  const { handleContextMenu, contextMenuEl } = useTrackContextMenu();
   return (
+    <>
+    {contextMenuEl}
     <section className="grid min-h-[44vh] grid-rows-[auto_auto_minmax(0,1fr)] overflow-hidden rounded-3xl border border-white/6 bg-[#1b1b1b]">
       <label className="block min-w-0 border-b border-white/6 px-5 py-4">
         <input
@@ -68,6 +72,7 @@ export function PlaylistLibrarySection({
             <div
               key={track.id}
               className="grid grid-cols-[minmax(320px,2fr)_minmax(180px,1.1fr)_72px] items-center gap-4 border-b border-white/5 px-5 py-3.5 last:border-b-0"
+              onContextMenu={(e) => handleContextMenu(e, track.id)}
             >
               <div className="flex min-w-0 items-center gap-3">
                 <ArtworkTile
@@ -103,5 +108,6 @@ export function PlaylistLibrarySection({
         })}
       </div>
     </section>
+    </>
   );
 }

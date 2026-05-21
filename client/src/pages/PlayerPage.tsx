@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
-import type { RefObject } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { DragEvent, MouseEvent, RefObject } from "react";
+import { GripVertical } from "lucide-react";
 
 import { resolveArtworkSource } from "../desktop";
 import type { TrackListItem } from "../desktop";
@@ -10,13 +11,21 @@ import { VinylDisc } from "../components/ui/VinylDisc";
 export function PlayerPage({
   queueState,
   isPlaying,
+  onQueueReorder,
 }: {
   queueState: QueueState;
   isPlaying: boolean;
   audioRef: RefObject<HTMLAudioElement | null>;
+  onQueueReorder: (trackIds: string[]) => void;
 }) {
   const { activeTrack, upcomingTracks } = queueState;
   const [artworkUrl, setArtworkUrl] = useState<string | null>(null);
+  const [draggedTrackId, setDraggedTrackId] = useState<string | null>(null);
+  const [dropIndicator, setDropIndicator] = useState<{
+    trackId: string;
+    placement: "before" | "after";
+  } | null>(null);
+  const draggedTrackIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -29,6 +38,17 @@ export function PlayerPage({
     });
     return () => { cancelled = true; };
   }, [activeTrack?.artworkKey]);
+
+  useEffect(() => {
+    if (!draggedTrackId) return;
+    const clearDrag = () => {
+      draggedTrackIdRef.current = null;
+      setDraggedTrackId(null);
+      setDropIndicator(null);
+    };
+    window.addEventListener("mouseup", clearDrag);
+    return () => window.removeEventListener("mouseup", clearDrag);
+  }, [draggedTrackId]);
 
   if (!activeTrack) {
     return (
@@ -44,6 +64,36 @@ export function PlayerPage({
   }
 
   const upcoming = upcomingTracks ?? [];
+
+  const resolvePlacement = (
+    e: DragEvent<HTMLElement> | MouseEvent<HTMLElement>,
+    trackId: string,
+  ): { trackId: string; placement: "before" | "after" } => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const mid = rect.top + rect.height / 2;
+    return { trackId, placement: e.clientY >= mid ? "after" : "before" };
+  };
+
+  const commitReorder = (
+    movingId: string,
+    targetId: string,
+    placement: "before" | "after",
+  ) => {
+    if (movingId === targetId) return;
+    const arr = [...upcoming];
+    const fromIdx = arr.findIndex((t) => t.id === movingId);
+    const [moved] = arr.splice(fromIdx, 1);
+    const toIdx = arr.findIndex((t) => t.id === targetId);
+    const insertAt = placement === "after" ? toIdx + 1 : toIdx;
+    arr.splice(insertAt, 0, moved);
+    onQueueReorder([activeTrack.id, ...arr.map((t) => t.id)]);
+  };
+
+  const clearDrag = () => {
+    draggedTrackIdRef.current = null;
+    setDraggedTrackId(null);
+    setDropIndicator(null);
+  };
 
   return (
     <div className="flex h-full min-h-0 items-center bg-black p-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -68,25 +118,96 @@ export function PlayerPage({
             <p className="shrink-0 text-[11px] tracking-[0.08em] text-[#4a4a4a]">up next</p>
             <div className="min-h-0 flex-1 overflow-y-scroll [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {upcoming.map((track: TrackListItem, i) => {
-                const opacity = Math.max(0.22, 1 - i * 0.14);
+                const isDragging = draggedTrackId === track.id;
+                const opacity = draggedTrackId !== null ? 1 : Math.max(0.22, 1 - i * 0.14);
                 return (
                   <div
                     key={track.id}
-                    className="flex items-center gap-4 py-2.5"
-                    style={{ opacity }}
+                    className="relative"
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      const dragging = draggedTrackIdRef.current ?? draggedTrackId ?? e.dataTransfer.getData("text/plain");
+                      if (!dragging || dragging === track.id) return;
+                      const p = resolvePlacement(e, track.id);
+                      setDropIndicator((prev) =>
+                        prev?.trackId === p.trackId && prev.placement === p.placement ? prev : p,
+                      );
+                    }}
+                    onDragLeave={() => {
+                      setDropIndicator((prev) =>
+                        prev?.trackId === track.id ? null : prev,
+                      );
+                    }}
+                    onMouseMove={(e) => {
+                      if (!draggedTrackIdRef.current) return;
+                      if (draggedTrackIdRef.current === track.id) return;
+                      const p = resolvePlacement(e, track.id);
+                      setDropIndicator((prev) =>
+                        prev?.trackId === p.trackId && prev.placement === p.placement ? prev : p,
+                      );
+                    }}
+                    onMouseUp={(e) => {
+                      const movingId = draggedTrackIdRef.current ?? draggedTrackId;
+                      if (!movingId) return;
+                      const p = resolvePlacement(e, track.id);
+                      commitReorder(movingId, track.id, p.placement);
+                      clearDrag();
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      const movingId = draggedTrackIdRef.current ?? draggedTrackId ?? e.dataTransfer.getData("text/plain");
+                      if (!movingId) return;
+                      const p = resolvePlacement(e, track.id);
+                      commitReorder(movingId, track.id, p.placement);
+                      clearDrag();
+                    }}
                   >
-                    <span className="w-5 shrink-0 text-right text-[11px] tabular-nums text-[#3a3a3a]">
-                      {String(i + 1).padStart(2, "0")}
-                    </span>
-                    <div className="flex min-w-0 flex-col gap-0.5">
-                      <span className="truncate text-xs font-medium text-[#8f8f8f]">
-                        {track.title}
+                    {dropIndicator?.trackId === track.id && dropIndicator.placement === "before" && (
+                      <span className="pointer-events-none absolute inset-x-0 top-0 z-10 h-px bg-white/30" />
+                    )}
+                    <div
+                      className={[
+                        "group flex items-center gap-3 py-2.5 transition-opacity",
+                        isDragging ? "opacity-30" : "",
+                      ].join(" ")}
+                      style={{ opacity: isDragging ? 0.3 : opacity }}
+                    >
+                      <span className="w-5 shrink-0 text-right text-[11px] tabular-nums text-[#3a3a3a]">
+                        {String(i + 1).padStart(2, "0")}
                       </span>
-                      <div className="flex items-center gap-1.5">
-                        <AdvisoryBadge advisory={track.advisory} />
-                        <span className="truncate text-[11px] text-[#5a5a5a]">{track.artist}</span>
+                      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                        <span className="truncate text-xs font-medium text-[#8f8f8f]">
+                          {track.title}
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <AdvisoryBadge advisory={track.advisory} />
+                          <span className="truncate text-[11px] text-[#5a5a5a]">{track.artist}</span>
+                        </div>
                       </div>
+                      <button
+                        type="button"
+                        draggable
+                        aria-label={`Drag ${track.title}`}
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          draggedTrackIdRef.current = track.id;
+                          setDraggedTrackId(track.id);
+                        }}
+                        onDragStart={(e) => {
+                          e.dataTransfer?.setData("text/plain", track.id);
+                          if (e.dataTransfer) e.dataTransfer.effectAllowed = "move";
+                          draggedTrackIdRef.current = track.id;
+                          setDraggedTrackId(track.id);
+                        }}
+                        onDragEnd={clearDrag}
+                        className="inline-flex h-6 w-6 cursor-grab items-center justify-center opacity-0 transition-opacity group-hover:opacity-100 active:cursor-grabbing"
+                      >
+                        <GripVertical className="h-3.5 w-3.5 shrink-0 text-[#3a3a3a]" strokeWidth={2} />
+                      </button>
                     </div>
+                    {dropIndicator?.trackId === track.id && dropIndicator.placement === "after" && (
+                      <span className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-px bg-white/30" />
+                    )}
                   </div>
                 );
               })}

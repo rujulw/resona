@@ -1,5 +1,8 @@
 import { useMemo, useState } from "react";
+import { ListEnd, ListStart } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
+
+import { ContextMenu } from "../components/ui/ContextMenu";
 
 import type {
   AlbumSummary,
@@ -37,20 +40,28 @@ function scoreMatch(primary: string, secondary: string, q: string): number {
 
 const SEP_RE = /(,\s+|\s+feat\.\s+|\s+feat\s+|\s+ft\.\s+|\s+ft\s+|\s+&\s+|\s+x\s+|\s+\/\s+)/gi;
 
+type TrackContextMenu = { x: number; y: number; track: TrackListItem };
+
 export function HomePage({
   tracksState,
   albumsState,
   playlistsState,
   conceptAlbumsState,
   onTrackSelect,
+  onQueueMutate,
 }: {
   tracksState: TracksState;
   albumsState: AlbumsState;
   playlistsState: PlaylistsState;
   conceptAlbumsState: ConceptAlbumsState;
-  onTrackSelect: (track: TrackListItem) => void;
+  onTrackSelect: (
+    track: TrackListItem,
+    options?: { queueTrackIds?: string[]; queueItems?: TrackListItem[]; sourceLabel?: string },
+  ) => void;
+  onQueueMutate: (trackId: string, mode: "next" | "last") => void;
 }) {
   const [query, setQuery] = useState("");
+  const [contextMenu, setContextMenu] = useState<TrackContextMenu | null>(null);
   const navigate = useNavigate();
   const q = query.trim().toLowerCase();
 
@@ -74,22 +85,34 @@ export function HomePage({
   const results = useMemo<SearchEntry[]>(() => {
     if (!q) return [];
 
+    // Score and sort tracks first so every track entry's onSelect closure captures
+    // the full scored list as queue context — preserving search result order.
+    const scoredTracks = tracksState.items
+      .map((t) => ({ t, score: scoreMatch(t.title, `${t.artist ?? ""} ${t.album ?? ""}`, q) }))
+      .filter(({ score }) => score < Infinity)
+      .sort((a, b) => a.score - b.score);
+
+    const scoredTrackIds = scoredTracks.map(({ t }) => t.id);
+    const scoredTrackItems = scoredTracks.map(({ t }) => t);
+
     const entries: SearchEntry[] = [];
 
-    for (const t of tracksState.items) {
-      const score = scoreMatch(t.title, `${t.artist ?? ""} ${t.album ?? ""}`, q);
-      if (score < Infinity) {
-        entries.push({
-          id: `track:${t.id}`,
-          kind: "track",
-          label: t.title,
-          sublabel: t.album ?? "",
-          meta: t.durationSeconds != null ? formatDuration(Math.round(t.durationSeconds)) : "",
-          artworkKey: t.artworkKey,
-          score,
-          onSelect: () => onTrackSelect(t),
-        });
-      }
+    for (const { t, score } of scoredTracks) {
+      entries.push({
+        id: `track:${t.id}`,
+        kind: "track",
+        label: t.title,
+        sublabel: t.album ?? "",
+        meta: t.durationSeconds != null ? formatDuration(Math.round(t.durationSeconds)) : "",
+        artworkKey: t.artworkKey,
+        score,
+        onSelect: () =>
+          onTrackSelect(t, {
+            queueTrackIds: scoredTrackIds,
+            queueItems: scoredTrackItems,
+            sourceLabel: "home-search",
+          }),
+      });
     }
 
     for (const a of albumsState.items) {
@@ -204,6 +227,15 @@ export function HomePage({
                     idx < results.length - 1 ? "border-b border-white/[0.05]" : "",
                   ].join(" ")}
                   onClick={entry.onSelect}
+                  onContextMenu={
+                    entry.kind === "track"
+                      ? (e) => {
+                          e.preventDefault();
+                          const track = tracksState.items.find((t) => t.id === entry.id.slice(6));
+                          if (track) setContextMenu({ x: e.clientX, y: e.clientY, track });
+                        }
+                      : undefined
+                  }
                 >
                   <ArtworkTile
                     artworkKey={entry.artworkKey}
@@ -234,12 +266,38 @@ export function HomePage({
         )}
       </div>
 
+      {contextMenu && (
+        <ContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          onClose={() => setContextMenu(null)}
+          items={[
+            { label: "Play next", icon: ListStart, onClick: () => onQueueMutate(contextMenu.track.id, "next") },
+            { label: "Add to queue", icon: ListEnd, onClick: () => onQueueMutate(contextMenu.track.id, "last") },
+          ]}
+        />
+      )}
+
       {!isSearching && (
         <div className="grid gap-8 px-8 pb-8 pt-2">
           {recentlyAdded.length > 0 && (
             <HorizontalRow label="jump back in">
               {recentlyAdded.map((track) => (
-                <TrackCard key={track.id} track={track} onSelect={() => onTrackSelect(track)} />
+                <TrackCard
+                  key={track.id}
+                  track={track}
+                  onSelect={() =>
+                    onTrackSelect(track, {
+                      queueTrackIds: recentlyAdded.map((t) => t.id),
+                      queueItems: recentlyAdded,
+                      sourceLabel: "home-recently-added",
+                    })
+                  }
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    setContextMenu({ x: e.clientX, y: e.clientY, track });
+                  }}
+                />
               ))}
             </HorizontalRow>
           )}
@@ -280,9 +338,9 @@ function HorizontalRow({ label, children }: { label: string; children: React.Rea
   );
 }
 
-function TrackCard({ track, onSelect }: { track: TrackListItem; onSelect: () => void }) {
+function TrackCard({ track, onSelect, onContextMenu }: { track: TrackListItem; onSelect: () => void; onContextMenu?: (e: React.MouseEvent) => void }) {
   return (
-    <button type="button" aria-label={`Play ${track.title}`} className="group grid w-52 flex-none gap-2 text-left" onClick={onSelect}>
+    <button type="button" aria-label={`Play ${track.title}`} className="group grid w-52 flex-none gap-2 text-left" onClick={onSelect} onContextMenu={onContextMenu}>
       <ArtworkTile
         artworkKey={track.artworkKey}
         title={track.title}

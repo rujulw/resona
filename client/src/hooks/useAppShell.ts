@@ -69,6 +69,8 @@ export function useAppShell() {
     handlePlaybackAction: playbackCoordinator.handlePlaybackAction,
     handlePlaybackSeek: playbackCoordinator.handlePlaybackSeek,
     handleTrackSelection: playbackCoordinator.handleTrackSelection,
+    handleQueueMutate: playbackCoordinator.handleQueueMutate,
+    handleQueueReorder: playbackCoordinator.handleQueueReorder,
     handleAlbumPlaybackHandoff: (albumId: string, startTrackId?: string) => {
       const activeAlbum = shellQueryState.albumsState.activeAlbum;
       if (!activeAlbum || activeAlbum.album.id !== albumId || activeAlbum.tracks.length === 0) {

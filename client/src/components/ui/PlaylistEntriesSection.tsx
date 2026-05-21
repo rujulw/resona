@@ -11,6 +11,7 @@ import type {
 } from "react";
 
 import type { AlbumSummary, PlaylistDetail, PlaylistEntryItem } from "../../desktop";
+import { useTrackContextMenu } from "../../contexts/QueueActionsContext";
 import { AdvisoryBadge } from "./AdvisoryBadge";
 import { ArtworkTile } from "./ArtworkTile";
 import { formatDuration } from "../../utils/format";
@@ -69,7 +70,10 @@ export function PlaylistEntriesSection({
     entry: PlaylistEntryItem,
   ) => void;
 }) {
+  const { handleContextMenu, contextMenuEl } = useTrackContextMenu();
   return (
+    <>
+    {contextMenuEl}
     <section className="grid min-h-[62vh] grid-rows-[auto_minmax(0,1fr)] bg-gradient-to-b from-white/[0.04] to-transparent">
       <div
         className={`grid gap-4 border-t border-white/10 px-8 py-3 text-[11px] tracking-[0.08em] text-[#a5a5a5] ${
@@ -106,6 +110,7 @@ export function PlaylistEntriesSection({
               aria-label={`Select ${entry.title}`}
               aria-pressed={selectedEntryId === entry.entryId}
               onClick={() => onEntrySelect(entry.entryId)}
+              onContextMenu={(e) => handleContextMenu(e, entry.trackId)}
               onDragOver={(event) => onEntryDragOver(event, entry.entryId)}
               onDragLeave={(event) => onEntryDragLeave(event, entry.entryId)}
               onMouseMove={(event) => onEntryMouseMove(event, entry.entryId)}
@@ -225,6 +230,7 @@ export function PlaylistEntriesSection({
         )}
       </div>
     </section>
+    </>
   );
 }
 

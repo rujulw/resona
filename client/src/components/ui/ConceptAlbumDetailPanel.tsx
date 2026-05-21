@@ -15,6 +15,7 @@ import type {
   TrackListItem,
 } from "../../desktop";
 import type { TracksState } from "../../types/app";
+import { useTrackContextMenu } from "../../contexts/QueueActionsContext";
 import { ArtistLinks } from "./ArtistLinks";
 import { formatDuration } from "../../utils/format";
 import { AdvisoryBadge } from "./AdvisoryBadge";
@@ -85,12 +86,15 @@ export function ConceptAlbumDetailPanel({
   onTrackAdd,
   onLibrarySearchDraftChange,
 }: ConceptAlbumDetailPanelProps) {
+  const { handleContextMenu, contextMenuEl } = useTrackContextMenu();
   const totalDurationSeconds = conceptAlbum.entries.reduce(
     (total, entry) => total + (entry.durationSeconds ?? 0),
     0,
   );
 
   return (
+    <>
+    {contextMenuEl}
     <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-black">
       <header className="flex flex-wrap items-end justify-between gap-6 px-8 pb-4 pt-10 bg-gradient-to-b from-white/[0.07] to-transparent">
         <div className="flex min-w-0 items-end gap-6">
@@ -193,6 +197,7 @@ export function ConceptAlbumDetailPanel({
                     aria-label={`Select ${entry.title}`}
                     aria-pressed={selectedEntryId === entry.entryId}
                     onClick={() => onEntrySelect(entry.entryId)}
+                    onContextMenu={(e) => handleContextMenu(e, entry.trackId)}
                     onDragOver={(event) => onEntryDragOver(event, entry.entryId)}
                     onDragLeave={(event) => onEntryDragLeave(event, entry.entryId)}
                     onMouseMove={(event) => onEntryMouseMove(event, entry.entryId)}
@@ -362,6 +367,7 @@ export function ConceptAlbumDetailPanel({
         </section>
       </div>
     </div>
+    </>
   );
 }
 

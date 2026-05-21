@@ -11,13 +11,11 @@ import type { ShellState, TracksState } from "../../types/app";
 
 export function usePlaybackMediaRuntime({
   shellState,
-  tracksState,
   trackCatalogRef,
   setTracksState,
   setPlaybackQueueTrackIds,
 }: {
   shellState: ShellState | null;
-  tracksState: TracksState;
   trackCatalogRef: MutableRefObject<Map<string, TrackListItem>>;
   setTracksState: Dispatch<SetStateAction<TracksState>>;
   setPlaybackQueueTrackIds: Dispatch<SetStateAction<string[]>>;
@@ -98,11 +96,6 @@ export function usePlaybackMediaRuntime({
           return options.queueTrackIds;
         }
 
-        const visibleTrackIds = tracksState.items.map((item) => item.id);
-        if (visibleTrackIds.includes(track.id)) {
-          return visibleTrackIds;
-        }
-
         if (existing.includes(track.id)) {
           return existing;
         }
@@ -144,7 +137,7 @@ export function usePlaybackMediaRuntime({
 
       void playbackAction("toggle");
     },
-    [setPlaybackQueueTrackIds, setTracksState, trackCatalogRef, tracksState.items],
+    [setPlaybackQueueTrackIds, setTracksState, trackCatalogRef],
   );
 
   return {

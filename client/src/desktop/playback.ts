@@ -14,6 +14,7 @@ import {
 import type {
   LoadedPlaybackTrackPayload,
   PlaybackContractPayload,
+  PlaybackQueueSnapshot,
   PlaybackShellState,
   UnlistenPlaybackState,
 } from "./types";
@@ -153,5 +154,26 @@ export async function resolveAutoContinue(
     "resolve_auto_continue",
     { artist, excludeTrackIds },
     () => ({ trackIds: [], sourceLabel: "auto-continue:library-shuffle" }),
+  );
+}
+
+export async function mutateQueue(
+  trackId: string,
+  mode: "next" | "last",
+): Promise<PlaybackQueueSnapshot> {
+  return invokeWithPreviewFallback(
+    "mutate_queue",
+    { trackId, mode },
+    () => ({ trackIds: [], activeTrackId: null, sourceLabel: "" }),
+  );
+}
+
+export async function reorderQueue(
+  trackIds: string[],
+): Promise<PlaybackQueueSnapshot> {
+  return invokeWithPreviewFallback(
+    "reorder_queue",
+    { trackIds },
+    () => ({ trackIds, activeTrackId: null, sourceLabel: "" }),
   );
 }

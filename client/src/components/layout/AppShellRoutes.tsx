@@ -30,6 +30,7 @@ export function AppShellRoutes({
             playlistsState={routes.home.playlistsState}
             conceptAlbumsState={routes.home.conceptAlbumsState}
             onTrackSelect={actions.home.onTrackSelect}
+            onQueueMutate={actions.home.onQueueMutate}
           />
         }
       />
@@ -150,6 +151,7 @@ export function AppShellRoutes({
             queueState={routes.queue.queueState}
             isPlaying={routes.queue.isPlaying}
             audioRef={routes.queue.audioRef}
+            onQueueReorder={actions.queue.onQueueReorder}
           />
         }
       />
