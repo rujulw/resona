@@ -15,15 +15,11 @@ function fireKey(key: string, targetOverride?: EventTarget) {
 
 describe("useKeyboardShortcuts", () => {
   let onPlayPause: ReturnType<typeof vi.fn>;
-  let onSeekBack: ReturnType<typeof vi.fn>;
-  let onSeekForward: ReturnType<typeof vi.fn>;
   let onPrevTrack: ReturnType<typeof vi.fn>;
   let onNextTrack: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     onPlayPause = vi.fn();
-    onSeekBack = vi.fn();
-    onSeekForward = vi.fn();
     onPrevTrack = vi.fn();
     onNextTrack = vi.fn();
   });
@@ -33,76 +29,82 @@ describe("useKeyboardShortcuts", () => {
   });
 
   it("Space calls onPlayPause", () => {
-    renderHook(() =>
-      useKeyboardShortcuts({ onPlayPause, onSeekBack, onSeekForward, onPrevTrack, onNextTrack }),
-    );
+    renderHook(() => useKeyboardShortcuts({ onPlayPause, onPrevTrack, onNextTrack }));
     fireKey(" ");
     expect(onPlayPause).toHaveBeenCalledOnce();
   });
 
-  it("ArrowLeft calls onSeekBack", () => {
-    renderHook(() =>
-      useKeyboardShortcuts({ onPlayPause, onSeekBack, onSeekForward, onPrevTrack, onNextTrack }),
-    );
-    fireKey("ArrowLeft");
-    expect(onSeekBack).toHaveBeenCalledOnce();
-  });
-
-  it("ArrowRight calls onSeekForward", () => {
-    renderHook(() =>
-      useKeyboardShortcuts({ onPlayPause, onSeekBack, onSeekForward, onPrevTrack, onNextTrack }),
-    );
-    fireKey("ArrowRight");
-    expect(onSeekForward).toHaveBeenCalledOnce();
-  });
-
   it("Comma calls onPrevTrack", () => {
-    renderHook(() =>
-      useKeyboardShortcuts({ onPlayPause, onSeekBack, onSeekForward, onPrevTrack, onNextTrack }),
-    );
+    renderHook(() => useKeyboardShortcuts({ onPlayPause, onPrevTrack, onNextTrack }));
     fireKey(",");
     expect(onPrevTrack).toHaveBeenCalledOnce();
   });
 
   it("Period calls onNextTrack", () => {
-    renderHook(() =>
-      useKeyboardShortcuts({ onPlayPause, onSeekBack, onSeekForward, onPrevTrack, onNextTrack }),
-    );
+    renderHook(() => useKeyboardShortcuts({ onPlayPause, onPrevTrack, onNextTrack }));
     fireKey(".");
     expect(onNextTrack).toHaveBeenCalledOnce();
   });
 
+  it("F7 calls onPrevTrack", () => {
+    renderHook(() => useKeyboardShortcuts({ onPlayPause, onPrevTrack, onNextTrack }));
+    fireKey("F7");
+    expect(onPrevTrack).toHaveBeenCalledOnce();
+  });
+
+  it("MediaTrackPrevious calls onPrevTrack", () => {
+    renderHook(() => useKeyboardShortcuts({ onPlayPause, onPrevTrack, onNextTrack }));
+    fireKey("MediaTrackPrevious");
+    expect(onPrevTrack).toHaveBeenCalledOnce();
+  });
+
+  it("MediaPreviousTrack calls onPrevTrack", () => {
+    renderHook(() => useKeyboardShortcuts({ onPlayPause, onPrevTrack, onNextTrack }));
+    fireKey("MediaPreviousTrack");
+    expect(onPrevTrack).toHaveBeenCalledOnce();
+  });
+
+  it("F9 calls onNextTrack", () => {
+    renderHook(() => useKeyboardShortcuts({ onPlayPause, onPrevTrack, onNextTrack }));
+    fireKey("F9");
+    expect(onNextTrack).toHaveBeenCalledOnce();
+  });
+
+  it("MediaTrackNext calls onNextTrack", () => {
+    renderHook(() => useKeyboardShortcuts({ onPlayPause, onPrevTrack, onNextTrack }));
+    fireKey("MediaTrackNext");
+    expect(onNextTrack).toHaveBeenCalledOnce();
+  });
+
+  it("MediaNextTrack calls onNextTrack", () => {
+    renderHook(() => useKeyboardShortcuts({ onPlayPause, onPrevTrack, onNextTrack }));
+    fireKey("MediaNextTrack");
+    expect(onNextTrack).toHaveBeenCalledOnce();
+  });
+
   it("Space is ignored when target is an INPUT element", () => {
-    renderHook(() =>
-      useKeyboardShortcuts({ onPlayPause, onSeekBack, onSeekForward, onPrevTrack, onNextTrack }),
-    );
+    renderHook(() => useKeyboardShortcuts({ onPlayPause, onPrevTrack, onNextTrack }));
     const input = document.createElement("input");
     fireKey(" ", input);
     expect(onPlayPause).not.toHaveBeenCalled();
   });
 
-  it("ArrowLeft is ignored when target is a TEXTAREA element", () => {
-    renderHook(() =>
-      useKeyboardShortcuts({ onPlayPause, onSeekBack, onSeekForward, onPrevTrack, onNextTrack }),
-    );
+  it("Comma is ignored when target is a TEXTAREA element", () => {
+    renderHook(() => useKeyboardShortcuts({ onPlayPause, onPrevTrack, onNextTrack }));
     const textarea = document.createElement("textarea");
-    fireKey("ArrowLeft", textarea);
-    expect(onSeekBack).not.toHaveBeenCalled();
+    fireKey(",", textarea);
+    expect(onPrevTrack).not.toHaveBeenCalled();
   });
 
-  it("ArrowRight is ignored when target is a SELECT element", () => {
-    renderHook(() =>
-      useKeyboardShortcuts({ onPlayPause, onSeekBack, onSeekForward, onPrevTrack, onNextTrack }),
-    );
+  it("Period is ignored when target is a SELECT element", () => {
+    renderHook(() => useKeyboardShortcuts({ onPlayPause, onPrevTrack, onNextTrack }));
     const select = document.createElement("select");
-    fireKey("ArrowRight", select);
-    expect(onSeekForward).not.toHaveBeenCalled();
+    fireKey(".", select);
+    expect(onNextTrack).not.toHaveBeenCalled();
   });
 
   it("Space is ignored when target has contenteditable=true", () => {
-    renderHook(() =>
-      useKeyboardShortcuts({ onPlayPause, onSeekBack, onSeekForward, onPrevTrack, onNextTrack }),
-    );
+    renderHook(() => useKeyboardShortcuts({ onPlayPause, onPrevTrack, onNextTrack }));
     const div = document.createElement("div");
     div.setAttribute("contenteditable", "true");
     fireKey(" ", div);
@@ -111,7 +113,7 @@ describe("useKeyboardShortcuts", () => {
 
   it("removes listener on unmount — no callbacks fired after", () => {
     const { unmount } = renderHook(() =>
-      useKeyboardShortcuts({ onPlayPause, onSeekBack, onSeekForward, onPrevTrack, onNextTrack }),
+      useKeyboardShortcuts({ onPlayPause, onPrevTrack, onNextTrack }),
     );
     unmount();
     fireKey(" ");
@@ -120,8 +122,7 @@ describe("useKeyboardShortcuts", () => {
 
   it("works with only some callbacks provided (optional props)", () => {
     renderHook(() => useKeyboardShortcuts({ onPlayPause }));
-    // ArrowLeft has no handler — should not throw
-    expect(() => fireKey("ArrowLeft")).not.toThrow();
+    expect(() => fireKey(",")).not.toThrow();
     fireKey(" ");
     expect(onPlayPause).toHaveBeenCalledOnce();
   });

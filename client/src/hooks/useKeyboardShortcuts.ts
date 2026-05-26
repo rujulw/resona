@@ -2,8 +2,6 @@ import { useEffect } from "react";
 
 export type KeyboardShortcutHandlers = {
   onPlayPause?: () => void;
-  onSeekBack?: () => void;
-  onSeekForward?: () => void;
   onPrevTrack?: () => void;
   onNextTrack?: () => void;
 };
@@ -23,8 +21,6 @@ function isInputTarget(target: EventTarget | null): boolean {
 
 export function useKeyboardShortcuts({
   onPlayPause,
-  onSeekBack,
-  onSeekForward,
   onPrevTrack,
   onNextTrack,
 }: KeyboardShortcutHandlers) {
@@ -39,19 +35,17 @@ export function useKeyboardShortcuts({
           event.preventDefault();
           onPlayPause?.();
           break;
-        case "ArrowLeft":
-          event.preventDefault();
-          onSeekBack?.();
-          break;
-        case "ArrowRight":
-          event.preventDefault();
-          onSeekForward?.();
-          break;
         case ",":
+        case "F7":
+        case "MediaPreviousTrack":
+        case "MediaTrackPrevious":
           event.preventDefault();
           onPrevTrack?.();
           break;
         case ".":
+        case "F9":
+        case "MediaNextTrack":
+        case "MediaTrackNext":
           event.preventDefault();
           onNextTrack?.();
           break;
@@ -65,5 +59,5 @@ export function useKeyboardShortcuts({
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [onPlayPause, onSeekBack, onSeekForward, onPrevTrack, onNextTrack]);
+  }, [onPlayPause, onPrevTrack, onNextTrack]);
 }
