@@ -81,11 +81,14 @@ impl PlaybackRuntime {
             .unwrap_or(position_seconds);
         self.progress_seconds = position_seconds.min(duration_seconds);
 
-        if let Some(native_output) = &self.native_output {
+        if let (Some(native_output), Some(active_track)) = (&self.native_output, &self.active_track) {
             if native_output
                 .command_tx
                 .send(NativePlaybackCommand::Seek {
+                    path: active_track.local_path.clone(),
                     position_seconds: self.progress_seconds,
+                    level: self.volume_level,
+                    start_paused: !self.is_playing,
                 })
                 .is_err()
             {
@@ -155,6 +158,8 @@ impl PlaybackRuntime {
             .send(NativePlaybackCommand::Play {
                 path: active_track.local_path.clone(),
                 position_seconds: initial_position,
+                level: self.volume_level,
+                start_paused: false,
             })
             .map_err(|error| format!("Failed to start native playback: {error}"))?;
 
