@@ -1,5 +1,5 @@
 import { Pause, Play, StepBack, StepForward, Volume1, Volume2, VolumeX } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type { PlaybackShellState } from "../../desktop";
 import type { TrackListItem } from "../../desktop";
@@ -29,9 +29,26 @@ export function PlaybackBar({
 }) {
   const playbackBar = buildPlaybackBarViewModel({ activeTrack, playback });
 
-  // Local drag state prevents live progress ticks from snapping thumb during drag
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragPosition, setDragPosition] = useState(0);
+  // Uncontrolled input — React won't reset the DOM value on reconciliation.
+  // We push live progress imperatively via the ref so backward clicks aren't eaten.
+  const seekInputRef = useRef<HTMLInputElement>(null);
+  const isDraggingRef = useRef(false);
+  // Rust emits an IPC ack with the new position immediately, but the native 250ms loop
+  // can still fire one more stale tick after that. A simple timestamp cooldown is more
+  // robust than position-matching: ignore all sync updates for 800ms after a seek.
+  const seekCooldownUntilRef = useRef<number>(0);
+  // displayedSeconds drives time labels and gradient fill only — does NOT control the input.
+  const [displayedSeconds, setDisplayedSeconds] = useState(0);
+
+  // Push live progress into the DOM input when not dragging and not in seek cooldown.
+  useEffect(() => {
+    if (isDraggingRef.current) return;
+    if (Date.now() < seekCooldownUntilRef.current) return;
+    if (seekInputRef.current) {
+      seekInputRef.current.value = String(playbackBar.progressSeconds);
+    }
+    setDisplayedSeconds(playbackBar.progressSeconds);
+  }, [playbackBar.progressSeconds]);
 
   const transportButtons = [
     {
@@ -54,10 +71,11 @@ export function PlaybackBar({
   const VolumeIcon = isMuted ? VolumeX : volumeLevel > 0.5 ? Volume2 : Volume1;
 
   const seekDisabled = !playbackBar.hasActiveTrack || playbackBar.durationSeconds <= 0;
-  const displayedProgress = isDragging ? dragPosition : playbackBar.progressSeconds;
   const seekMaxSeconds = playbackBar.durationSeconds > 0 ? playbackBar.durationSeconds : 100;
+  // Divide-by-zero guard: seekMaxSeconds is guaranteed > 0 by the expression above,
+  // but be explicit so the intent is clear.
   const seekFillPercent =
-    seekMaxSeconds > 0 ? Math.min((displayedProgress / seekMaxSeconds) * 100, 100) : 0;
+    seekMaxSeconds > 0 ? Math.min((displayedSeconds / seekMaxSeconds) * 100, 100) : 0;
 
   const effectiveVolume = isMuted ? 0 : volumeLevel;
   const volumeFillPercent = effectiveVolume * 100;
@@ -109,12 +127,13 @@ export function PlaybackBar({
 
         <div className="grid gap-2">
           <input
+            ref={seekInputRef}
             aria-label="Seek playback"
             type="range"
             min={0}
             max={seekMaxSeconds}
-            step={0.1}
-            value={displayedProgress}
+            step={1}
+            defaultValue={playbackBar.progressSeconds}
             disabled={seekDisabled}
             style={{
               background: `linear-gradient(to right, rgba(143,143,143,0.9) ${seekFillPercent}%, rgba(255,255,255,0.08) ${seekFillPercent}%)`,
@@ -122,22 +141,22 @@ export function PlaybackBar({
             className="h-1 w-full cursor-pointer appearance-none rounded-full transition-all disabled:cursor-not-allowed disabled:opacity-45 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:opacity-0 hover:[&::-webkit-slider-thumb]:opacity-100 [&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:opacity-0 hover:[&::-moz-range-thumb]:opacity-100"
             onPointerDown={() => {
               if (seekDisabled) return;
-              setIsDragging(true);
-              setDragPosition(playbackBar.progressSeconds);
+              isDraggingRef.current = true;
             }}
             onChange={(e) => {
-              if (!isDragging) return;
-              setDragPosition(parseFloat(e.target.value));
+              const val = Math.round(parseFloat(e.target.value));
+              setDisplayedSeconds(val);
             }}
             onPointerUp={(e) => {
-              if (!isDragging) return;
-              const value = parseFloat((e.target as HTMLInputElement).value);
-              setIsDragging(false);
-              onSeek(value);
+              const val = Math.round(parseFloat((e.target as HTMLInputElement).value));
+              seekCooldownUntilRef.current = Date.now() + 800;
+              isDraggingRef.current = false;
+              setDisplayedSeconds(val);
+              onSeek(val);
             }}
           />
           <div className="flex justify-between text-xs text-[#8f8f8f]">
-            <span>{formatDuration(displayedProgress)}</span>
+            <span>{formatDuration(Math.round(displayedSeconds))}</span>
             <span>{formatDuration(playbackBar.durationSeconds)}</span>
           </div>
         </div>
