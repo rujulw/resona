@@ -272,6 +272,10 @@ export type SettingsRouteActions = {
 export type PlaybackChromeActions = {
   onPlaybackAction: (action: "previous" | "toggle" | "next") => void;
   onPlaybackSeek: (positionSeconds: number) => void;
+  volumeLevel: number;
+  isMuted: boolean;
+  onVolumeChange: (level: number) => void;
+  onMuteToggle: () => void;
 };
 
 export type HomeRouteActions = {

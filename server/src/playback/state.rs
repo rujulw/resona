@@ -20,6 +20,7 @@ pub(super) struct PlaybackRuntime {
     pub(super) status_label: String,
     pub(super) output_owner: String,
     pub(super) progress_seconds: u32,
+    pub(super) volume_level: f32,
     pub(super) is_playing: bool,
     pub(super) transport_label: String,
     pub(super) native_output_session: u64,
@@ -74,6 +75,7 @@ impl Default for PlaybackRuntime {
             status_label: "Nothing playing".to_owned(),
             output_owner: "frontend".to_owned(),
             progress_seconds: 0,
+            volume_level: 1.0,
             is_playing: false,
             transport_label: "Idle".to_owned(),
             native_output_session: 0,
@@ -199,6 +201,20 @@ impl PlaybackRuntimeState {
             _ => runtime.queue.push_back(track_id),
         }
         runtime.queue_snapshot()
+    }
+
+    pub fn set_volume(&self, level: f32) {
+        let mut runtime = self
+            .shared
+            .inner
+            .lock()
+            .expect("playback runtime lock should not be poisoned");
+        runtime.volume_level = level;
+        if let Some(native_output) = &runtime.native_output {
+            let _ = native_output
+                .command_tx
+                .send(NativePlaybackCommand::SetVolume { level });
+        }
     }
 
     pub fn reorder_queue(&self, track_ids: Vec<String>) -> PlaybackQueueSnapshot {

@@ -7,6 +7,10 @@ export const desktopMocks = {
   addTrackToConceptAlbumMock: vi.fn(),
   getAlbumMock: vi.fn(),
   bootstrapAppMock: vi.fn(),
+  getPersistedVolumeMock: vi.fn(),
+  setVolumeMock: vi.fn(),
+  setPersistedVolumeMock: vi.fn(),
+  updateNowPlayingMock: vi.fn(),
   createConceptAlbumMock: vi.fn(),
   createPlaylistMock: vi.fn(),
   deleteConceptAlbumMock: vi.fn(),
@@ -170,6 +174,10 @@ vi.mock("../desktop", () => ({
   pickSpotifyExportFolder: () => desktopMocks.pickSpotifyExportFolderMock(),
   mutateQueue: (...args: unknown[]) => desktopMocks.mutateQueueMock(...args),
   reorderQueue: (...args: unknown[]) => desktopMocks.reorderQueueMock(...args),
+  getPersistedVolume: () => desktopMocks.getPersistedVolumeMock(),
+  setVolume: (...args: unknown[]) => desktopMocks.setVolumeMock(...args),
+  setPersistedVolume: (...args: unknown[]) => desktopMocks.setPersistedVolumeMock(...args),
+  updateNowPlaying: (...args: unknown[]) => desktopMocks.updateNowPlayingMock(...args),
   listExcludedArtists: () => Promise.resolve([]),
   setPlaylistSidebarHidden: () => Promise.resolve(),
   setConceptAlbumSidebarHidden: () => Promise.resolve(),
@@ -749,6 +757,11 @@ export function setupAppDesktopHarness() {
       skippedDuplicate: 0,
     });
     desktopMocks.pickSpotifyExportFolderMock.mockResolvedValue(null);
+
+    desktopMocks.getPersistedVolumeMock.mockResolvedValue(1.0);
+    desktopMocks.setVolumeMock.mockResolvedValue(undefined);
+    desktopMocks.setPersistedVolumeMock.mockResolvedValue(undefined);
+    desktopMocks.updateNowPlayingMock.mockResolvedValue(undefined);
 
     desktopMocks.turnPlaylistToMixtapeMock.mockImplementation(async (playlistId: string) => ({
       id: playlistId,

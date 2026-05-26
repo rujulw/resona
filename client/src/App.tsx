@@ -116,6 +116,10 @@ export default function App() {
     playback: {
       onPlaybackAction: appShell.handlePlaybackAction,
       onPlaybackSeek: appShell.handlePlaybackSeek,
+      volumeLevel: appShell.volumeLevel,
+      isMuted: appShell.isMuted,
+      onVolumeChange: appShell.handleVolumeChange,
+      onMuteToggle: appShell.handleMuteToggle,
     },
   };
 

@@ -42,9 +42,20 @@ pub struct PlaybackSourcePayload {
 }
 
 pub(super) enum NativePlaybackCommand {
-    Play { path: String, position_seconds: u32 },
+    Play {
+        path: String,
+        position_seconds: u32,
+        level: f32,
+        start_paused: bool,
+    },
     Pause,
-    Seek { position_seconds: u32 },
+    Seek {
+        path: String,
+        position_seconds: u32,
+        level: f32,
+        start_paused: bool,
+    },
+    SetVolume { level: f32 },
     Stop,
 }
 
@@ -69,15 +80,25 @@ pub(super) fn native_playback_loop(
             Ok(NativePlaybackCommand::Play {
                 path,
                 position_seconds,
-            }) => match build_native_sink(&path, position_seconds) {
+                level,
+                start_paused,
+            }) => match build_native_sink(&path, position_seconds, level, start_paused) {
                 Ok((stream, sink)) => {
                     last_position_seconds = position_seconds;
                     stream_and_sink = Some((stream, sink));
                     publish_native_snapshot(&shared, session_id, |runtime| {
                         runtime.progress_seconds = position_seconds;
-                        runtime.is_playing = true;
-                        runtime.status_label = "Playing".to_owned();
-                        runtime.transport_label = "Playing".to_owned();
+                        runtime.is_playing = !start_paused;
+                        runtime.status_label = if start_paused {
+                            "Paused".to_owned()
+                        } else {
+                            "Playing".to_owned()
+                        };
+                        runtime.transport_label = if start_paused {
+                            "Paused".to_owned()
+                        } else {
+                            "Playing".to_owned()
+                        };
                         Some(runtime.snapshot())
                     });
                 }
@@ -97,10 +118,53 @@ pub(super) fn native_playback_loop(
                     sink.pause();
                 }
             }
-            Ok(NativePlaybackCommand::Seek { position_seconds }) => {
+            Ok(NativePlaybackCommand::Seek {
+                path,
+                position_seconds,
+                level,
+                start_paused,
+            }) => {
+                if let Some((_, sink)) = stream_and_sink.take() {
+                    sink.stop();
+                }
+
+                match build_native_sink(&path, position_seconds, level, start_paused) {
+                    Ok((stream, sink)) => {
+                        last_position_seconds = position_seconds;
+                        stream_and_sink = Some((stream, sink));
+                        publish_native_snapshot(&shared, session_id, |runtime| {
+                            let duration_seconds = runtime
+                                .active_track
+                                .as_ref()
+                                .map(|track| track.duration_seconds)
+                                .unwrap_or(position_seconds);
+                            runtime.progress_seconds = position_seconds.min(duration_seconds);
+                            runtime.is_playing = !start_paused;
+                            runtime.status_label = if start_paused {
+                                "Paused".to_owned()
+                            } else {
+                                "Playing".to_owned()
+                            };
+                            runtime.transport_label = if start_paused {
+                                "Paused".to_owned()
+                            } else {
+                                "Playing".to_owned()
+                            };
+                            Some(runtime.snapshot())
+                        });
+                    }
+                    Err(error) => {
+                        publish_native_snapshot(&shared, session_id, |runtime| {
+                            runtime.transport_label = error;
+                            Some(runtime.snapshot())
+                        });
+                    }
+                }
+                continue;
+            }
+            Ok(NativePlaybackCommand::SetVolume { level }) => {
                 if let Some((_, sink)) = &stream_and_sink {
-                    let _ = sink.try_seek(Duration::from_secs(position_seconds as u64));
-                    last_position_seconds = position_seconds;
+                    sink.set_volume(level);
                 }
             }
             Ok(NativePlaybackCommand::Stop) => {
@@ -148,7 +212,12 @@ pub(super) fn native_playback_loop(
     }
 }
 
-fn build_native_sink(path: &str, position_seconds: u32) -> Result<(OutputStream, Sink), String> {
+fn build_native_sink(
+    path: &str,
+    position_seconds: u32,
+    level: f32,
+    start_paused: bool,
+) -> Result<(OutputStream, Sink), String> {
     let stream = OutputStreamBuilder::open_default_stream()
         .map_err(|error| format!("Failed to open native output stream: {error}"))?;
     let sink = Sink::connect_new(stream.mixer());
@@ -159,11 +228,16 @@ fn build_native_sink(path: &str, position_seconds: u32) -> Result<(OutputStream,
         .map_err(|error| format!("Failed to decode local playback file: {error}"))?;
 
     sink.append(source);
+    sink.set_volume(level);
     if position_seconds > 0 {
         sink.try_seek(Duration::from_secs(position_seconds as u64))
             .map_err(|error| format!("Failed to seek native output: {error}"))?;
     }
-    sink.play();
+    if start_paused {
+        sink.pause();
+    } else {
+        sink.play();
+    }
     Ok((stream, sink))
 }
 
