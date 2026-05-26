@@ -27,6 +27,15 @@ tauri-plugin-dialog = "2"
 tauri-plugin-global-shortcut = "2"
 zip = { version = "2.2.0", default-features = false, features = ["deflate"] }
 
+[target.'cfg(target_os = "macos")'.dependencies]
+block2 = "0.6.2"
+objc2-media-player = { version = "0.3.2", features = [
+    "MPRemoteCommand",
+    "MPRemoteCommandCenter",
+    "MPRemoteCommandEvent",
+    "block2",
+] }
+
 [features]
 default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]

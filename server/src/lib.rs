@@ -5,6 +5,7 @@ mod commands;
 mod concept_albums;
 mod database;
 mod library;
+mod platform;
 mod playback;
 mod playlists;
 mod presence;
@@ -85,6 +86,9 @@ pub fn run() {
                     eprintln!("Failed to register global shortcut for {event_name}: {e}");
                 }
             }
+
+            #[cfg(target_os = "macos")]
+            crate::platform::macos::register_macos_media_keys(app.handle().clone());
 
             Ok(())
         })
