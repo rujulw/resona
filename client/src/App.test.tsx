@@ -46,6 +46,10 @@ const setArtistsProfileImagesDirMock = vi.fn();
 const pickArtistsProfileImagesDirMock = vi.fn();
 const importSpotifyHistoryFolderMock = vi.fn();
 const pickSpotifyExportFolderMock = vi.fn();
+const getPersistedVolumeMock = vi.fn();
+const setVolumeMock = vi.fn();
+const setPersistedVolumeMock = vi.fn();
+const updateNowPlayingMock = vi.fn();
 const mockAudioInstances: MockAudio[] = [];
 
 vi.mock("./desktop", () => ({
@@ -93,6 +97,10 @@ vi.mock("./desktop", () => ({
   pickArtistsProfileImagesDir: (...args: unknown[]) => pickArtistsProfileImagesDirMock(...args),
   importSpotifyHistoryFolder: (...args: unknown[]) => importSpotifyHistoryFolderMock(...args),
   pickSpotifyExportFolder: () => pickSpotifyExportFolderMock(),
+  getPersistedVolume: () => getPersistedVolumeMock(),
+  setVolume: (...args: unknown[]) => setVolumeMock(...args),
+  setPersistedVolume: (...args: unknown[]) => setPersistedVolumeMock(...args),
+  updateNowPlaying: (...args: unknown[]) => updateNowPlayingMock(...args),
   listExcludedArtists: () => Promise.resolve([]),
   setPlaylistSidebarHidden: () => Promise.resolve(),
   setConceptAlbumSidebarHidden: () => Promise.resolve(),
@@ -225,6 +233,10 @@ describe("app shell smoke checks", () => {
     pickArtistsProfileImagesDirMock.mockReset();
     importSpotifyHistoryFolderMock.mockReset();
     pickSpotifyExportFolderMock.mockReset();
+    getPersistedVolumeMock.mockReset();
+    setVolumeMock.mockReset();
+    setPersistedVolumeMock.mockReset();
+    updateNowPlayingMock.mockReset();
     mockAudioInstances.length = 0;
     mockBackendPlayback = {
       statusLabel: "Nothing playing",
@@ -267,6 +279,10 @@ describe("app shell smoke checks", () => {
       skippedDuplicate: 0,
     });
     pickSpotifyExportFolderMock.mockResolvedValue(null);
+    getPersistedVolumeMock.mockResolvedValue(1.0);
+    setVolumeMock.mockResolvedValue(undefined);
+    setPersistedVolumeMock.mockResolvedValue(undefined);
+    updateNowPlayingMock.mockResolvedValue(undefined);
 
     bootstrapAppMock.mockResolvedValue({
       appName: "resona",
