@@ -31,6 +31,10 @@ export function AppShell({
         playback={chrome.playback}
         onPlaybackAction={playback.onPlaybackAction}
         onSeek={playback.onPlaybackSeek}
+        volumeLevel={playback.volumeLevel}
+        isMuted={playback.isMuted}
+        onVolumeChange={playback.onVolumeChange}
+        onMuteToggle={playback.onMuteToggle}
       />
     </main>
   );
